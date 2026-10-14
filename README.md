@@ -366,6 +366,10 @@ _Regenerate: `python -m benchmark.run_all [--data-dir <SWaT archive>]`. Full tab
 * **Rule-based checks** (constructed scenarios, not SWaT): 4400/4400 violating scenarios dropped with the expected reason, legitimate false-positive rate 0.0%. Deterministic rules: a regression check, not a detection claim.
 * **Twin** (synthetic plant, not SWaT): 0.25 model alarm episodes per hour on the healthy twin.
 
+![Held-out SWaT confusion matrices](docs/reports/figures/swat_confusion_matrix.png)
+
+![Per-hop latency](docs/reports/figures/latency_per_hop.png)
+
 <!-- BENCHMARK:END -->
 
 Four sections with different evidential weight, always reported separately: **latency** (real code, constructed workload); **held-out SWaT** (the only real-data detection result, physical side only);

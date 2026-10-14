@@ -14,7 +14,7 @@ import argparse
 import json
 import os
 
-from benchmark import latency, render, rules_accuracy, swat_accuracy
+from benchmark import latency, plots, render, rules_accuracy, swat_accuracy
 from benchmark.env import ROOT, environment
 
 OUT = os.path.join(ROOT, "benchmarks")
@@ -77,7 +77,8 @@ def main() -> None:
             text = fh.read()
         with open(README, "w") as fh:
             fh.write(render.update_readme(text, render.render_readme_block(res)))
-        print("Re-rendered README block and report from benchmarks/latest.json")
+        plots.make_all(res, ROOT)
+        print("Re-rendered README block, report and figures from benchmarks/latest.json")
         return
     res = collect(a.n, a.warmup, a.repeats, a.per_case, a.per_type, a.twin_hours, a.seed, a.data_dir, a.live)
     if a.quick and not a.write:
@@ -93,6 +94,7 @@ def main() -> None:
         text = fh.read()
     with open(README, "w") as fh:
         fh.write(render.update_readme(text, render.render_readme_block(res)))
+    plots.make_all(res, ROOT)
     print(render.render_readme_block(res))
     print(f"\nWrote benchmarks/latest.json, {os.path.relpath(REPORT, ROOT)} and the BENCHMARK block of README.md")
 
