@@ -56,14 +56,14 @@ python -m scada.scada                  # 4. the operator: one signed write every
 No secret needs setting on one machine: the first process that needs it creates `config/hmac_secret.key` (mode 0600, git-ignored) and the others read it.
 
 **What you should see**
-* Terminal 4 prints `WRITE SENT ...` every 2 s; terminal 3 prints `[MIDDLEWARE] PASS src=127.0.0.1 MV101=...`.
-* Dashboard (`http://127.0.0.1:5050`): the *SCADA -> PLC* table fills with green `PASS` rows, the telemetry panel shows the 10 sensors.
-* For the first ~30 s the physical model reports `WARMING_UP` (it needs a 30-second window of telemetry). After that, an occasional yellow `ALERT`
+* Terminal 4 (SCADA) prints a line like `[SCADA] WRITE SENT tx=0f4bfc74 reg=MV302 value=98.00` every 2 s (it cycles through the actuators, each near its nominal); terminal 3 (middleware) prints `[MIDDLEWARE] PASS src=127.0.0.1 MV302=98.00 reason=OK ...` for each.
+* Dashboard (`http://127.0.0.1:5050`): the *SCADA -> PLC* table fills with green `PASS` rows, the telemetry panel shows all 20 points (10 sensors and 10 actuators).
+* For the first ~30 s the physical model reports `WARMING_UP` (it needs a 30-second window of telemetry). The middleware terminal prints a status line every 5 s containing `plant=WARMING_UP window=11/30`; it becomes `plant=NORMAL` once the window is full. After that, an occasional yellow `ALERT`
   row on a healthy plant is normal: the model is advisory and has a false-alarm rate (see Limitations).
 * Press **Attacks** on the dashboard and click **HMAC Tamper**: a red `DROP` row appears with reason `HMAC_INVALID`, and the bottom
   **Packet Tracer** panel shows the `hmac` check in red and everything after it `NOT_RUN`.
 
-Stop everything with Ctrl-C. **Restart the PLC (terminal 1) between demo runs**: an attack such as *False Injection* really changes the plant state, and the
+Blocked commands are logged to `logs/blocked_attacks.jsonl` in the project folder (set `IM_LOG_DIR` to put it elsewhere). Stop everything with Ctrl-C. **Restart the PLC (terminal 1) between demo runs**: an attack such as *False Injection* really changes the plant state, and the
 twin keeps it until restarted. The dashboard **Reset** button clears only the dashboard.
 
 ---
@@ -274,7 +274,7 @@ attacks model an external attacker **without** the key. For several source addre
 ## Dashboard and Packet Tracer
 
 `python dashboard/app.py` serves `http://127.0.0.1:5050` (set `IM_DASHBOARD_BIND_HOST=0.0.0.0` only if another laptop must open it). It shows KPIs (total/pass/drop), the **SCADA -> PLC** and **PLC -> SCADA** security
-tables, live telemetry for the 10 sensors, CPU, the **Blocked sources** section (read from `logs/blocked_attacks.jsonl`, so it must run on the machine that runs the middleware), and an **Attacks** panel
+tables, live telemetry for all 20 points (10 sensors, 10 actuators), CPU, the **Blocked sources** section (read from `logs/blocked_attacks.jsonl`, so it must run on the machine that runs the middleware), and an **Attacks** panel
 that launches the fixed attacks (it runs the attacker on the dashboard's own machine). **Reset** clears the dashboard only, not the plant.
 
 **Packet Tracer** (bottom panel). Click any command in the list (or let it follow the newest): the seven hops it met, with the values the backend computed:
@@ -325,7 +325,7 @@ Goal: a presenter who has never seen the project runs the whole demo and can che
 | 8 | **Impossible Command** | `DROP` `OUT_OF_BOUNDS` | P101 = 999 |
 | 9 | `attacker.py sensor-write` (CLI only: no dashboard button) | `DROP` `WRITE_TO_SENSOR_REGISTER` | LIT101 is read-only |
 | 10 | **Cross-Register** (on a clean plant) | the inlet valve ramp is stopped at about 15 %; reason `CROSS_REGISTER_VIOLATION:RAW_PUMP_DRY_RUN...`; the script prints "Unsafe state PREVENTED" | each step is in bounds and slow, the combination is unsafe |
-| 11 | `attacker.py random --type ramp` (twice) | different target and pacing each time (the seed is printed); some steps `DROP` (`RATE_OF_CHANGE_EXCEEDED` / cross-register), many pass: the rules do not stop slow in-bounds drift | randomisation, and an honest limit of the rules |
+| 11 | `attacker.py random --type ramp` (twice) | different target and pacing each time (the seed is printed; `--seed 3` reproduces one). The outcome depends on the seed and pacing: steps that are too fast `DROP` (`RATE_OF_CHANGE_EXCEEDED`), steps that complete an unsafe pair `DROP` (cross-register), and slow in-bounds steps pass (they may carry an `ALERT`) | randomisation; the rules stop fast or unsafe drift but not slow in-bounds drift |
 | 12 | **False Injection** (last: it damages the plant) | a legitimate `PASS`, then a direct PLC write the middleware never saw; afterwards **yellow `ALERT` rows** on later commands (the advisory model sees the wrong plant state) and a `SENSOR_ENVELOPE_VIOLATION` warning in the middleware terminal | an attack that **bypasses** the middleware is only visible through the physical side; restart the PLC afterwards |
 
 Observed on this stack (single laptop, recorded while writing this runbook): all `DROP` reasons above appeared as listed; 14 blocked commands over the ten fixed attacks; flood dropped 6 of its 10 frames; after false-injection the plant drifted
