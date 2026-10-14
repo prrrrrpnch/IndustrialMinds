@@ -24,7 +24,7 @@ the physics in `plc/twin.py` (a write to a sensor register is dropped: `WRITE_TO
 | 9 | P302 | S3 Ultrafiltration | actuator | UF Feed Pump | 0 – 100 % | 40 | 8/s |
 | 10 | LIT301 | S3 Ultrafiltration | sensor | UF Tank Level | 0 – 1000 mm | 667 | 200/s |
 | 11 | DPIT301 | S3 Ultrafiltration | sensor | Membrane dP | 0 – 60 kPa | 13.2 | 10/s |
-| 12 | P401 | S4 Dechlorination | actuator | Dechlor Feed Pump | 0 – 100 % | 40 | 8/s |
+| 12 | P402 | S4 Dechlorination | actuator | Dechlor Feed Pump | 0 – 100 % | 40 | 8/s |
 | 13 | UV401 | S4 Dechlorination | actuator | UV Lamp | 0 – 100 % | 60 | 10/s |
 | 14 | LIT401 | S4 Dechlorination | sensor | Dechlor Tank Level | 0 – 1000 mm | 667 | 200/s |
 | 15 | AIT402 | S4 Dechlorination | sensor | ORP | 0 – 800 mV | 290 | 150/s |
@@ -52,7 +52,7 @@ Verified by `python -m tests.test_twin_propagation` (S1 pump change -> S2 ~1.4 s
 | UF_TANK_OVERFLOW | MV302 >= 80 AND P302 <= 10 | UF feed valve wide open while the UF feed pump is nearly stopped - UF tank overflows (S3) |
 | CHLORINE_BREAKTHROUGH | P205 >= 80 AND UV401 <= 10 | heavy hypochlorite dosing while the dechlorination UV lamp is nearly off (S2 -> S4) |
 | RO_PUMP_DEADHEAD | P501 >= 70 AND MV503 <= 10 | RO high-pressure pump driven hard against a nearly closed reject valve (S5) |
-| RO_FEED_STARVATION | P501 >= 60 AND P401 <= 10 | RO high-pressure pump at high speed while the dechlorination feed pump is nearly off (S5 <- S4) |
+| RO_FEED_STARVATION | P501 >= 60 AND P402 <= 10 | RO high-pressure pump at high speed while the dechlorination feed pump is nearly off (S5 <- S4) |
 
 Plus two state-dependent rules in `middleware/physical_agent.py`: VALVE_CLOSING_LOW_LEVEL (MV101 closes
 >= 25 points while LIT101 is in its bottom 20 %) and RO_PRESSURE_OVERLOAD (P501 > 90 % of max while

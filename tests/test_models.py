@@ -1,5 +1,5 @@
 """
-tests/test_models.py - CyberModel / PhysicalModel checks (checklist sections 2 and 3).
+tests/test_models.py - PhysicalModel checks (synthetic until Phase 6; CyberModel -> tests/test_swat_cyber.py).
 
     python -m models.train_models      # once, creates models/weights/
     python -m tests.test_models
@@ -17,9 +17,8 @@ import numpy as np
 from docs.netconfig import LOOPBACK  # documented loopback default
 from docs.interfaces import MACHINES, NUM_REGISTERS, make_command
 from docs import hmac_auth
-from models.cyber_model import CyberModel, FEATURE_NAMES
 from models.physical_model import N_STEP_FEATURES, PhysicalModel
-from models.telemetry_generator import ChannelProfile, generate_channel, generate_normal_commands
+from models.telemetry_generator import ChannelProfile, generate_channel
 
 PASSED = []
 
@@ -30,55 +29,7 @@ def check(name: str, cond: bool, detail: str = "") -> None:
     PASSED.append(name)
 
 
-print("=" * 70)
-print("CYBER MODEL")
-print("=" * 70)
-
-cm = CyberModel.load()
-check("weights load", cm.status == "OK", cm.status)
-for meth in ("fit", "predict", "evaluate_payload"):
-    check(f"CyberModel.{meth}() exists", callable(getattr(cm, meth, None)))
-
-# Raw command -> feature vector
-cmd, state = next(generate_normal_commands(1, seed=99))
-vec = cm.extractor.transform(cmd, state, update=False)
-check("payload -> feature vector", vec.shape == (len(FEATURE_NAMES),) and np.isfinite(vec).all(),
-      f"{len(FEATURE_NAMES)} features")
-
-# Normal traffic mostly not flagged; obvious anomalies flagged
-normal = [cm.evaluate_payload(c, s) for c, s in generate_normal_commands(500, seed=321)]
-fpr = np.mean([r["threat_flag"] for r in normal])
-check("normal traffic false-positive rate < 3%", fpr < 0.03, f"{fpr:.1%}")
-
-now = time.time()
-burst = []
-for i in range(12):   # 12 commands in 120 ms, unsigned, big jumps
-    c = make_command(f"b{i}", now + i * 0.01, LOOPBACK, 6, 1, 110.0 - i,
-                     raw_value=1100 - i * 10, auth=None)
-    burst.append(cm.evaluate_payload(c, {"registers": {1: 5.0}}))
-check("unsigned burst flagged as anomalous", burst[-1]["threat_flag"],
-      f"score={burst[-1]['anomaly_score']} thr={cm.threshold:.3f}")
-
-r = cm.evaluate_payload(cmd, state)
-check("evaluate_payload latency < 10 ms", r["latency_ms"] < 10, f"{r['latency_ms']} ms")
-
-# Packed inference == sklearn
-X = np.vstack([cm.extractor.transform(c, s) for c, s in generate_normal_commands(300, seed=5)])
-diff = np.abs(cm.anomaly_scores(X) - (-cm._model.score_samples(X))).max()
-check("packed inference == sklearn score_samples", diff < 1e-12, f"max diff {diff:.1e}")
-
-# Fallback: missing and corrupt weights
-missing = CyberModel.load("/nonexistent/cyber.joblib")
-rm = missing.evaluate_payload(cmd, state)
-check("missing weights -> NO_MODEL, no crash, abstains",
-      rm["status"] == "NO_MODEL" and rm["threat_flag"] is False and rm["anomaly_score"] is None)
-with tempfile.NamedTemporaryFile(suffix=".joblib", delete=False) as fh:
-    fh.write(b"not a model")
-corrupt = CyberModel.load(fh.name)
-os.unlink(fh.name)
-check("corrupt weights -> NO_MODEL, no crash", corrupt.evaluate_payload(cmd, state)["status"] == "NO_MODEL")
-bad = cm.evaluate_payload({"timestamp": "garbage"}, None)
-check("malformed command -> ERROR status, no crash", bad["status"] == "ERROR" and bad["threat_flag"] is False)
+# CyberModel checks live in tests/test_swat_cyber.py (SWaT-derived schema, Phase 5).
 
 print()
 print("=" * 70)

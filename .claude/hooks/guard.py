@@ -135,7 +135,8 @@ def check_bash(cmd, cwd, conf):
         if re.search(r"(>|>>|\btee\b|\bcp\b|\bmv\b|\binstall\b|\bdd\b|joblib\.dump|\.dump\(|\bsed -i)", cmd):
             for m in re.findall(r"models/weights/[\w.\-]+", cmd):
                 check_weight_write(absp(m, ROOT), conf)
-    if re.search(r"models\.train|train_(cyber|physical|orchestrator)|train_models", cmd):
+    # only EXECUTION of a training entry point (python [-m] ...train...), not reads like sed/cat/grep
+    if re.search(r"\bpython[\d.]*\s+(-\w+\s+)*(-m\s+)?[\w./\\]*train\w*(\.py)?\b", cmd):
         if "--candidate" not in cmd and "--out-dir" not in cmd and not conf["retrain"]:
             block("training commands that may write models/weights need --candidate/--out-dir "
                   "(writes to models/candidates/) or a confirmed retrain for that model")
