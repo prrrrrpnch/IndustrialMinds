@@ -116,7 +116,7 @@ Reference files are listed by path below; none are auto-loaded.
 | `dashboard/app.py`, `dashboard/static/`, `dashboard/templates/` | Flask dashboard + UI |
 | `evaluation/` | legacy synthetic xlsx evaluation (superseded in Phase 11) |
 | `tests/` | unit/pipeline/stress tests |
-| `tools/traffic_inspect.py` | UNUSED since the no-cyber-ML decision (inspected one traffic dataset: mostly non-Modbus, 1.2% Modbus rows); candidate for removal |
+| `docs/reports/fusion_training_report_swat.md` | Phase 7 fusion candidate, REAL SWaT held-out: val AUC 0.93 but TEST AUC 0.68 < physical alone 0.83; detects 4/10 test segments vs 6/10; NOT promoted (pending user decision) |
 | `tools/swat_inspect.py` | Phase 4: run locally on the SWaT folder; prints aggregate-only report + JSON manifest (no raw rows) |
 | `.claude/hooks/guard.py`, `.claude/hooks/confirm.py`, `.claude/settings.json` | hook logic / confirmation helper / wiring |
 
