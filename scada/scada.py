@@ -54,6 +54,7 @@ OPERATOR_PROFILES = {
         "current": float(m["initial"]),
     }
     for m in MACHINES
+    if m["kind"] == "actuator"      # SCADA commands actuators only; sensors are read back
 }
 
 
@@ -242,7 +243,7 @@ def run_operator_loop(host: str = netconfig.MIDDLEWARE_HOST, port: int = netconf
 
     # Rotate through every configured machine.
     registers = [
-        m["name"] for m in MACHINES
+        m["name"] for m in MACHINES if m["kind"] == "actuator"
     ]
 
     index = 0

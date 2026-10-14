@@ -327,41 +327,71 @@
                 </div>
 
 
-                <div class="telemetry-list">
+                <div class="plant-legend">
+                    <span class="lg"><i class="lg-chip act"></i> Actuator (command)</span>
+                    <span class="lg"><i class="lg-chip sen"></i> Sensor (read-only)</span>
+                    <span class="lg"><i class="lg-arrow"></i> Process flow S1 &rarr; S5</span>
+                    <span class="lg"><i class="lg-chip chg"></i> Changed &gt;3% of range</span>
+                </div>
 
-                    {% for m in machines %}
-                    {% set u = '°' if m.unit == 'deg' else ('°C' if m.unit == 'C' else ' ' ~ m.unit) %}
+                <div class="stage-flow">
+                {% for sid in range(1, 6) %}
+                {% set pts = machines | selectattr('stage', 'equalto', sid) | list %}
+                {% set st = stages[sid] %}
+                {% if not loop.first %}<div class="flow-arrow" aria-hidden="true"><span></span></div>{% endif %}
 
-                    <div class="telemetry-item">
-
-                        <div class="telemetry-header">
-
-                            <span>
-                                {{ m.label }}
-                            </span>
-
-                            <span class="telemetry-val" id="val-{{ m.name }}">
-                                {{ m.initial }}{{ u }}
-                            </span>
-
+                <article class="stage-card" data-stage="{{ sid }}">
+                    <header class="stage-head">
+                        <span class="stage-id">{{ st.id }}</span>
+                        <div class="stage-title">
+                            <strong>{{ st.name }}</strong>
+                            <small>SWaT {{ st.swat }}</small>
                         </div>
+                    </header>
 
-
-                        <div class="progress-bar">
-
-                            <div class="progress-fill {{ m.bar_class }}" id="bar-{{ m.name }}" style="width:{{ (m.initial - m.min) / (m.max - m.min) * 100 }}%;"></div>
-
+                    {% set lvl = pts | selectattr('kind', 'equalto', 'sensor') | selectattr('unit', 'equalto', 'mm') | list %}
+                    <div class="stage-viz">
+                    {% if lvl %}
+                        <div class="tank" data-viz="tank" data-tag="{{ lvl[0].name }}" title="{{ lvl[0].label }}">
+                            <div class="tank-fill" id="tank-{{ lvl[0].name }}" style="height:{{ (lvl[0].initial - lvl[0].min) / (lvl[0].max - lvl[0].min) * 100 }}%"></div>
+                            <span class="tank-tag">{{ lvl[0].name }}</span>
                         </div>
-
-
-                        <span class="range-info">
-                            {{ m.machine }} · Safe range: {{ m.min }} – {{ m.max }}{{ u }}
-                        </span>
-
+                    {% elif sid == 2 %}
+                        {% set ph = pts | selectattr('name', 'equalto', 'AIT202') | first %}
+                        <div class="ph-gauge" data-viz="ph" data-tag="AIT202" title="{{ ph.label }}">
+                            <div class="ph-scale"><i class="ph-marker" id="gauge-AIT202" style="left:{{ (ph.initial - ph.min) / (ph.max - ph.min) * 100 }}%"></i></div>
+                            <div class="ph-ticks"><span>{{ ph.min }}</span><span>acid</span><span>7</span><span>base</span><span>{{ ph.max }}</span></div>
+                        </div>
+                    {% else %}
+                        {% set pr = pts | selectattr('name', 'equalto', 'PIT501') | first %}
+                        <div class="dial" data-viz="dial" data-tag="PIT501" title="{{ pr.label }}">
+                            <div class="dial-arc"></div>
+                            <i class="dial-needle" id="gauge-PIT501"></i>
+                            <span class="dial-hub"></span>
+                            <span class="dial-lo">{{ pr.min|int }}</span><span class="dial-hi">{{ pr.max|int }} {{ pr.unit }}</span>
+                        </div>
+                    {% endif %}
                     </div>
 
+                    {% for kind, title in [('actuator', 'Actuators'), ('sensor', 'Sensors')] %}
+                    <div class="point-group {{ kind }}">
+                        <div class="group-title">{{ title }}</div>
+                        {% for m in pts if m.kind == kind %}
+                        {% set u = '°' if m.unit == 'deg' else ('°C' if m.unit == 'C' else ' ' ~ m.unit) %}
+                        <div class="point {{ kind }}" id="row-{{ m.name }}" title="{{ m.machine }} · range {{ m.min }} – {{ m.max }}{{ u }}">
+                            <div class="point-head">
+                                <span class="point-name"><b>{{ m.name }}</b> {{ m.label }}</span>
+                                <span class="telemetry-val point-val" id="val-{{ m.name }}">{{ m.initial }}{{ u }}</span>
+                            </div>
+                            <div class="progress-bar thin">
+                                <div class="progress-fill {{ m.bar_class }}" id="bar-{{ m.name }}" style="width:{{ (m.initial - m.min) / (m.max - m.min) * 100 }}%;"></div>
+                            </div>
+                        </div>
+                        {% endfor %}
+                    </div>
                     {% endfor %}
-
+                </article>
+                {% endfor %}
                 </div>
 
             </section>

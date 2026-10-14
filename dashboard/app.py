@@ -45,7 +45,7 @@ PROJECT_ROOT = os.path.dirname(
 if PROJECT_ROOT not in sys.path:
     sys.path.insert(0, PROJECT_ROOT)
 
-from docs.interfaces import MACHINES  # noqa: E402
+from docs.interfaces import MACHINES, STAGES  # noqa: E402
 from docs import attack_log, netconfig  # noqa: E402
 
 app = Flask(__name__)
@@ -322,7 +322,8 @@ def index() -> str:
 
     return render_template(
         "index.html",
-        machines=MACHINES
+        machines=MACHINES,
+        stages=STAGES
     )
 
 

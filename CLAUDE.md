@@ -50,6 +50,10 @@ Reference files are listed by path below; none are auto-loaded.
 - `docs/netconfig.py` is the ONLY place host/port defaults live (env vars documented in its header).
 - Weights were pickled with scikit-learn 1.8.0; env has 1.9.1 -> InconsistentVersionWarning (harmless; retrain in P5/P6 fixes).
 - Pre-existing lab IPs remain only in synthetic-data files (telemetry_generator, train_models, evaluation, some tests); replaced when data is replaced in P5-P7/P11.
+- Plant = 5 stages x 4 points = 20 registers (10 actuators writable, 10 sensors read-only); register constants are SWaT tags (MV101, LIT101...). Old names (TANK_PRESSURE...) are gone.
+- Wire scale is x10 (0.1 resolution): pH/permeate flow are coarse; max representable 6553.5.
+- Model weights in models/weights are STALE (trained on the old 10 synthetic machines); they still load (per-channel features) but their scores mean nothing until P5/P6. Advisory only.
+- `evaluation/` (xlsx, generate_test_data, evaluate_system) targets the OLD register names and is non-functional until replaced in P11.
 - `docs/wireshark_setup.md` is currently an empty file (filled in Phase 10).
 
 ## File index (open only when relevant)
@@ -72,7 +76,9 @@ Reference files are listed by path below; none are auto-loaded.
 | `models/train_models.py`, `models/telemetry_generator.py` | training (currently synthetic) |
 | `models/tree_inference.py` | packed fast tree inference |
 | `models/weights/` | trained artifacts + `training_report.json` (guarded) |
-| `plc/plc.py` | PLC twin: Modbus server + physics loop |
+| `plc/plc.py` | PLC: Modbus server around the twin (actuator writes -> targets; sensors read-only) |
+| `plc/twin.py` | staged SWaT-style physics (5 stages, 20 points, inter-stage coupling); env IM_TWIN_TIME_SCALE / IM_TWIN_NOISE |
+| `tests/test_twin_propagation.py` | Phase 3 check: perturb S1, assert S2..S5 respond in order (`--live` over Modbus) |
 | `scada/scada.py` | operator simulator (`--host` pattern to copy) |
 | `attacker/attacker.py` | attack scripts (rebuilt in Phase 8) |
 | `dashboard/app.py`, `dashboard/static/`, `dashboard/templates/` | Flask dashboard + UI |
@@ -84,12 +90,12 @@ Reference files are listed by path below; none are auto-loaded.
 | # | Issue | Closed by | Status |
 |---|---|---|---|
 | 1 | Models trained only on synthetic data | P5, P6 (SWaT) | open |
-| 2 | Guessed physical bounds | P3, P6 | open |
+| 2 | Guessed physical bounds | P6 (P3 only installs SWaT-style PLACEHOLDERS) | open |
 | 3 | Hardcoded 127.0.0.1 | P2 | CLOSED (docs/netconfig.py; env+CLI; grep clean) |
 | 4 | Orchestrator is AND-gate | P7 | open |
 | 5 | No orchestrator model | P7 | open |
 | 6 | Attacker deterministic | P8 | open |
-| 7 | Twin is flat list, not SWaT-like | P3 | open |
+| 7 | Twin is flat list, not SWaT-like | P3 | CLOSED (5 stages x 4 pts, coupled physics, propagation check passes) |
 | 8 | No per-layer journey visibility | P9 | open |
 | 9 | No live network proof | P10 | open |
 | 10 | No reproducible verification | P11 | open |

@@ -223,6 +223,8 @@ function updatePlcToScada(events) {
 // TELEMETRY
 // =========================================================
 
+const _prevTelemetry = {};
+
 function updateTelemetry(telemetry) {
 
     const registers =
@@ -238,6 +240,11 @@ function updateTelemetry(telemetry) {
                 registers[machine.name] ?? 0
             );
 
+        const range = machine.max - machine.min;
+        const frac = range > 0
+            ? Math.max(0, Math.min(1, (value - machine.min) / range))
+            : 0;
+
         setText(
             `val-${machine.name}`,
             `${value.toFixed(1)}${unitSuffix(machine.unit)}`
@@ -248,7 +255,43 @@ function updateTelemetry(telemetry) {
             value - machine.min,
             machine.max - machine.min
         );
+
+        // Process graphics (tank fill / pH marker / pressure dial)
+        const tank = document.getElementById(`tank-${machine.name}`);
+        if (tank) {
+            tank.style.height = `${frac * 100}%`;
+        }
+        const marker = document.getElementById(`gauge-${machine.name}`);
+        if (marker) {
+            if (marker.classList.contains("dial-needle")) {
+                marker.style.transform =
+                    `translateX(-50%) rotate(${-90 + frac * 180}deg)`;
+            } else {
+                marker.style.left = `${frac * 100}%`;
+            }
+        }
+
+        // Highlight moves of more than 3% of range between polls
+        const prev = _prevTelemetry[machine.name];
+        if (prev !== undefined && range > 0 &&
+            Math.abs(value - prev) > 0.03 * range) {
+            flashPoint(machine.name);
+        }
+        _prevTelemetry[machine.name] = value;
     });
+}
+
+
+function flashPoint(name) {
+
+    const el = document.getElementById(`row-${name}`);
+    if (!el) {
+        return;
+    }
+    el.classList.remove("changed");
+    void el.offsetWidth;  // restart the CSS animation
+    el.classList.add("changed");
+    setTimeout(() => el.classList.remove("changed"), 1800);
 }
 
 
