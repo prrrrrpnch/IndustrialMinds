@@ -39,8 +39,9 @@ from docs.interfaces import (
 L_MAX = 1200.0            # tank height, mm (SWaT LIT301 reaches 1200)
 K_REF = 2.0               # mm per (flow-unit * s) at the REFERENCE flow below; keeps propagation timing
 Q_REF = 8.0               # reference flow the timing was originally tuned for (m3/h)
-BW_DP_FACTOR = 1.08       # UF backwash starts when DPIT301 exceeds this multiple of its nominal value
-FOULING_PER_S = 1.3e-4    # fouling growth per second at nominal flow (about a 30 min backwash cycle)
+BW_DP_FACTOR = 1.12       # UF backwash starts when DPIT301 exceeds this multiple of its nominal value (stays inside the measured envelope)
+FOULING_PER_S = 2.5e-5    # fouling growth per second at nominal flow: first backwash after ~1 h, then every ~4 h
+BW_OUTPUT_FACTOR = 0.6    # UF output during a backwash (a mild transient; SWaT normal data shows no violent ones)
 BW_SECONDS = 8.0
 SENSOR_NOISE_FRAC = 0.002  # sensor noise std as fraction of range (when noise is on)
 PH_GAIN, ORP_GAIN, F0 = 1.5, 60.0, 0.2
@@ -160,7 +161,7 @@ class PlantTwin:
         # ---- S3 UF: valve splits S2 flow between UF tank and return to S1 tank
         q3in = self.q1 * a[MV302]
         q_ret = self.q1 - q3in
-        bw_factor = 0.2 if self.backwash_left > 0 else 1.0
+        bw_factor = BW_OUTPUT_FACTOR if self.backwash_left > 0 else 1.0
         q3out = _pump_out(c.cap3, a[P302], self.l3) * bw_factor
         self.q3 = _lag(self.q3, q3out, dt, 1.0)
         self.dp = _lag(self.dp, c.dp0 + c.g_dp * q3out * (1.0 + 3.0 * self.fouling), dt, 1.0)

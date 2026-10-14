@@ -59,7 +59,14 @@ for i in range(36000):
             outside[m["name"]] += not (B[m["name"]]["envelope_lo"] <= x <= B[m["name"]]["envelope_hi"])
 for m in sensors:
     check(f"{m['name']:8s} stays inside the measured normal envelope", outside[m["name"]] / n <= 0.001, f"{outside[m['name']]} of {n} samples outside")
-check("the UF backwash cycle runs (SWaT-like sawtooth on DPIT301)", tw.backwashes >= 1, f"{tw.backwashes} backwashes in 1 h")
+fast = PlantTwin(noise=True, seed=6, time_scale=20.0)      # 36,000 steps x 2 s = 20 simulated hours
+dp_max = 0.0
+for i in range(36000):
+    fast.step(0.1)
+    if i % 50 == 0:
+        dp_max = max(dp_max, fast.values()[[m for m in sensors if m["name"] == "DPIT301"][0]["register"]])
+check("the UF backwash cycle runs over 20 simulated hours (slow, SWaT-like) and DPIT301 never leaves the measured envelope",
+      fast.backwashes >= 2 and dp_max <= B["DPIT301"]["envelope_hi"], f"{fast.backwashes} backwashes, max DPIT301 {dp_max:.2f} <= {B['DPIT301']['envelope_hi']:.2f}")
 
 print("\nALL PASS" if fails == 0 else f"\n{fails} CHECK(S) FAILED")
 raise SystemExit(1 if fails else 0)
