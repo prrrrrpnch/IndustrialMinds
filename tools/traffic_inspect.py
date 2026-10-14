@@ -71,6 +71,25 @@ def guess_roles(cols: List[str]) -> Dict[str, List[str]]:
     return roles
 
 
+LABEL_PRIORITY = ["attack_label", "label", "attack_type", "attack_category", "traffic_category", "class", "target", "category", "type"]
+LABEL_AVOID = ("icmp", "tcp", "udp", "http", "ip_", "dns", "frame", "eth", "arp", "mqtt", "modbus", "tls", "quic", "flags", "opcode")
+
+
+def rank_label_candidates(df: pd.DataFrame, cols: List[str]) -> List[str]:
+    """Label-like columns, best first: exact priority names win, protocol-header fields (icmp_type, tcp_flags...) are avoided."""
+    scored = []
+    for c in cols:
+        low = c.lower()
+        if any(low.startswith(a) or f"_{a}" in low for a in LABEL_AVOID):
+            continue
+        for rank, name in enumerate(LABEL_PRIORITY):
+            if low == name or low.endswith("_" + name) or low.endswith(name):
+                if df[c].nunique(dropna=True) <= 60:
+                    scored.append((rank, c))
+                break
+    return [c for _, c in sorted(scored)]
+
+
 def to_attack(s: pd.Series) -> Tuple[Optional[np.ndarray], Dict[str, int]]:
     counts = {str(k): int(v) for k, v in s.value_counts(dropna=False).head(15).items()}
     key = s.astype(str).str.strip().str.lower().str.replace(r"\s+", "", regex=True)
@@ -122,6 +141,7 @@ def main() -> int:
     ap.add_argument("--out", default="traffic_inspection")
     ap.add_argument("--label-col")
     ap.add_argument("--time-col")
+    ap.add_argument("--focus-protocol", help="e.g. Modbus: also analyse only the rows of that protocol (label mix, protocol-specific fields)")
     ap.add_argument("--max-rows", type=int, default=3_000_000, help="rows read per file (default 3,000,000)")
     ap.add_argument("--seg-gap", type=float, default=5.0, help="seconds: attack rows farther apart start a new segment")
     a = ap.parse_args()
@@ -166,12 +186,25 @@ def main() -> int:
         if a.time_col:
             roles["time"] = [a.time_col]
         info["roles"] = roles
+        emit("  COLUMNS (name | kind | non-null | distinct | values if <= 8 distinct):")
+        for c in df.columns:
+            nn = float(df[c].notna().mean())
+            nu = int(df[c].nunique(dropna=True))
+            vals = ""
+            if nu <= 8:
+                vals = " " + str({str(k): int(v) for k, v in df[c].value_counts().items()})
+            emit(f"    {c[:34]:34s} {str(df[c].dtype):8s} {nn:6.1%} {nu:9,d}{vals}"[:200])
         for r, cs in roles.items():
             emit(f"  role {r:10s}: {cs[:6] if cs else '-'}")
 
         # ---- label
         attack = None
-        lab = roles["label"][0] if roles["label"] else None
+        cands = rank_label_candidates(df, list(df.columns))
+        info["label_candidates"] = cands
+        emit(f"  label candidates (best first): {cands or '-'}")
+        for cc in cands[:4]:
+            emit(f"    '{cc}': " + str({str(k): int(v) for k, v in df[cc].value_counts(dropna=False).head(12).items()}))
+        lab = a.label_col or (cands[0] if cands else (roles["label"][0] if roles["label"] else None))
         if lab:
             attack, counts = to_attack(df[lab])
             info["label"] = {"column": lab, "raw_value_counts": counts}
@@ -214,6 +247,35 @@ def main() -> int:
                     ct = pd.crosstab(df[c].astype(str), attack)
                     ct.columns = ["normal" if not x else "attack" for x in ct.columns]
                     emit("    by class (top 8): " + str(ct.sort_values(ct.columns[-1], ascending=False).head(8).to_dict("index")))
+
+        # ---- protocol x label, and a focus slice (e.g. Modbus)
+        if attack is not None and roles["proto"]:
+            pc = roles["proto"][0]
+            ct = pd.crosstab(df[pc].astype(str), df[lab].astype(str))
+            top = ct.assign(_n=ct.sum(axis=1)).sort_values("_n", ascending=False).head(10).drop(columns="_n")
+            emit(f"  protocol x label (top 10 protocols), columns = {list(top.columns)[:12]}:")
+            for k, row in top.iterrows():
+                emit(f"    {k[:14]:14s} " + " ".join(f"{int(v):>8,d}" for v in row.values[:12]))
+        if a.focus_protocol and roles["proto"]:
+            pc = roles["proto"][0]
+            m = df[pc].astype(str).str.contains(a.focus_protocol, case=False, na=False).to_numpy()
+            emit(f"\n  FOCUS '{a.focus_protocol}' (rows whose '{pc}' contains it): {int(m.sum()):,} of {len(df):,}")
+            if m.any():
+                sub_df = df[m]
+                if lab:
+                    emit(f"    label '{lab}' inside the slice: " + str({str(k): int(v) for k, v in sub_df[lab].value_counts(dropna=False).head(12).items()}))
+                for extra in [c for c in cands[:3] if c != lab]:
+                    emit(f"    label '{extra}' inside the slice: " + str({str(k): int(v) for k, v in sub_df[extra].value_counts(dropna=False).head(12).items()}))
+                if ts is not None:
+                    tt = ts[m]
+                    emit(f"    time span of the slice {float(tt.max() - tt.min()):,.0f} s; median gap {float(tt.sort_values().diff().median()):.4g} s")
+                # columns that are (nearly) empty overall but populated inside the slice = protocol-specific fields
+                spec = [(c, float(sub_df[c].notna().mean()), float(df[c].notna().mean())) for c in df.columns
+                        if sub_df[c].notna().mean() > 0.5 and df[c].notna().mean() < 0.2]
+                emit("    slice-specific fields (populated in the slice, rare elsewhere): " + (", ".join(f"{c}({a_:.0%} vs {b_:.1%})" for c, a_, b_ in spec[:25]) or "-"))
+                for c, _, _ in spec[:12]:
+                    if sub_df[c].nunique() <= 25:
+                        emit(f"      {c}: " + str({str(k): int(v) for k, v in sub_df[c].value_counts().head(10).items()}))
 
         # ---- duplicates
         dup = int(df.duplicated().sum())
