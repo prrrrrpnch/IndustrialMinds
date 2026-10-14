@@ -15,6 +15,7 @@ os.environ.setdefault("IM_LOG_DIR", tempfile.mkdtemp(prefix="im-pipe-"))
 
 import numpy as np  # noqa: E402
 
+from docs.netconfig import LOOPBACK  # documented loopback default
 from docs import hmac_auth  # noqa: E402
 from docs.interfaces import MACHINES, HEATER_TEMP, COOLING_VALVE, make_command  # noqa: E402
 from middleware import cyber_agent, orchestrator, physical_agent  # noqa: E402
@@ -31,7 +32,7 @@ def check(name: str, cond: bool, detail: str = "") -> None:
     PASSED.append(name)
 
 
-def signed(reg: int, value: float, ip: str = "127.0.0.1", tx: str = "t") -> dict:
+def signed(reg: int, value: float, ip: str = LOOPBACK, tx: str = "t") -> dict:
     p = hmac_auth.parse_frame(hmac_auth.build_frame(reg, value))
     return make_command(tx, time.time(), ip, 16, reg, p["raw_value"] / 10.0, raw_value=p["raw_value"], auth=p["auth"])
 
@@ -99,7 +100,7 @@ check("cross-register attack still DROPped through pipeline",
       rep["decision"]["verdict"] == "DROP" and "CROSS_REGISTER_VIOLATION" in rep["decision"]["reason"])
 
 cyber_agent.reset_state()
-rep = pipe.process_command(make_command("u", time.time(), "127.0.0.1", 6, 2, 46.0, raw_value=460), state())
+rep = pipe.process_command(make_command("u", time.time(), LOOPBACK, 6, 2, 46.0, raw_value=460), state())
 check("unsigned command still DROPped (HMAC gate unchanged)", rep["decision"]["reason"].startswith("HMAC_MISSING"))
 
 # --- fail closed --------------------------------------------------------------

@@ -14,8 +14,9 @@ def signed(tx_id, ts, src, fc, register, value, key=None, timestamp_ms=None):
                         raw_value=parsed["raw_value"], auth=parsed["auth"])
 
 
+from docs.netconfig import LOOPBACK
 cyber_agent.reset_state()
-SRC = "192.168.1.10"
+SRC = LOOPBACK   # trusted by default (docs/netconfig.py)
 
 # 1. Normal command -> expect PASS
 cmd = signed("tx1", time.time(), SRC, 16, 2, 45.0)

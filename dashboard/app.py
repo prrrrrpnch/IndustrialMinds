@@ -46,7 +46,7 @@ if PROJECT_ROOT not in sys.path:
     sys.path.insert(0, PROJECT_ROOT)
 
 from docs.interfaces import MACHINES  # noqa: E402
-from docs import attack_log  # noqa: E402
+from docs import attack_log, netconfig  # noqa: E402
 
 app = Flask(__name__)
 
@@ -638,19 +638,27 @@ if __name__ == "__main__":
         " 🛡️ INDUSTRIAL MIND SECURITY MONITORING SYSTEM"
     )
     print("=" * 60)
+    import argparse
+    parser = argparse.ArgumentParser(description="Industrial Mind dashboard")
+    parser.add_argument("--host", default=netconfig.DASHBOARD_BIND_HOST,
+                        help="bind address (env IM_DASHBOARD_BIND_HOST)")
+    parser.add_argument("--port", type=int, default=netconfig.DASHBOARD_PORT,
+                        help="bind port (env IM_DASHBOARD_PORT)")
+    args = parser.parse_args()
+
     print(
-        " Dashboard: http://127.0.0.1:5050"
+        f" Dashboard listening on: http://{args.host}:{args.port}"
     )
     print(
         " Security API: "
-        "http://127.0.0.1:5050/api/security-event"
+        f"http://{args.host}:{args.port}/api/security-event"
     )
     print("=" * 60)
     print()
 
     app.run(
-        host="127.0.0.1",
-        port=5050,
+        host=args.host,
+        port=args.port,
         debug=False,
         use_reloader=False
     )

@@ -22,7 +22,7 @@ import time
 from collections import defaultdict, deque
 
 from docs.interfaces import make_verdict, ALL_REGISTERS, to_raw
-from docs import hmac_auth
+from docs import hmac_auth, netconfig
 
 # ---- Configuration ----
 RATE_LIMIT_PER_SEC = 5
@@ -32,8 +32,9 @@ ALLOWED_REGISTERS = set(ALL_REGISTERS)
 REPLAY_WINDOW_SECONDS = 2.0
 
 # Trusted SCADA sources. Comma-separated IPs and/or CIDR blocks.
-# Default: the local SCADA (127.0.0.1) plus the original lab SCADA address.
-TRUSTED_SOURCES_ENV = os.environ.get("IM_TRUSTED_SOURCES", "127.0.0.1,192.168.1.10")
+# Default (docs/netconfig.py): this machine only. For a SCADA on another laptop set
+# IM_TRUSTED_SOURCES to its address / CIDR.
+TRUSTED_SOURCES_ENV = netconfig.TRUSTED_SOURCES
 
 
 def _parse_whitelist(spec: str) -> List[Union[ipaddress.IPv4Network, ipaddress.IPv6Network]]:

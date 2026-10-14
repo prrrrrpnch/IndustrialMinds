@@ -47,6 +47,9 @@ Reference files are listed by path below; none are auto-loaded.
 - `models/telemetry_generator.py` is synthetic data: never cite its metrics as real-data results.
 - Orchestrator forwards decisions to the dashboard via HTTP in a fire-and-forget thread.
 - Models are advisory (MONITOR) unless `IM_CYBER_MODEL_ENFORCE=1`.
+- `docs/netconfig.py` is the ONLY place host/port defaults live (env vars documented in its header).
+- Weights were pickled with scikit-learn 1.8.0; env has 1.9.1 -> InconsistentVersionWarning (harmless; retrain in P5/P6 fixes).
+- Pre-existing lab IPs remain only in synthetic-data files (telemetry_generator, train_models, evaluation, some tests); replaced when data is replaced in P5-P7/P11.
 - `docs/wireshark_setup.md` is currently an empty file (filled in Phase 10).
 
 ## File index (open only when relevant)
@@ -55,6 +58,7 @@ Reference files are listed by path below; none are auto-loaded.
 | `README.md` | user-facing setup/usage; rewritten in Phase 12 |
 | `MODELS_RATIONALE.md` | changing/justifying the cyber or physical model design |
 | `CHECKLIST_VERIFICATION.txt` | legacy self-verification claims (numbers must match repo benchmarks — PART 0 item) |
+| `docs/netconfig.py` | any host/port/env-var question (single source for addresses) |
 | `docs/interfaces.py` | machines/registers/bounds, verdict/decision dict shapes, cross-register rules |
 | `docs/hmac_auth.py` | signed frame format, HMAC build/verify |
 | `docs/attack_log.py` | blocked-attack JSONL logging |
@@ -81,7 +85,7 @@ Reference files are listed by path below; none are auto-loaded.
 |---|---|---|---|
 | 1 | Models trained only on synthetic data | P5, P6 (SWaT) | open |
 | 2 | Guessed physical bounds | P3, P6 | open |
-| 3 | Hardcoded 127.0.0.1 | P2 | open |
+| 3 | Hardcoded 127.0.0.1 | P2 | CLOSED (docs/netconfig.py; env+CLI; grep clean) |
 | 4 | Orchestrator is AND-gate | P7 | open |
 | 5 | No orchestrator model | P7 | open |
 | 6 | Attacker deterministic | P8 | open |

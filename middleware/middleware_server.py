@@ -74,7 +74,7 @@ from docs.interfaces import (
     DATASTORE_SIZE,
     SCALE,
 )
-from docs import hmac_auth, attack_log
+from docs import hmac_auth, attack_log, netconfig
 
 from middleware import (
     cyber_agent,
@@ -96,13 +96,15 @@ _last_telemetry_log = 0.0
 # CONFIG
 # =========================================================
 
-PLC_HOST = "127.0.0.1"
-PLC_PORT = 5020
+# Resolved in docs/netconfig.py (env: IM_PLC_HOST/PORT, IM_LISTEN_HOST/PORT, IM_DASHBOARD_URL;
+# CLI flags in __main__ override).
+PLC_HOST = netconfig.PLC_HOST
+PLC_PORT = netconfig.PLC_PORT
 
-LISTEN_HOST = "0.0.0.0"
-LISTEN_PORT = 5021
+LISTEN_HOST = netconfig.LISTEN_HOST
+LISTEN_PORT = netconfig.LISTEN_PORT
 
-DASHBOARD_URL = "http://127.0.0.1:5050"
+DASHBOARD_URL = netconfig.DASHBOARD_URL
 
 # PLC is checked frequently for real feedback.
 POLL_INTERVAL = 0.2
@@ -1070,4 +1072,21 @@ if __name__ == "__main__":
     gc.collect()
     gc.freeze()
 
-    start_middleware_server()
+    import argparse
+    parser = argparse.ArgumentParser(description="Industrial Mind middleware (Modbus proxy + agents)")
+    parser.add_argument("--listen-host", default=LISTEN_HOST, help="address to bind for SCADA (env IM_LISTEN_HOST)")
+    parser.add_argument("--listen-port", type=int, default=LISTEN_PORT, help="port for SCADA (env IM_LISTEN_PORT)")
+    parser.add_argument("--plc-host", default=PLC_HOST, help="PLC address (env IM_PLC_HOST)")
+    parser.add_argument("--plc-port", type=int, default=PLC_PORT, help="PLC port (env IM_PLC_PORT)")
+    parser.add_argument("--dashboard-url", default=DASHBOARD_URL, help="dashboard base URL (env IM_DASHBOARD_URL)")
+    args = parser.parse_args()
+
+    DASHBOARD_URL = args.dashboard_url
+    netconfig.DASHBOARD_URL = args.dashboard_url   # orchestrator reads this at call time
+
+    start_middleware_server(
+        listen_host=args.listen_host,
+        listen_port=args.listen_port,
+        plc_host=args.plc_host,
+        plc_port=args.plc_port,
+    )

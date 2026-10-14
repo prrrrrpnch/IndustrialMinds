@@ -14,6 +14,7 @@ from typing import Any
 
 import numpy as np
 
+from docs.netconfig import LOOPBACK  # documented loopback default
 from docs.interfaces import MACHINES, NUM_REGISTERS, make_command
 from docs import hmac_auth
 from models.cyber_model import CyberModel, FEATURE_NAMES
@@ -52,7 +53,7 @@ check("normal traffic false-positive rate < 3%", fpr < 0.03, f"{fpr:.1%}")
 now = time.time()
 burst = []
 for i in range(12):   # 12 commands in 120 ms, unsigned, big jumps
-    c = make_command(f"b{i}", now + i * 0.01, "127.0.0.1", 6, 1, 110.0 - i,
+    c = make_command(f"b{i}", now + i * 0.01, LOOPBACK, 6, 1, 110.0 - i,
                      raw_value=1100 - i * 10, auth=None)
     burst.append(cm.evaluate_payload(c, {"registers": {1: 5.0}}))
 check("unsigned burst flagged as anomalous", burst[-1]["threat_flag"],

@@ -12,9 +12,23 @@ HMAC secret (shared by SCADA and middleware). Pick one:
     export IM_HMAC_SECRET="$(python -c 'import secrets;print(secrets.token_hex(32))')"   # in BOTH terminals
     # or leave unset: config/hmac_secret.key is generated on first run (mode 0600, git-ignored)
 
+Hosts and ports (single machine: defaults work; resolved in `docs/netconfig.py`, CLI flags override):
+
+    IM_PLC_HOST / IM_PLC_PORT                 # middleware/attacker -> PLC          (default loopback:5020)
+    IM_PLC_LISTEN_HOST / IM_PLC_LISTEN_PORT   # PLC bind                            (default 0.0.0.0:5020)
+    IM_MIDDLEWARE_HOST / IM_MIDDLEWARE_PORT   # SCADA/attacker -> middleware        (default loopback:5021)
+    IM_LISTEN_HOST / IM_LISTEN_PORT           # middleware bind                     (default 0.0.0.0:5021)
+    IM_DASHBOARD_HOST / IM_DASHBOARD_PORT     # middleware -> dashboard             (default loopback:5050)
+    IM_DASHBOARD_URL                          # full URL override for the above
+    IM_DASHBOARD_BIND_HOST                    # dashboard bind                      (default loopback)
+
+Entry points also take flags: `plc.plc --host --port`, `middleware.middleware_server --listen-host
+--listen-port --plc-host --plc-port --dashboard-url`, `dashboard/app.py --host --port`,
+`scada.scada --host --port`, `attacker.attacker --host --port --plc-host --plc-port`.
+
 Optional settings:
 
-    IM_TRUSTED_SOURCES="127.0.0.1,192.168.1.10"   # SCADA whitelist, IPs or CIDRs (this is the default)
+    IM_TRUSTED_SOURCES="<scada-ip-or-cidr>"       # SCADA whitelist (default: this machine only)
     IM_LOG_DIR=logs                               # where blocked_attacks.jsonl is written
     IM_HMAC_MAX_SKEW_SECONDS=30                   # signed-command freshness window
 
@@ -33,7 +47,7 @@ deterministic rules alone (models report NO_MODEL).
 ## Run (one terminal each, from the project root)
 
     python -m plc.plc
-    python dashboard/app.py                # http://127.0.0.1:5050
+    python dashboard/app.py                # http://<IM_DASHBOARD_BIND_HOST>:5050
     python -m middleware.middleware_server
     python -m scada.scada
 

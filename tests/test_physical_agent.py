@@ -18,9 +18,10 @@ Additional tests:
 import time
 from docs.interfaces import (make_command, MACHINES, TANK_PRESSURE, CONVEYOR_SPEED, COOLING_VALVE,
                              HEATER_TEMP, FEED_PUMP, RELIEF_VALVE)
+from docs.netconfig import LOOPBACK
 from middleware import physical_agent
 
-SRC = "192.168.1.10"
+SRC = LOOPBACK   # trusted by default (docs/netconfig.py)
 NOW = time.time()
 
 # Helper: build a current_state dict as the middleware would receive from plc.get_telemetry()

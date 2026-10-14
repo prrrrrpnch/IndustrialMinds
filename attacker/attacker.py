@@ -4,10 +4,10 @@ attacker/attacker.py
 Real Modbus attack client for the Industrial Mind demo.
 
 Middleware:
-    127.0.0.1:5021
+    <IM_MIDDLEWARE_HOST>:5021
 
 PLC:
-    127.0.0.1:5020
+    <IM_PLC_HOST>:5020
 
 Attacks (original):
     flood                  signed burst above the 5 req/s limit     -> RATE_LIMIT_EXCEEDED
@@ -74,14 +74,14 @@ from docs.interfaces import (  # noqa: E402
     to_raw,
     from_raw,
 )
-from docs import hmac_auth  # noqa: E402
+from docs import hmac_auth, netconfig  # noqa: E402
 
 
-MIDDLEWARE_HOST = "127.0.0.1"
-MIDDLEWARE_PORT = 5021
+MIDDLEWARE_HOST = netconfig.MIDDLEWARE_HOST   # env IM_MIDDLEWARE_HOST/PORT, --host/--port
+MIDDLEWARE_PORT = netconfig.MIDDLEWARE_PORT
 
-PLC_HOST = "127.0.0.1"
-PLC_PORT = 5020
+PLC_HOST = netconfig.PLC_HOST                  # env IM_PLC_HOST/PORT, --plc-host/--plc-port
+PLC_PORT = netconfig.PLC_PORT
 
 UNIT_ID = 1
 

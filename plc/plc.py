@@ -16,6 +16,7 @@ from __future__ import annotations
 import time
 import threading
 
+from docs import netconfig
 from docs.interfaces import MACHINES, NUM_REGISTERS, REGISTER_MAP, SCALE
 
 from pymodbus.datastore import ModbusSlaveContext, ModbusServerContext, ModbusSequentialDataBlock
@@ -164,7 +165,7 @@ def internal_sync_write(block: ModbusSequentialDataBlock, address: int, values: 
     ModbusSequentialDataBlock.setValues(block, address, values)
 
 
-def start_modbus_server(host: str = "0.0.0.0", port: int = 5020) -> None:
+def start_modbus_server(host: str = netconfig.PLC_LISTEN_HOST, port: int = netconfig.PLC_LISTEN_PORT) -> None:
     """Starts the Modbus TCP server exposing one register per configured machine."""
     block = SyncedDataBlock(0, [0] * NUM_REGISTERS)  # base address 0 -> valid addrs 0..N-1
     store = ModbusSlaveContext(hr=block, zero_mode=True)
@@ -185,4 +186,9 @@ def start_modbus_server(host: str = "0.0.0.0", port: int = 5020) -> None:
 
 
 if __name__ == "__main__":
-    start_modbus_server("0.0.0.0", 5020)
+    import argparse
+    parser = argparse.ArgumentParser(description="Industrial Mind PLC digital twin (Modbus TCP)")
+    parser.add_argument("--host", default=netconfig.PLC_LISTEN_HOST, help="bind address (env IM_PLC_LISTEN_HOST)")
+    parser.add_argument("--port", type=int, default=netconfig.PLC_LISTEN_PORT, help="bind port (env IM_PLC_LISTEN_PORT)")
+    args = parser.parse_args()
+    start_modbus_server(args.host, args.port)

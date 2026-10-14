@@ -30,6 +30,7 @@ from openpyxl import Workbook  # noqa: E402
 from openpyxl.styles import Alignment, Font, PatternFill  # noqa: E402
 from openpyxl.worksheet.datavalidation import DataValidation  # noqa: E402
 
+from docs.netconfig import LOOPBACK  # documented loopback default
 from docs.interfaces import MACHINES  # noqa: E402
 
 OUT = os.path.join(HERE, "test_data.xlsx")
@@ -54,7 +55,7 @@ DEFAULT_STATE = {m["name"]: m["initial"] for m in MACHINES}
 
 
 def case(cid: str, scenario: str, label: str, attack_type: str, register: str, value: float, *,
-         ip: str = "127.0.0.1", fc: int = 16, sig: str = "valid", repeat: int = 1, dt: float = 12.0,
+         ip: str = LOOPBACK, fc: int = 16, sig: str = "valid", repeat: int = 1, dt: float = 12.0,
          state: Optional[Dict[str, float]] = None, pending: Optional[Dict[str, float]] = None,
          desc: str = "") -> Dict[str, Any]:
     st = dict(DEFAULT_STATE)
