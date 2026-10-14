@@ -42,11 +42,13 @@ _Source: measured by the user on their Windows machine (benchmark.swat_accuracy,
 
 Test block: 28,075 windows (stride 5 s): 1,060 attack, 27,015 benign (37.521 benign hours). Operating point: Isolation Forest threshold 0.6108, classifier threshold 0.601, variant `drift_robust`.
 
-| Decision rule | precision | recall | F1 | false-positive rate | alarm episodes / benign hour |
-|---|---|---|---|---|---|
-| Advisory model flag (drives ALERT) | 0.366 | 0.263 | 0.306 | 0.018 | 1.786 |
-| Envelope rule alone (alert-only) | 0.273 | 0.216 | 0.241 | 0.022 | 0.853 |
-| Model flag or envelope | 0.274 | 0.271 | 0.272 | 0.028 | 1.999 |
+| Decision rule | precision | recall | F1 | false-positive rate | accuracy | balanced accuracy | alarm episodes / benign hour |
+|---|---|---|---|---|---|---|---|
+| Advisory model flag (drives ALERT) | 0.366 | 0.263 | 0.306 | 0.018 | 0.955 | 0.623 | 1.786 |
+| Envelope rule alone (alert-only) | 0.273 | 0.216 | 0.241 | 0.022 | 0.949 | 0.597 | 0.853 |
+| Model flag or envelope | 0.274 | 0.271 | 0.272 | 0.028 | 0.945 | 0.621 | 1.999 |
+
+Plain accuracy is shown but is **not the headline**: attacks are only 3.8% of windows, so a system that never flags anything would score **0.962** accuracy (balanced accuracy 0.5). Judge the model by recall, precision, false alarms per hour and AUC.
 
 Confusion counts (windows; rows = true label, columns = prediction):
 

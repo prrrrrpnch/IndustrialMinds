@@ -1,0 +1,206 @@
+{
+  "started_utc": "2026-10-14 20:49:20",
+  "total_seconds": 105.7,
+  "environment": {
+    "generated_utc": "2026-10-14 20:51:07",
+    "python": "3.13.16",
+    "platform": "Linux-6.18.44-fc-v114-x86_64-with-glibc2.39",
+    "machine": "x86_64",
+    "cpu_count": 4,
+    "numpy": "2.5.4",
+    "pandas": "3.0.6",
+    "scikit_learn": "1.9.1",
+    "joblib": "1.6.0",
+    "git_commit": "44d2bcf",
+    "git_dirty": true
+  },
+  "summary": {
+    "PASS": 20,
+    "FAIL": 0,
+    "SKIPPED": 0,
+    "check_lines_passed": 280,
+    "check_lines_failed": 0
+  },
+  "results": [
+    {
+      "status": "PASS",
+      "exit_code": 0,
+      "script": "pipeline_test",
+      "seconds": 10.6,
+      "checks_passed": null,
+      "checks_failed": null,
+      "last_line": "ALL PIPELINE TESTS COMPLETED"
+    },
+    {
+      "status": "PASS",
+      "exit_code": 0,
+      "script": "test_attacker_randomization",
+      "seconds": 1.7,
+      "checks_passed": 31,
+      "checks_failed": 0,
+      "last_line": "ALL PASS"
+    },
+    {
+      "status": "PASS",
+      "exit_code": 0,
+      "script": "test_benchmark",
+      "seconds": 7.3,
+      "checks_passed": 23,
+      "checks_failed": 0,
+      "last_line": "ALL PASS"
+    },
+    {
+      "status": "PASS",
+      "exit_code": 0,
+      "script": "test_bounds_alignment",
+      "seconds": 0.6,
+      "checks_passed": 34,
+      "checks_failed": 0,
+      "last_line": "ALL PASS"
+    },
+    {
+      "status": "PASS",
+      "exit_code": 0,
+      "script": "test_check_topology",
+      "seconds": 0.0,
+      "checks_passed": 9,
+      "checks_failed": 0,
+      "last_line": "ALL PASS"
+    },
+    {
+      "status": "PASS",
+      "exit_code": 0,
+      "script": "test_cyber_agent",
+      "seconds": 0.0,
+      "checks_passed": null,
+      "checks_failed": null,
+      "last_line": "All cyber agent checks passed"
+    },
+    {
+      "status": "PASS",
+      "exit_code": 0,
+      "script": "test_environment",
+      "seconds": 1.4,
+      "checks_passed": 4,
+      "checks_failed": 0,
+      "last_line": "ALL PASS"
+    },
+    {
+      "status": "PASS",
+      "exit_code": 0,
+      "script": "test_fusion_scenarios",
+      "seconds": 18.6,
+      "checks_passed": 21,
+      "checks_failed": 0,
+      "last_line": "ALL PASS"
+    },
+    {
+      "status": "PASS",
+      "exit_code": 0,
+      "script": "test_middleware_efficiency",
+      "seconds": 11.9,
+      "checks_passed": null,
+      "checks_failed": null,
+      "last_line": ""
+    },
+    {
+      "status": "PASS",
+      "exit_code": 0,
+      "script": "test_models",
+      "seconds": 0.0,
+      "checks_passed": null,
+      "checks_failed": null,
+      "last_line": "PhysicalModel checks live in tests/test_swat_physical.py - nothing to run here."
+    },
+    {
+      "status": "PASS",
+      "exit_code": 0,
+      "script": "test_orchestrator",
+      "seconds": 0.1,
+      "checks_passed": null,
+      "checks_failed": null,
+      "last_line": "7-10. four-branch fusion (ALERT / PASS / DROP precedence): OK"
+    },
+    {
+      "status": "PASS",
+      "exit_code": 0,
+      "script": "test_physical_agent",
+      "seconds": 0.1,
+      "checks_passed": null,
+      "checks_failed": null,
+      "last_line": "============================================================"
+    },
+    {
+      "status": "PASS",
+      "exit_code": 0,
+      "script": "test_pipeline",
+      "seconds": 1.8,
+      "checks_passed": 24,
+      "checks_failed": 0,
+      "last_line": "All 24 pipeline checks passed"
+    },
+    {
+      "status": "PASS",
+      "exit_code": 0,
+      "script": "test_swat_cyber",
+      "seconds": 12.6,
+      "checks_passed": 30,
+      "checks_failed": 0,
+      "last_line": "ALL PASS"
+    },
+    {
+      "status": "PASS",
+      "exit_code": 0,
+      "script": "test_swat_fixture",
+      "seconds": 11.1,
+      "checks_passed": 19,
+      "checks_failed": 0,
+      "last_line": "ALL PASSED"
+    },
+    {
+      "status": "PASS",
+      "exit_code": 0,
+      "script": "test_swat_physical",
+      "seconds": 22.4,
+      "checks_passed": 32,
+      "checks_failed": 0,
+      "last_line": "ALL PASS"
+    },
+    {
+      "status": "PASS",
+      "exit_code": 0,
+      "script": "test_test_runner",
+      "seconds": 1.9,
+      "checks_passed": 8,
+      "checks_failed": 0,
+      "last_line": "ALL PASS"
+    },
+    {
+      "status": "PASS",
+      "exit_code": 0,
+      "script": "test_trace",
+      "seconds": 1.5,
+      "checks_passed": 28,
+      "checks_failed": 0,
+      "last_line": "ALL PASS"
+    },
+    {
+      "status": "PASS",
+      "exit_code": 0,
+      "script": "test_twin_propagation",
+      "seconds": 0.1,
+      "checks_passed": 8,
+      "checks_failed": 0,
+      "last_line": "ALL PASS"
+    },
+    {
+      "status": "PASS",
+      "exit_code": 0,
+      "script": "test_wire_correlate",
+      "seconds": 1.6,
+      "checks_passed": 9,
+      "checks_failed": 0,
+      "last_line": "ALL PASS"
+    }
+  ]
+}

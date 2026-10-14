@@ -40,6 +40,28 @@ def episodes(epochs: np.ndarray, flagged: np.ndarray, gap_s: float = EPISODE_GAP
     return 0 if t.size == 0 else int(1 + (np.diff(t) > gap_s).sum())
 
 
+def derived(c: Dict[str, Any]) -> Dict[str, Any]:
+    """Accuracy-type numbers computed from the four counts (pure arithmetic, so older records can be completed from their counts)."""
+    n = c["tp"] + c["fp"] + c["fn"] + c["tn"]
+    pos, neg = c["tp"] + c["fn"], c["fp"] + c["tn"]
+    rec = c["tp"] / pos if pos else None
+    spec = c["tn"] / neg if neg else None
+    return {"accuracy": round((c["tp"] + c["tn"]) / n, 4) if n else None,
+            "balanced_accuracy": round((rec + spec) / 2, 4) if rec is not None and spec is not None else None,
+            "always_benign_baseline_accuracy": round(neg / n, 4) if n else None}
+
+
+def add_derived(res: Dict[str, Any]) -> Dict[str, Any]:
+    """Fill accuracy / balanced accuracy / baseline into every decision-rule block of a SWaT result (idempotent)."""
+    for key in ("advisory_model_flag", "envelope_rule_alone (alert-only)", "model_flag_or_envelope"):
+        if isinstance(res.get(key), dict) and "tp" in res[key]:
+            res[key].update(derived(res[key]))
+    ex = res.get("excluding_largest_segment")
+    if ex and isinstance(ex.get("advisory_model_flag"), dict) and "tp" in ex["advisory_model_flag"]:
+        ex["advisory_model_flag"].update(derived(ex["advisory_model_flag"]))
+    return res
+
+
 def confusion(y: np.ndarray, f: np.ndarray) -> Dict[str, Any]:
     tp, fp = int((y & f).sum()), int((~y & f).sum())
     fn, tn = int((y & ~f).sum()), int((~y & ~f).sum())
@@ -47,8 +69,10 @@ def confusion(y: np.ndarray, f: np.ndarray) -> Dict[str, Any]:
     rec = tp / (tp + fn) if tp + fn else None
     f1 = 2 * prec * rec / (prec + rec) if prec and rec else (0.0 if prec is not None and rec is not None else None)
     r = lambda v: None if v is None else round(float(v), 4)
-    return {"tp": tp, "fp": fp, "fn": fn, "tn": tn, "precision": r(prec), "recall": r(rec), "f1": r(f1),
-            "false_positive_rate": r(fp / (fp + tn) if fp + tn else None)}
+    out = {"tp": tp, "fp": fp, "fn": fn, "tn": tn, "precision": r(prec), "recall": r(rec), "f1": r(f1),
+           "false_positive_rate": r(fp / (fp + tn) if fp + tn else None)}
+    out.update(derived(out))
+    return out
 
 
 def evaluate(model: PhysicalModel, stream: pd.DataFrame) -> Dict[str, Any]:

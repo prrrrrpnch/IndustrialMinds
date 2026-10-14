@@ -95,11 +95,14 @@ def swat_md(res: Dict[str, Any]) -> List[str]:
          *([f"_Source: {s['provenance']}_", ""] if s.get("provenance") else []),
          f"Test block: {s['windows']:,} windows (stride {s['stride_s']} s): {s['attack_windows']:,} attack, {s['benign_windows']:,} benign ({s['benign_hours']} benign hours). "
          f"Operating point: Isolation Forest threshold {_num(s['operating_point']['isolation_forest_threshold'], 4)}, classifier threshold {_num(s['operating_point']['classifier_threshold'], 3)}, variant `{s['operating_point']['variant']}`.", "",
-         "| Decision rule | precision | recall | F1 | false-positive rate | alarm episodes / benign hour |", "|---|---|---|---|---|---|"]
+         "| Decision rule | precision | recall | F1 | false-positive rate | accuracy | balanced accuracy | alarm episodes / benign hour |", "|---|---|---|---|---|---|---|---|"]
     for key, label in (("advisory_model_flag", "Advisory model flag (drives ALERT)"), ("envelope_rule_alone (alert-only)", "Envelope rule alone (alert-only)"),
                        ("model_flag_or_envelope", "Model flag or envelope")):
         c = s[key]
-        L.append(f"| {label} | {_num(c['precision'])} | {_num(c['recall'])} | {_num(c['f1'])} | {_num(c['false_positive_rate'])} | {c.get('alarm_episodes_per_benign_hour', c.get('alarm_episodes_per_benign_hour'))} |")
+        L.append(f"| {label} | {_num(c['precision'])} | {_num(c['recall'])} | {_num(c['f1'])} | {_num(c['false_positive_rate'])} | {_num(c.get('accuracy'))} | {_num(c.get('balanced_accuracy'))} | {c.get('alarm_episodes_per_benign_hour')} |")
+    base = f["always_benign_baseline_accuracy"]
+    L += ["", f"Plain accuracy is shown but is **not the headline**: attacks are only {100 * (1 - base):.1f}% of windows, so a system that never flags anything "
+          f"would score **{_num(base)}** accuracy (balanced accuracy 0.5). Judge the model by recall, precision, false alarms per hour and AUC."]
     L += ["", "Confusion counts (windows; rows = true label, columns = prediction):", "",
           "| Decision rule | benign, no flag (TN) | benign, flagged (FP) | attack, no flag (FN) | attack, flagged (TP) |", "|---|---|---|---|---|"]
     for key, label in (("advisory_model_flag", "Advisory model flag"), ("envelope_rule_alone (alert-only)", "Envelope rule alone"),

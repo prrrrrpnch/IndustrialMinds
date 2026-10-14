@@ -151,7 +151,7 @@ attack windows. Everything SWaT cannot supply is either **derived from SWaT colu
 | S5 Reverse osmosis | RO | P501 high-pressure pump, **MV503** reject valve | PIT501 pressure, FIT501 permeate flow |
 
 **Alignment with SWaT:** sensor ranges and nominal values are the **measured** SWaT medians and ranges (`docs/swat_bounds.json`); actuator nominals are SWaT's "on" states;
-`tests/test_bounds_alignment.py` (35 checks) fails if the configuration and the twin drift from the measurements. **Coupling:** stage flows feed forward (S1 pump outflow is S2 flow;
+`tests/test_bounds_alignment.py` (34 checks) fails if the configuration and the twin drift from the measurements. **Coupling:** stage flows feed forward (S1 pump outflow is S2 flow;
 MV302 splits it between the UF tank and a return to the raw tank; S3 outflow fills S4; the S4 pump feeds the RO pump, which starves below ~5 m3/h; dosing pumps act on pH and chlorine, removed by the UV lamp).
 UF fouling raises DPIT301 and triggers an automatic backwash. `python -m tests.test_twin_propagation` perturbs stage 1 and asserts stages 2 to 5 respond in order
 (about 1.4 s, 5 s, 25 s, 100 s). **Honest caveats:** MV503 has **no SWaT counterpart** (twin-only, labelled synthetic); the twin is a demonstration plant, not a SWaT
@@ -377,7 +377,9 @@ Four sections with different evidential weight, always reported separately: **la
 
 ## Tests
 
-Plain scripts, each ends with `ALL PASS` or an error (run from the project root, with the venv active):
+Plain scripts, each ends with `ALL PASS` or an error (run from the project root, with the venv active). **To run them all and save a dated record:**
+`python -m tests.run_all` (add `--with-stress`, `--with-plc` for the two scripts that need extra setup). It writes `benchmarks/test_results.json` (per script: status, duration,
+number of individual `[PASS]`/`[FAIL]` checks, last line; plus environment and commit) and exits non-zero if anything failed. The counts in the table below are as of the last run recorded there.
 
 | Command | Covers |
 |---|---|
@@ -386,7 +388,7 @@ Plain scripts, each ends with `ALL PASS` or an error (run from the project root,
 | `python -m tests.test_orchestrator` | the four-branch fusion |
 | `python -m tests.test_pipeline` | concurrent branches, unified report (24 checks) |
 | `python -m tests.test_trace` | the Packet Tracer matches what the backend computed |
-| `python -m tests.test_bounds_alignment` | config and twin vs the measured SWaT bounds (35 checks) |
+| `python -m tests.test_bounds_alignment` | config and twin vs the measured SWaT bounds (34 checks) |
 | `python -m tests.test_twin_propagation` (add `--live` with a running PLC) | stage-to-stage propagation |
 | `python -m tests.test_attacker_randomization` | randomised attacks really vary; rules catch the synthetic extensions |
 | `python -m tests.test_wire_correlate`, `test_check_topology` | wire correlation and the per-laptop preflight |
