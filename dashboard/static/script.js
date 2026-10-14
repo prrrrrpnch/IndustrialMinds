@@ -537,6 +537,10 @@ function verdictClass(verdict) {
             verdict || ""
         ).toLowerCase();
 
+    if (value === "alert") {
+        return "alert";
+    }
+
     if (value === "pass") {
         return "pass";
     }

@@ -98,7 +98,10 @@ check("physical section has rule verdict, model report and plant state",
       f"state={rep['physical']['plant_state']} model={rep['physical']['model']['status']}")
 check("health_report() returns the physical model assessment",
       pipe.health_report()["model"] == "PhysicalModel")
-check("legit command -> PASS", rep["decision"]["verdict"] == "PASS")
+check("legit command is forwarded (PASS, or ALERT when only the advisory physical model flags)",
+      rep["decision"]["verdict"] in ("PASS", "ALERT"), rep["decision"]["verdict"])
+check("ALERT only ever comes from the advisory physical model",
+      rep["decision"]["verdict"] != "ALERT" or rep["decision"]["reason"].startswith("PHYSICAL_MODEL:"))
 
 cyber_agent.reset_state()
 rep = pipe.process_command(signed(P203, 85.0), state({P203: 75.0, P101: 15.0}))
@@ -126,7 +129,7 @@ for rid, base, reg, val in [
           rep["decision"]["verdict"] == "DROP" and f"CROSS_REGISTER_VIOLATION:{rid}" in rep["decision"]["reason"])
     cyber_agent.reset_state()
     rep = pipe.process_command(signed(reg, base[reg], tx=rid + "-fix"), state({**base, reg: val}))
-    check(f"{rid} recovery move towards safety PASSes", rep["decision"]["verdict"] == "PASS",
+    check(f"{rid} recovery move towards safety PASSes", rep["decision"]["verdict"] in ("PASS", "ALERT"),
           rep["decision"]["reason"][:60])
 
 cyber_agent.reset_state()
@@ -157,7 +160,7 @@ for i in range(4):   # fast signed burst: under the 5/s hard limit, but abnormal
 # asserted: rules allowed it, and any DROP in this mode can only be an ML_ANOMALY one.
 check("ENFORCE mode: rules allow the burst; a DROP could only come from the ML gate",
       last["cyber"]["rule_verdict"]["pass"]
-      and (last["decision"]["verdict"] == "PASS" or last["decision"]["reason"].startswith("ML_ANOMALY")),
+      and (last["decision"]["verdict"] in ("PASS", "ALERT") or last["decision"]["reason"].startswith("ML_ANOMALY")),
       f"{last['decision']['verdict']} model={last['cyber']['model']['status']}")
 check("MONITOR mode is the default", pipe.enforce_cyber_model is False)
 

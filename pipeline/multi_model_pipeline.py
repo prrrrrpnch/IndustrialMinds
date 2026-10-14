@@ -9,8 +9,8 @@ Per command, two branches run concurrently on a small thread pool:
     physical branch  Physical Agent rules (bounds, rate, cross-register) -> hard gate
                      + PhysicalModel (SWaT window anomaly + attack prob.) -> advisory
 
-The Orchestrator then fuses the two rule verdicts into PASS/DROP exactly as
-before, and the pipeline returns one unified diagnostic report.
+The Orchestrator then fuses them with a rule-based four-branch table (DROP on a rule failure,
+ALERT when only the advisory physical model flags, else PASS), and the pipeline returns one unified diagnostic report.
 
 * Set IM_CYBER_MODEL_ENFORCE=1 to let a CyberModel threat flag DROP a command
   that the rules passed (reason ML_ANOMALY). Default is monitor-only, so the
@@ -118,7 +118,7 @@ class MultiModelPipeline:
             phys_rule["command"] = command_label
 
         try:
-            decision = orchestrator.decide(gate_cyber, phys_rule, start_time)
+            decision = orchestrator.decide(gate_cyber, phys_rule, start_time, physical_advisory=phys_ml)
         except Exception:
             log.exception("orchestrator failed on tx=%s - failing closed", tx_id)
             decision = {"tx_id": tx_id, "verdict": "DROP", "reason": "AGENT_ERROR:orchestrator",

@@ -1,7 +1,15 @@
 """
 Orchestrator — fuses Cyber Agent and Physical Agent verdicts into one decision.
-DROP if either agent fails. PASS only if both (or the only one running) pass.
-On the upstream (PLC -> SCADA) path, cyber_verdict will be None — only the
+RULE-BASED four-branch table (a learned fusion was tried on SWaT and rejected:
+docs/reports/fusion_training_report_swat.md - worse than the physical model alone on the test block):
+
+    cyber rules fail                      -> DROP  (reason = cyber reason)
+    physical RULES fail                   -> DROP  (reason = physical reason)
+    rules pass, physical MODEL flags      -> ALERT (command is FORWARDED; advisory, never blocks)
+    otherwise                             -> PASS
+
+The physical ML model is advisory (it cannot block legitimate traffic on its own), so a model flag
+produces ALERT, not DROP. On the upstream (PLC -> SCADA) path, cyber_verdict will be None — only the
 Physical Agent runs there, per the team's design.
 """
 
@@ -71,11 +79,14 @@ def _forward_decision_to_dashboard(payload: dict) -> None:
 atexit.register(_shutdown_forwarder)
 
 
-def decide(cyber_verdict: dict | None, physical_verdict: dict, start_time: float = None) -> dict:
+def decide(cyber_verdict: dict | None, physical_verdict: dict, start_time: float = None,
+           physical_advisory: dict | None = None) -> dict:
     """
     cyber_verdict: verdict dict from cyber_agent.check(), or None on the upstream path.
     physical_verdict: verdict dict from physical_agent.check_command() or check_feedback().
     start_time: time.time() captured when the command first arrived, for latency measurement.
+    physical_advisory: PhysicalModel assessment (threat_flag / flagged_by / plant_state), or None. Only a
+    threat_flag raised while both rule layers pass yields ALERT.
     """
     tx_id = physical_verdict["tx_id"]
     direction = "downstream" if cyber_verdict is not None else "upstream"
@@ -84,6 +95,9 @@ def decide(cyber_verdict: dict | None, physical_verdict: dict, start_time: float
         verdict, reason = "DROP", cyber_verdict["reason"]
     elif not physical_verdict["pass"]:
         verdict, reason = "DROP", physical_verdict["reason"]
+    elif physical_advisory and physical_advisory.get("threat_flag"):
+        flagged = "+".join(physical_advisory.get("flagged_by") or ["model"])
+        verdict, reason = "ALERT", f"PHYSICAL_MODEL:{flagged}"
     else:
         verdict, reason = "PASS", "OK"
 

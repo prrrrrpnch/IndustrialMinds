@@ -67,6 +67,7 @@ Reference files are listed by path below; none are auto-loaded.
   SWaT actuators are discrete (pumps 1/2, valves 0/1/2); P401/P404/P502/P601/P603 constant, P402/P501/UV401 ~always on. MV503 does not exist in SWaT.
 - Phases 5-7 need the data on the machine that RUNS training: run the session locally (recommended) or have the user run `--candidate` training and paste reports.
 - DECISION (P6 gate): physical candidate promoted as advisory at the 0.5/h budget (threshold edited from the trained 0.558 to 0.601, recorded in metadata). Physical ML never blocks; the envelope rule is alert-only.
+- DECISION (P7 gate): learned fusion NOT promoted (docs/reports/fusion_training_report_swat.md); orchestrator = deterministic four-branch rules. `models/train_fusion_swat.py --candidate` stays as the reproducible negative result.
 - DECISION (P5 gate): cyber ML candidate NOT promoted. models/weights/cyber_model.joblib is the OLD synthetic file, refused by the schema check; never promote it; remove only with a confirmed delete.
 - Cyber ML = actuator STATE-CHANGE events (1/2 -> 0/100 %); it abstains on writes that don't flip on/off. Old 13-feature weights in models/weights are refused (schema mismatch -> NO_MODEL) until the SWaT candidate is promoted.
 - Guard hook only fires on EXECUTING a training script (python ... train*), not on reads; avoid heredocs whose text mentions weights paths / training commands (false positives) - write scripts with the Write tool.
@@ -92,7 +93,7 @@ Reference files are listed by path below; none are auto-loaded.
 | `middleware/middleware_server.py` | Modbus proxy, downstream/upstream handling, poll loop |
 | `middleware/cyber_agent.py` | rule checks: whitelist, FC, register, rate, HMAC, replay |
 | `middleware/physical_agent.py` | rule checks: bounds, rate-of-change, cross-register, feedback |
-| `middleware/orchestrator.py` | fusion of verdicts (currently AND-gate) + dashboard forwarding |
+| `middleware/orchestrator.py` | RULE-BASED four-branch fusion: cyber/physical rule fail -> DROP; rules pass + advisory physical-model flag -> ALERT (forwarded); else PASS; + dashboard forwarding |
 | `pipeline/multi_model_pipeline.py` | concurrent cyber/physical branches (rules + models) |
 | `models/cyber_model.py` | SWaT-trained CyberModel: Isolation Forest + supervised head over 8 actuator-event features (abstains on non-flip commands) |
 | `models/physical_model.py` | SWaT-trained PhysicalModel: 30 s windows (1 Hz), 87 features, Isolation Forest + supervised head + measured envelope; abstains on NO_MODEL/WARMING_UP/ERROR; RUL removed |
@@ -116,7 +117,7 @@ Reference files are listed by path below; none are auto-loaded.
 | `dashboard/app.py`, `dashboard/static/`, `dashboard/templates/` | Flask dashboard + UI |
 | `evaluation/` | legacy synthetic xlsx evaluation (superseded in Phase 11) |
 | `tests/` | unit/pipeline/stress tests |
-| `docs/reports/fusion_training_report_swat.md` | Phase 7 fusion candidate, REAL SWaT held-out: val AUC 0.93 but TEST AUC 0.68 < physical alone 0.83; detects 4/10 test segments vs 6/10; NOT promoted (pending user decision) |
+| `docs/reports/fusion_training_report_swat.md` | Phase 7 fusion candidate, REAL SWaT held-out: val AUC 0.93 but TEST AUC 0.68 < physical alone 0.83; detects 4/10 test segments vs 6/10; NOT promoted (user decision: rule-based fusion instead) |
 | `tools/swat_inspect.py` | Phase 4: run locally on the SWaT folder; prints aggregate-only report + JSON manifest (no raw rows) |
 | `.claude/hooks/guard.py`, `.claude/hooks/confirm.py`, `.claude/settings.json` | hook logic / confirmation helper / wiring |
 
@@ -126,8 +127,8 @@ Reference files are listed by path below; none are auto-loaded.
 | 1 | Models trained only on synthetic data | P5 (cyber), P6 (physical) | cyber: trained on real SWaT, result WEAK (docs/reports); user DROPPED cyber ML entirely -> cyber branch is RULES-ONLY by design (negative result = documented limitation); physical: run 2 on real SWaT (test AUC 0.83, F1 ~0.3), PROMOTED as ADVISORY at the 0.5 false-alarm/h operating point (user decision, P6 gate) -> NO synthetic-trained model is active any more |
 | 2 | Guessed physical bounds | P6 | CLOSED (docs/swat_bounds.json measured on real SWaT train-normal rows; MACHINES + twin calibrated to it; tests/test_bounds_alignment.py enforces) |
 | 3 | Hardcoded 127.0.0.1 | P2 | CLOSED (docs/netconfig.py; env+CLI; grep clean) |
-| 4 | Orchestrator is AND-gate | P7 | open |
-| 5 | No orchestrator model | P7 | open |
+| 4 | Orchestrator is AND-gate | P7 | CLOSED (rule-based four-branch table with an ALERT class for the advisory physical model; tests/test_orchestrator.py) |
+| 5 | No orchestrator model | P7 | CLOSED AS NEGATIVE RESULT (cross-fitted GBM fusion on real SWaT: test AUC 0.68 < physical alone 0.83, 4/10 vs 6/10 segments; user chose NOT to promote; rule-based fusion is the design; documented limitation) |
 | 6 | Attacker deterministic | P8 | open |
 | 7 | Twin is flat list, not SWaT-like | P3 | CLOSED (5 stages x 4 pts, coupled physics, propagation check passes) |
 | 8 | No per-layer journey visibility | P9 | open |
