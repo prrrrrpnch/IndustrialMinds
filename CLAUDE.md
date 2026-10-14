@@ -52,7 +52,7 @@ Reference files are listed by path below; none are auto-loaded.
 - Pre-existing lab IPs remain only in synthetic-data files (telemetry_generator, train_models, evaluation, some tests); replaced when data is replaced in P5-P7/P11.
 - Plant = 5 stages x 4 points = 20 registers (10 actuators writable, 10 sensors read-only); register constants are SWaT tags (MV101, LIT101...). Old names (TANK_PRESSURE...) are gone.
 - Wire scale is x10 (0.1 resolution): pH/permeate flow are coarse; max representable 6553.5.
-- Old weights in models/weights are STALE synthetic artifacts; both models REFUSE them (schema check -> NO_MODEL), so the middleware runs on rules alone until a SWaT candidate is promoted.
+- models/weights: physical_model.joblib is the PROMOTED SWaT-trained model (advisory; operating point 0.5 false alarms/h, clf thr 0.601, variant drift_robust). cyber_model.joblib and training_report.json are OLD SYNTHETIC leftovers: the cyber model refuses them (NO_MODEL = cyber branch is rules-only); delete them only with a user-confirmed delete.
 - `evaluation/` (xlsx, generate_test_data, evaluate_system) targets the OLD register names and is non-functional until replaced in P11.
 - SWaT archive facts (from tools/swat_inspect.py reports; data lives ONLY on the user's Windows machine, never in this container):
   attack.csv = 54,621 attack-only rows in 35 time-gap segments; normal.csv = 1,387,098 rows; merged.csv = their concatenation; 51 tags + Timestamp + `Normal/Attack`;
@@ -63,6 +63,7 @@ Reference files are listed by path below; none are auto-loaded.
   Segment 22 (35,900 rows, ~10 h) is 66% of all attack rows: always evaluate PER SEGMENT, split by calendar time blocks, never random rows. PIT502/AIT202 drift by day (leakage tell).
   SWaT actuators are discrete (pumps 1/2, valves 0/1/2); P401/P404/P502/P601/P603 constant, P402/P501/UV401 ~always on. MV503 does not exist in SWaT.
 - Phases 5-7 need the data on the machine that RUNS training: run the session locally (recommended) or have the user run `--candidate` training and paste reports.
+- DECISION (P6 gate): physical candidate promoted as advisory at the 0.5/h budget (threshold edited from the trained 0.558 to 0.601, recorded in metadata). Physical ML never blocks; the envelope rule is alert-only.
 - DECISION (P5 gate): cyber ML candidate NOT promoted. models/weights/cyber_model.joblib is the OLD synthetic file, refused by the schema check; never promote it; remove only with a confirmed delete.
 - Cyber ML = actuator STATE-CHANGE events (1/2 -> 0/100 %); it abstains on writes that don't flip on/off. Old 13-feature weights in models/weights are refused (schema mismatch -> NO_MODEL) until the SWaT candidate is promoted.
 - Guard hook only fires on EXECUTING a training script (python ... train*), not on reads; avoid heredocs whose text mentions weights paths / training commands (false positives) - write scripts with the Write tool.
@@ -102,7 +103,7 @@ Reference files are listed by path below; none are auto-loaded.
 | `tests/test_swat_cyber.py`, `tests/swat_fixture.py` | Phase 5 checks on a synthetic SWaT-SHAPED fixture (code paths only, never real metrics) |
 | `models/train_models.py`, `models/telemetry_generator.py` | train_models is RETIRED (stub); telemetry_generator is synthetic, tests/benchmarks only |
 | `models/tree_inference.py` | packed fast tree inference |
-| `models/weights/` | trained artifacts + `training_report.json` (guarded) |
+| `models/weights/` | physical_model.joblib (PROMOTED, SWaT-only) + its report; stale synthetic cyber_model.joblib/training_report.json (guarded) |
 | `plc/plc.py` | PLC: Modbus server around the twin (actuator writes -> targets; sensors read-only) |
 | `plc/twin.py` | staged SWaT-style physics (5 stages, 20 points, inter-stage coupling); env IM_TWIN_TIME_SCALE / IM_TWIN_NOISE |
 | `tests/test_twin_propagation.py` | Phase 3 check: perturb S1, assert S2..S5 respond in order (`--live` over Modbus) |
@@ -117,7 +118,7 @@ Reference files are listed by path below; none are auto-loaded.
 ## PART 0 tracker (update at the end of each phase)
 | # | Issue | Closed by | Status |
 |---|---|---|---|
-| 1 | Models trained only on synthetic data | P5 (cyber), P6 (physical) | cyber: trained on real SWaT, result WEAK (docs/reports), user decided NOT to promote -> cyber branch is RULES-ONLY (NO_MODEL), negative result is a documented limitation; physical: run 2 on real SWaT = usable-but-modest signal, awaiting P6 weight gate decision |
+| 1 | Models trained only on synthetic data | P5 (cyber), P6 (physical) | cyber: trained on real SWaT, result WEAK (docs/reports), user decided NOT to promote -> cyber branch is RULES-ONLY (NO_MODEL), negative result is a documented limitation; physical: run 2 on real SWaT (test AUC 0.83, F1 ~0.3), PROMOTED as ADVISORY at the 0.5 false-alarm/h operating point (user decision, P6 gate) -> NO synthetic-trained model is active any more |
 | 2 | Guessed physical bounds | P6 | CLOSED (docs/swat_bounds.json measured on real SWaT train-normal rows; MACHINES + twin calibrated to it; tests/test_bounds_alignment.py enforces) |
 | 3 | Hardcoded 127.0.0.1 | P2 | CLOSED (docs/netconfig.py; env+CLI; grep clean) |
 | 4 | Orchestrator is AND-gate | P7 | open |
