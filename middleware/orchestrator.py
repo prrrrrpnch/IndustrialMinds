@@ -7,10 +7,13 @@ Physical Agent runs there, per the team's design.
 
 from __future__ import annotations
 
+import atexit
 import json
+import queue
 import threading
 import time
 import urllib.request
+from typing import Optional
 
 from docs import netconfig
 from docs.interfaces import make_decision
@@ -18,8 +21,19 @@ from docs.interfaces import make_decision
 _decision_log = []
 
 
-def _forward_decision_to_dashboard(payload: dict) -> None:
-    def _send() -> None:
+# Decisions are forwarded to the dashboard by ONE long-lived worker thread that is
+# drained at interpreter exit. (A daemon thread per decision was still inside urllib
+# when CPython 3.13 finalised and segfaulted the process, e.g. at the end of unit tests.)
+_forward_queue: "queue.Queue[Optional[dict]]" = queue.Queue(maxsize=1000)
+_forward_worker: Optional[threading.Thread] = None
+_forward_lock = threading.Lock()
+
+
+def _forward_loop() -> None:
+    while True:
+        payload = _forward_queue.get()
+        if payload is None:
+            return
         try:
             data = json.dumps(payload).encode("utf-8")
             req = urllib.request.Request(
@@ -31,7 +45,30 @@ def _forward_decision_to_dashboard(payload: dict) -> None:
         except Exception:
             pass  # Silently ignore forwarding errors so middleware operation is never affected
 
-    threading.Thread(target=_send, daemon=True).start()
+
+def _shutdown_forwarder() -> None:
+    worker = _forward_worker
+    if worker is not None and worker.is_alive():
+        try:
+            _forward_queue.put_nowait(None)
+        except queue.Full:
+            pass
+        worker.join(timeout=2.0)
+
+
+def _forward_decision_to_dashboard(payload: dict) -> None:
+    global _forward_worker
+    with _forward_lock:
+        if _forward_worker is None or not _forward_worker.is_alive():
+            _forward_worker = threading.Thread(target=_forward_loop, name="dashboard-forwarder", daemon=True)
+            _forward_worker.start()
+    try:
+        _forward_queue.put_nowait(payload)
+    except queue.Full:
+        pass  # dashboard unreachable/slow: drop the notification, never block the middleware
+
+
+atexit.register(_shutdown_forwarder)
 
 
 def decide(cyber_verdict: dict | None, physical_verdict: dict, start_time: float = None) -> dict:
