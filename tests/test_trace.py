@@ -79,6 +79,8 @@ check("legit: cyber and physical rule hops PASS with every check PASS",
       hop(t, "cyber_rules")["outcome"] == "PASS" and set(res(hop(t, "cyber_rules")).values()) == {"PASS"}
       and hop(t, "physical_rules")["outcome"] == "PASS" and set(res(hop(t, "physical_rules")).values()) == {"PASS"})
 arr = hop(t, "arrival")["values"]
+check("arrival hop exposes the frame nonce as the 4 wire words (for Wireshark correlation)",
+      arr["nonce_words"] == hmac_auth._u64_to_regs(int(arr["nonce"], 16)) and len(arr["nonce_words"]) == 4)
 check("arrival hop carries the real peer, function code, register, value and signature state",
       arr["function_code"] == 16 and arr["requested_value"] == 56.0 and arr["signature"] == "present" and LOOPBACK in arr["source"])
 pm_rep, pm_hop = cases["legit"]["physical"]["model"], hop(t, "physical_model")["values"]

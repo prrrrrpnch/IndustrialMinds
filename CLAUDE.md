@@ -71,7 +71,8 @@ Reference files are listed by path below; none are auto-loaded.
 - DECISION (P5 gate): cyber ML candidate NOT promoted. the old synthetic cyber weights were deleted; there are no cyber weights in models/weights.
 - Cyber ML = actuator STATE-CHANGE events (1/2 -> 0/100 %); it abstains on writes that don't flip on/off. Old 13-feature weights in models/weights are refused (schema mismatch -> NO_MODEL) until the SWaT candidate is promoted.
 - Guard hook only fires on EXECUTING a training script (python ... train*), not on reads; avoid heredocs whose text mentions weights paths / training commands (false positives) - write scripts with the Write tool.
-- `docs/wireshark_setup.md` is currently an empty file (filled in Phase 10).
+- Wireshark decodes Modbus only on port 502: use the PORT PREFERENCE (`-o mbtcp.tcp.port:5021`), NOT Decode As (it cannot classify requests/responses). tx_id is not on the wire; the frame nonce words are (shown in the tracer Arrival hop).
+- Laptop topology (user, P10): 4 laptops = Mac A middleware+dashboard+Wireshark, Windows A PLC+tshark, Mac B SCADA, Windows B attacker. IPs are NOT chosen yet (user sets them later; laptops unavailable): docs/topology.md uses placeholders; do NOT run `confirm.py ips` until the user gives addresses.
 
 ## File index (open only when relevant)
 | Path | Open when |
@@ -86,6 +87,8 @@ Reference files are listed by path below; none are auto-loaded.
 | `tools/twin_domain_gap.py` | measure a PhysicalModel on the calibrated twin (nominal false alarms + synthetic attack latency) |
 | `tests/test_bounds_alignment.py` | PART 0 #2 evidence: config/twin vs measured bounds (35 checks) |
 | `docs/netconfig.py` | any host/port/env-var question (single source for addresses) |
+| `docs/topology.md`, `docs/wireshark_setup.md` | Phase 10: 4-laptop roles, env vars, firewall rules, preflight; capture filters, field names, side-by-side demo (verified on loopback with tshark 4.2.2) |
+| `tools/check_topology.py`, `tools/wire_correlate.py` | per-laptop preflight (`--role ... --multi`, HMAC fingerprint); match tshark frames to tracer entries by nonce and cross-check PLC leg (tests: test_check_topology, test_wire_correlate) |
 | `docs/interfaces.py` | machines/registers/bounds, verdict/decision dict shapes, cross-register rules |
 | `docs/hmac_auth.py` | signed frame format, HMAC build/verify |
 | `docs/attack_log.py` | blocked-attack JSONL logging |
@@ -134,7 +137,7 @@ Reference files are listed by path below; none are auto-loaded.
 | 6 | Attacker deterministic | P8 | CLOSED (randomised plans, distribution check in tests/test_attacker_randomization.py; SWaT-derived ranges pending a local run of tools/swat_attack_profile.py) |
 | 7 | Twin is flat list, not SWaT-like | P3 | CLOSED (5 stages x 4 pts, coupled physics, propagation check passes) |
 | 8 | No per-layer journey visibility | P9 | CLOSED (decision carries `fusion`; middleware/trace.py; dashboard Packet Tracer panel; live-verified against logs/blocked_attacks.jsonl) |
-| 9 | No live network proof | P10 | open |
+| 9 | No live network proof | P10 | PARTIAL: docs + tools done, capture/nonce correlation verified on loopback with real tshark; multi-laptop run PENDING hardware + IPs |
 | 10 | No reproducible verification | P11 | open |
 | 11 | README is setup only | P12 | open |
 | 12 | Junk files | P1 | CLOSED (2 stray scripts deleted; venv/.DS_Store/__MACOSX never in repo, now git-ignored) |
