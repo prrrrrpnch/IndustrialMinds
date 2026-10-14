@@ -40,6 +40,20 @@ Source IP:
         sudo ifconfig lo0 alias 127.0.0.2 up
     Or run the attacker on another machine with --host <middleware-ip>.
 
+Two families (Phase 8):
+    FIXED, scripted attacks (above): identical every run, for live-demo reliability.
+        The three DEMO attacks are: flood, impossible-command, cross-register.
+        The rest (sensor-write, replay, false-injection, hmac-*, delayed-replay) are fixed protocol-level probes.
+    RANDOMISED attacks (`random`): target register, timing, intensity, step size and counts are drawn per run
+        from distributions (attacker/scenarios.py); the seed is printed so any run can be reproduced.
+        Types: freeze / ramp / cross-register  (SWaT-derived behaviours)
+               impossible-command / flood / replay  (SYNTHETIC EXTENSION: SWaT has no network-layer attacks)
+
+        python attacker/attacker.py random --type ramp                 # new parameters every run
+        python attacker/attacker.py random --type flood --seed 42      # reproducible
+        python attacker/attacker.py random --dry-run --count 5         # print plans, send nothing
+        python attacker/attacker.py random --log-file logs/attacks.jsonl
+
 Usage:
 
     python attacker/attacker.py flood
@@ -55,6 +69,7 @@ Usage:
 from __future__ import annotations
 
 import argparse
+import json
 import os
 import secrets
 import sys
@@ -76,6 +91,7 @@ from docs.interfaces import (  # noqa: E402
     to_raw,
     from_raw,
 )
+from attacker import scenarios  # noqa: E402
 from docs import hmac_auth, netconfig  # noqa: E402
 
 
@@ -613,6 +629,69 @@ def delayed_replay_attack() -> None:
 
 
 # ---------------------------------------------------------
+# RANDOMISED ATTACKS (plans come from attacker/scenarios.py)
+# ---------------------------------------------------------
+
+DEMO_ATTACKS = ("flood", "impossible-command", "cross-register")   # fixed-timing, demo-reliable
+
+
+def run_plan(plan: dict) -> List[dict]:
+    """Execute a plan over Modbus against the middleware. Returns one record per step."""
+    print(f"\n[ATTACK] RANDOMISED {plan['type'].upper()} seed={plan['seed']} origin={plan['origin']} "
+          f"ranges={plan['ranges_from']}")
+    print(f"[ATTACK] params: {json.dumps(plan['params'])}")
+    client = connect(MIDDLEWARE_HOST, MIDDLEWARE_PORT)
+    if client is None:
+        return []
+    sent: Dict[int, List[int]] = {}
+    records: List[dict] = []
+    t0 = time.time()
+    try:
+        for i, st in enumerate(plan["steps"]):
+            wait = st["t"] - (time.time() - t0)
+            if wait > 0:
+                time.sleep(wait)
+            if st["kind"] == "replay_of":
+                ok = send_frame(client, sent[st["ref"]], f"REPLAYED {st['tag']}={st['value']}")
+            else:
+                frame = hmac_auth.build_frame(st["register"], st["value"])
+                sent[i] = frame
+                ok = send_frame(client, frame, f"signed {st['tag']}={st['value']}")
+            records.append({"step": i, "t": st["t"], "kind": st["kind"], "register": st["register"], "tag": st["tag"],
+                            "value": st["value"], "sent": bool(ok), "wall_time": round(time.time(), 3)})
+    finally:
+        client.close()
+    print(f"[ATTACK] {plan['type']} complete ({len(records)} frames).")
+    return records
+
+
+def random_attack(attack_type: Optional[str], seed: Optional[int], dry_run: bool, count: int,
+                  log_file: Optional[str]) -> None:
+    for n in range(count):
+        # one independent seed per run unless the user pinned one
+        run_seed = int(seed) + n if seed is not None else secrets.randbelow(2**31)
+        rng_type = attack_type or sorted(scenarios.TYPES)[run_seed % len(scenarios.TYPES)]
+        state = None
+        if not dry_run:
+            probe = connect(MIDDLEWARE_HOST, MIDDLEWARE_PORT)
+            if probe is not None:
+                state = read_plant(probe) or None
+                probe.close()
+        plan = scenarios.make_plan(rng_type, run_seed, state, scenarios.load_profile())
+        if dry_run:
+            print(json.dumps({k: plan[k] for k in ("type", "seed", "origin", "ranges_from", "params")}))
+            records: List[dict] = []
+        else:
+            records = run_plan(plan)
+        if log_file:
+            os.makedirs(os.path.dirname(os.path.abspath(log_file)), exist_ok=True)
+            with open(log_file, "a") as fh:
+                fh.write(json.dumps({"type": plan["type"], "seed": plan["seed"], "origin": plan["origin"],
+                                     "ranges_from": plan["ranges_from"], "params": plan["params"],
+                                     "dry_run": dry_run, "records": records}) + "\n")
+
+
+# ---------------------------------------------------------
 # MAIN
 # ---------------------------------------------------------
 
@@ -635,7 +714,13 @@ def main() -> None:
     global _SOURCE_IP, MIDDLEWARE_HOST, MIDDLEWARE_PORT, PLC_HOST, PLC_PORT
 
     parser = argparse.ArgumentParser(description="Industrial Mind attack client")
-    parser.add_argument("attack", nargs="?", choices=sorted(ATTACKS))
+    parser.add_argument("attack", nargs="?", choices=sorted(ATTACKS) + ["random"])
+    parser.add_argument("--type", choices=sorted(scenarios.TYPES), default=None,
+                        help="random: attack type (default: varies with the seed)")
+    parser.add_argument("--seed", type=int, default=None, help="random: reproducible run (default: fresh seed each run)")
+    parser.add_argument("--count", type=int, default=1, help="random: number of attacks to run")
+    parser.add_argument("--dry-run", action="store_true", help="random: print the plan(s), send nothing")
+    parser.add_argument("--log-file", default=None, help="random: append plan + per-frame records as JSONL")
     parser.add_argument(
         "--source-ip",
         default="",
@@ -660,6 +745,9 @@ def main() -> None:
 
     for src in sources:
         _SOURCE_IP = src
+        if args.attack == "random":
+            random_attack(args.type, args.seed, args.dry_run, args.count, args.log_file)
+            continue
         ATTACKS[args.attack]()
         if len(sources) > 1:
             time.sleep(1.2)   # keep per-source bursts separate

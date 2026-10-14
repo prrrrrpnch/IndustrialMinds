@@ -113,7 +113,8 @@ Reference files are listed by path below; none are auto-loaded.
 | `plc/twin.py` | staged SWaT-style physics (5 stages, 20 points, inter-stage coupling); env IM_TWIN_TIME_SCALE / IM_TWIN_NOISE |
 | `tests/test_twin_propagation.py` | Phase 3 check: perturb S1, assert S2..S5 respond in order (`--live` over Modbus) |
 | `scada/scada.py` | operator simulator (`--host` pattern to copy) |
-| `attacker/attacker.py` | attack scripts (rebuilt in Phase 8) |
+| `attacker/attacker.py`, `attacker/scenarios.py` | FIXED scripted attacks (3 DEMO: flood, impossible-command, cross-register) + `random` mode: seeded randomised plans (freeze/ramp/cross-register = SWaT-derived behaviours; impossible-command/flood/replay = SYNTHETIC EXTENSION); `--dry-run`, `--seed`, `--log-file` |
+| `tools/swat_attack_profile.py`, `tests/test_attacker_randomization.py` | run locally on SWaT -> docs/swat_attack_profile.json (aggregate; only the ramp range is calibrated, rest design defaults); the test is the P8 distribution check |
 | `dashboard/app.py`, `dashboard/static/`, `dashboard/templates/` | Flask dashboard + UI |
 | `evaluation/` | legacy synthetic xlsx evaluation (superseded in Phase 11) |
 | `tests/` | unit/pipeline/stress tests |
@@ -129,7 +130,7 @@ Reference files are listed by path below; none are auto-loaded.
 | 3 | Hardcoded 127.0.0.1 | P2 | CLOSED (docs/netconfig.py; env+CLI; grep clean) |
 | 4 | Orchestrator is AND-gate | P7 | CLOSED (rule-based four-branch table with an ALERT class for the advisory physical model; tests/test_orchestrator.py) |
 | 5 | No orchestrator model | P7 | CLOSED AS NEGATIVE RESULT (cross-fitted GBM fusion on real SWaT: test AUC 0.68 < physical alone 0.83, 4/10 vs 6/10 segments; user chose NOT to promote; rule-based fusion is the design; documented limitation) |
-| 6 | Attacker deterministic | P8 | open |
+| 6 | Attacker deterministic | P8 | CLOSED (randomised plans, distribution check in tests/test_attacker_randomization.py; SWaT-derived ranges pending a local run of tools/swat_attack_profile.py) |
 | 7 | Twin is flat list, not SWaT-like | P3 | CLOSED (5 stages x 4 pts, coupled physics, propagation check passes) |
 | 8 | No per-layer journey visibility | P9 | open |
 | 9 | No live network proof | P10 | open |
