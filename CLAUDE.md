@@ -57,7 +57,8 @@ Reference files are listed by path below; none are auto-loaded.
 - SWaT archive facts (from tools/swat_inspect.py reports; data lives ONLY on the user's Windows machine, never in this container):
   attack.csv = 54,621 attack-only rows in 35 time-gap segments; normal.csv = 1,387,098 rows; merged.csv = their concatenation; 51 tags + Timestamp + `Normal/Attack`;
   timestamps `%d/%m/%Y %I:%M:%S %p`, 1 Hz, files NOT chronological. NO network fields, NO attack list, NO pcaps.
-  normal.csv appears to hold the 22-28 Dec normal period TWICE (v0 + a copy starting 30 min later) plus the normal rows of the attack period; dedupe + verify in the adapter.
+  CONFIRMED by the real run: normal.csv holds the 22-28 Dec normal period (496,800 rows) + an exact duplicate copy (495,000 rows, 0 conflicts) + the attack period's normal rows;
+  after de-duplication the stream is 946,719 rows = 496,800 + 449,919, 35 attack segments (17/8/10 across train/val/test), only 2 chunks (gaps > 5 s).
   MV101/AIT201/MV201/P201/P202/P204/MV303 are NaN for the 991,800 normal-period rows (present only in the 449,919 attack-period rows).
   Segment 22 (35,900 rows, ~10 h) is 66% of all attack rows: always evaluate PER SEGMENT, split by calendar time blocks, never random rows. PIT502/AIT202 drift by day (leakage tell).
   SWaT actuators are discrete (pumps 1/2, valves 0/1/2); P401/P404/P502/P601/P603 constant, P402/P501/UV401 ~always on. MV503 does not exist in SWaT.
@@ -84,6 +85,7 @@ Reference files are listed by path below; none are auto-loaded.
 | `pipeline/multi_model_pipeline.py` | concurrent cyber/physical branches (rules + models) |
 | `models/cyber_model.py` | SWaT-trained CyberModel: Isolation Forest + supervised head over 8 actuator-event features (abstains on non-flip commands) |
 | `models/physical_model.py` | RF health+RUL (synthetic until P6) |
+| `docs/reports/cyber_training_report_swat.md/.json` | REAL SWaT held-out results of the cyber candidate (aggregate only): weak - test ROC-AUC 0.63, F1 0.137 |
 | `models/train_cyber_swat.py` | Phase 5 trainer (`--data-dir <archive> --candidate`, or `--fixture`); writes models/candidates/ + report + provenance |
 | `models/promote_candidate.py` | copy an approved candidate into models/weights/ (refuses without `confirm.py retrain <model>`) |
 | `swat/loader.py`, `swat/cyber_events.py` | chronological de-duplicated SWaT stream + segments + calendar blocks / actuator events + THE feature implementation shared by training and live |
@@ -105,7 +107,7 @@ Reference files are listed by path below; none are auto-loaded.
 ## PART 0 tracker (update at the end of each phase)
 | # | Issue | Closed by | Status |
 |---|---|---|---|
-| 1 | Models trained only on synthetic data | P5 (cyber), P6 (physical) | cyber candidate built (pending gate + real-data run); physical open |
+| 1 | Models trained only on synthetic data | P5 (cyber), P6 (physical) | cyber candidate trained on real SWaT, results WEAK (docs/reports), awaiting gate decision; physical open |
 | 2 | Guessed physical bounds | P6 (P3 only installs SWaT-style PLACEHOLDERS) | open |
 | 3 | Hardcoded 127.0.0.1 | P2 | CLOSED (docs/netconfig.py; env+CLI; grep clean) |
 | 4 | Orchestrator is AND-gate | P7 | open |
