@@ -34,7 +34,24 @@ Live Modbus round trip of a signed write to a running middleware (300 writes): m
 
 ## 2. Held-out SWaT (real data)
 
-**NOT RUN.** NOT RUN: no --data-dir given and no benchmarks/swat_accuracy.json SWaT lives only on the machine that has the archive: run `python -m benchmark.run_all --data-dir <archive>` there (or `python -m benchmark.swat_accuracy --data-dir <archive> --out benchmarks/swat_accuracy.json` and commit the JSON). No SWaT number is quoted until it has been measured.
+**PROMOTED physical model on the HELD-OUT SWaT test block (real data, aggregate only).** test block was also seen in physical training run 2 (revised protocol): held-out, not a pristine blind test.
+
+_Source: measured by the user on their Windows machine (benchmark.swat_accuracy, console summary pasted into the chat; scikit-learn 1.8.0 loading weights pickled with 1.9.1, so an InconsistentVersionWarning was printed; the AUC 0.8245 agrees with the training run-2 test AUC of 0.83); per-segment table not included_
+
+Test block: 28,075 windows (stride 5 s): 1,060 attack, 27,015 benign (37.521 benign hours). Operating point: Isolation Forest threshold 0.6108, classifier threshold 0.601, variant `drift_robust`.
+
+| Decision rule | precision | recall | F1 | false-positive rate | alarm episodes / benign hour |
+|---|---|---|---|---|---|
+| Advisory model flag (drives ALERT) | 0.366 | 0.263 | 0.306 | 0.018 | 1.786 |
+| Envelope rule alone (alert-only) | 0.273 | 0.216 | 0.241 | 0.022 | 0.853 |
+| Model flag or envelope | 0.274 | 0.271 | 0.272 | 0.028 | 1.999 |
+
+ROC-AUC (attack probability) **0.825**, ROC-AUC (Isolation Forest score) 0.634, average precision 0.311.
+Attack segments detected: **6/10**; median detection latency 50.0 s (first flagged attack window after the segment starts).
+
+Excluding the largest segment (35, 31.9% of attack windows): precision 0.366, recall 0.386, F1 0.376.
+
+The per-segment table is not part of this record (it was taken from the printed console summary); re-run `python -m benchmark.swat_accuracy ... --out benchmarks/swat_accuracy.json` to include it.
 
 ## 3. Rule-based checks and constructed scenarios (NOT SWaT, NOT a learned model)
 
