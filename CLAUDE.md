@@ -84,6 +84,7 @@ Reference files are listed by path below; none are auto-loaded.
 | `dashboard/app.py`, `dashboard/static/`, `dashboard/templates/` | Flask dashboard + UI |
 | `evaluation/` | legacy synthetic xlsx evaluation (superseded in Phase 11) |
 | `tests/` | unit/pipeline/stress tests |
+| `tools/swat_inspect.py` | Phase 4: run locally on the SWaT folder; prints aggregate-only report + JSON manifest (no raw rows) |
 | `.claude/hooks/guard.py`, `.claude/hooks/confirm.py`, `.claude/settings.json` | hook logic / confirmation helper / wiring |
 
 ## PART 0 tracker (update at the end of each phase)
