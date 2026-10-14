@@ -54,6 +54,14 @@ Reference files are listed by path below; none are auto-loaded.
 - Wire scale is x10 (0.1 resolution): pH/permeate flow are coarse; max representable 6553.5.
 - Model weights in models/weights are STALE (trained on the old 10 synthetic machines); they still load (per-channel features) but their scores mean nothing until P5/P6. Advisory only.
 - `evaluation/` (xlsx, generate_test_data, evaluate_system) targets the OLD register names and is non-functional until replaced in P11.
+- SWaT archive facts (from tools/swat_inspect.py reports; data lives ONLY on the user's Windows machine, never in this container):
+  attack.csv = 54,621 attack-only rows in 35 time-gap segments; normal.csv = 1,387,098 rows; merged.csv = their concatenation; 51 tags + Timestamp + `Normal/Attack`;
+  timestamps `%d/%m/%Y %I:%M:%S %p`, 1 Hz, files NOT chronological. NO network fields, NO attack list, NO pcaps.
+  normal.csv appears to hold the 22-28 Dec normal period TWICE (v0 + a copy starting 30 min later) plus the normal rows of the attack period; dedupe + verify in the adapter.
+  MV101/AIT201/MV201/P201/P202/P204/MV303 are NaN for the 991,800 normal-period rows (present only in the 449,919 attack-period rows).
+  Segment 22 (35,900 rows, ~10 h) is 66% of all attack rows: always evaluate PER SEGMENT, split by calendar time blocks, never random rows. PIT502/AIT202 drift by day (leakage tell).
+  SWaT actuators are discrete (pumps 1/2, valves 0/1/2); P401/P404/P502/P601/P603 constant, P402/P501/UV401 ~always on. MV503 does not exist in SWaT.
+- Phases 5-7 need the data on the machine that RUNS training: run the session locally (recommended) or have the user run `--candidate` training and paste reports.
 - `docs/wireshark_setup.md` is currently an empty file (filled in Phase 10).
 
 ## File index (open only when relevant)
