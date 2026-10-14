@@ -1,0 +1,143 @@
+================================================================================
+           INDUSTRIALMIND SYSTEM REFACTORING & VERIFICATION CHECKLIST
+                    Verified 2026-10-01 against this code base
+================================================================================
+
+Legend   [x] verified with evidence   [~] done with a stated deviation   [n/a] not applicable
+
+--------------------------------------------------------------------------------
+1. ARCHITECTURAL OVERVIEW & SUMMARY OF CHANGES (as built)
+--------------------------------------------------------------------------------
+* ARCHITECTURE
+  - The rule-based Cyber Agent and Physical Agent were KEPT as the hard
+    PASS/DROP gate (HMAC, whitelist, rate, replay, bounds, rate-of-change,
+    cross-register). They were not renamed or removed.
+  - New CyberModel (models/cyber_model.py) and PhysicalModel
+    (models/physical_model.py) run ALONGSIDE them.
+  - New MultiModelPipeline (pipeline/multi_model_pipeline.py) runs the cyber
+    branch (rules + CyberModel) and physical branch (rules + PhysicalModel)
+    concurrently for every command, then the Orchestrator decides.
+  - ML is advisory by default (MONITOR). IM_CYBER_MODEL_ENFORCE=1 lets a
+    CyberModel threat flag also DROP commands (reason ML_ANOMALY).
+
+* SCALE
+  - 10 named machines (M1-M10) in docs/interfaces.MACHINES, Modbus holding
+    registers 0-9. Added: AIR_COMPRESSOR, MIXER_SPEED, COOLANT_FLOW,
+    EXHAUST_FAN, plus correlation rule COOLANT_STARVATION.
+
+* MODELS (scikit-learn only)
+  - CyberModel: Isolation Forest, 13 traffic features, unsupervised.
+  - PhysicalModel: Random Forest regressor on a [60, 10, 3] sliding window
+    -> RUL hours and Health Index 0..1 per machine.
+  - Rationale, maths and measured results: MODELS_RATIONALE.md
+
+* STRESS TEST & LOGGING
+  - tests/test_middleware_efficiency.py, JSON + CSV under logs/, stdout via
+    the Python logging module.
+
+--------------------------------------------------------------------------------
+2. QUALITY ASSURANCE & VERIFICATION CHECKLIST
+--------------------------------------------------------------------------------
+
+[x] 1. TOPOLOGY & REGISTER SCALE VERIFICATION
+    [x] Telemetry covers 10 machines.
+        Live middleware log line lists all 10 (TANK_PRESSURE .. EXHAUST_FAN);
+        /api/dashboard returns 10 telemetry registers; dashboard shows 10 rows.
+    [x] No hard-coded bound at 6 (or 3).
+        PLC datastore, middleware poll count, SCADA profiles, agents, models,
+        dashboard and evaluation all derive from NUM_REGISTERS / MACHINES.
+        Source grep for fixed counts: none found.
+    [~] Address map covers all 10 locations.
+        Modbus: addresses 0-9 + signed-frame window at 100 (docs/register_map.md).
+        OPC-UA: [n/a] - the project has no OPC-UA server.
+        Naming: named machines instead of Register_01..Register_10 (decision).
+
+[x] 2. CYBER MODEL FUNCTIONALITY (models/cyber_model.py)
+    [x] fit(), predict(), evaluate_payload() present (tests/test_models.py).
+    [x] Payload -> 13-feature vector (function code, register, value position,
+        out-of-range distance, delta, signature present/age, inter-arrival,
+        1 s / 10 s request counts, duplicate payload).
+    [x] Missing weights -> status NO_MODEL, abstains, no crash.
+        Corrupt weights -> NO_MODEL. Malformed command -> ERROR, no crash.
+        "Safe state" = model abstains; deterministic rules keep gating.
+    Measured: held-out normal false-positive rate 0.6% (training report),
+    0.4% in tests; live run flagged 0 of 40 real SCADA commands and did flag
+    flood commands the hard rate limit still allowed.
+
+[x] 3. PHYSICAL MODEL FUNCTIONALITY (models/physical_model.py)
+    [x] Window shape (60, 10, 3) = [window_size, 10 machines, features].
+    [x] Per machine: health_index in [0, 1] and rul_hours >= 0; health state
+        HEALTHY / DEGRADING / CRITICAL in the pipeline report.
+    [x] Noise and drift handling (second differences + robust statistics):
+        strong calibration drift -> HI 0.96, non-stationary noise -> 0.91,
+        setpoint ramps -> 0.98 (all treated as healthy); near-failure -> 0.20;
+        failing machine ranked lowest of 10.
+    Held-out validation: HI R^2 0.71, HI MAE 0.12, healthy mean 0.92.
+
+[x] 4. MULTI-MODEL PIPELINE ORCHESTRATION (pipeline/multi_model_pipeline.py)
+    [x] Both branches run concurrently on separate worker threads
+        (2 x 50 ms branches finished in ~60 ms, tests/test_pipeline.py).
+    [x] Unified report: decision, cyber {rule verdict, gate verdict, model
+        score, threat flags}, physical {rule verdict, per-machine health,
+        health state}, mode, timings. Every blocked-attack log record also
+        carries the ML fields.
+    Also verified: agent exception -> fail closed (DROP AGENT_ERROR);
+    ENFORCE mode drops an ML anomaly the rules allowed.
+
+[x] 5. MIDDLEWARE EFFICIENCY STRESS TEST (tests/test_middleware_efficiency.py)
+    [x] 2,400 payloads per default run; 40,000-payload soak at 400 msg/s.
+    [x] Mean service latency < 10 ms: 0.86 - 0.97 ms across runs.
+        p95 1.45 - 1.58 ms, p99 2.36 - 2.73 ms.
+    [x] p95/p99 spikes do not cause backpressure or leaks:
+        queue returns to 0, memory 0.13 MB per 1,000 msgs after warm-up
+        (40k soak), all tracked state bounded.
+        Note: 1 of 4 short runs failed the end-to-end p99 check because of a
+        single 71 ms host stall (not fsync, not GC) on this 2-vCPU VM; the
+        other 3 runs and the 40k soak passed.
+    [x] Throughput stable: coefficient of variation 0.002 - 0.003 per second;
+        back-to-back capacity 1,040 - 1,200 msg/s.
+    Correctness under load: every attack payload dropped, every legitimate
+    payload passed (33,909 / 33,909 in the soak).
+
+[x] 6. LOGGING & BENCHMARK PERSISTENCE
+    [x] logs/middleware_benchmark_<timestamp>.json with config, environment,
+        latency, queue, throughput, memory, CPU, verdicts and drop reasons.
+    [x] logs/middleware_benchmark.csv appended one row per run.
+    [x] Middleware, pipeline, models, training and benchmark use the logging
+        module (asctime level logger - message); middleware logs a live
+        [TELEMETRY] line with all 10 values and minimum machine health.
+
+[x] 7. CODE QUALITY & DEPENDENCY STANDARDS
+    [~] requirements.txt: scikit-learn, numpy, pandas, psutil, joblib added.
+        torch deliberately NOT added (scikit-learn-only decision).
+    [x] Type hints on every function in every new or updated Python file
+        (AST check: 100% of parameters and returns annotated).
+    [x] Error handling: rule branches fail closed, models never raise into
+        the middleware (logged with traceback), poll loop and benchmark
+        consumer catch and log.
+
+--------------------------------------------------------------------------------
+3. ISSUES FOUND AND FIXED DURING VERIFICATION
+--------------------------------------------------------------------------------
+* sklearn per-call overhead (4-6 ms) -> packed tree inference, identical
+  outputs, ~0.1 ms.
+* PhysicalModel recomputed on every message (3.5 ms) -> vectorised features
+  and 1 s refresh; capacity rose from 161 to ~1,100 msg/s.
+* Replay-nonce purge scanned all nonces per command (O(n)) -> ordered expiry.
+* Per-source state never pruned (memory grew with every new attacker IP)
+  -> periodic idle-source sweep in Cyber Agent and CyberModel.
+
+--------------------------------------------------------------------------------
+4. HOW TO RE-RUN
+--------------------------------------------------------------------------------
+    pip install -r requirements.txt
+    python -m models.train_models
+    python -m tests.test_models
+    python -m tests.test_pipeline
+    python -m tests.test_cyber_agent
+    python -m tests.test_physical_agent
+    python -m tests.test_orchestrator
+    python -m plc.plc &  python -m tests.pipeline_test
+    python -m tests.test_middleware_efficiency
+    python -m tests.test_middleware_efficiency --payloads 40000 --rate 400
+================================================================================
