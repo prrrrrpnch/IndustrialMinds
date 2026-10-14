@@ -97,15 +97,21 @@ def load_table(path: Path) -> pd.DataFrame:
     return df
 
 
-def parse_timestamps(s: pd.Series) -> Optional[pd.Series]:
+def parse_timestamps(s: pd.Series) -> Tuple[Optional[pd.Series], str]:
+    """Returns (parsed series or None, description of the chosen format / ambiguity)."""
     txt = s.astype(str).str.strip()
-    sample = txt.dropna().iloc[:2000]
-    for fmt in STAMP_FORMATS:
-        ok = pd.to_datetime(sample, format=fmt, errors="coerce").notna().mean()
-        if ok > 0.95:
-            return pd.to_datetime(txt, format=fmt, errors="coerce")
+    step = max(1, len(txt) // 20000)
+    sample = txt.iloc[::step]
+    ratios = {fmt: float(pd.to_datetime(sample, format=fmt, errors="coerce").notna().mean()) for fmt in STAMP_FORMATS}
+    best = max(ratios, key=lambda k: ratios[k])
+    if ratios[best] > 0.95:
+        good = [f for f, r in ratios.items() if r > 0.95]
+        note = f"format {best!r}" + (f"  AMBIGUOUS: {good} all parse (day/month order cannot be told from the data)"
+                                    if len(good) > 1 else "")
+        return pd.to_datetime(txt, format=best, errors="coerce"), note
     out = pd.to_datetime(txt, dayfirst=True, errors="coerce")
-    return out if out.notna().mean() > 0.5 else None
+    ok = float(out.notna().mean())
+    return (out if ok > 0.5 else None), f"fallback dayfirst parser, {ok:.0%} parsed; best fixed-format ratios {max(ratios.values()):.0%}"
 
 
 def find_label_column(df: pd.DataFrame) -> Optional[str]:
@@ -153,23 +159,94 @@ def stage_of(tag: str) -> Optional[int]:
     return int(m.group(1)) if m else None
 
 
-def analyse_data(name: str, df: pd.DataFrame, report: Dict[str, Any], args: argparse.Namespace) -> None:
+def segments_of(attack: np.ndarray, ts: Optional[pd.Series], args: argparse.Namespace) -> List[Tuple[int, int]]:
+    """Attack segments = runs of attack rows, broken by row gaps (> merge-gap) or by TIMESTAMP gaps
+    (> seg-gap seconds, which is how an attack-only file separates its windows)."""
+    idx = np.flatnonzero(attack)
+    if idx.size == 0:
+        return []
+    brk = (np.diff(idx) - 1) > args.merge_gap
+    if ts is not None:
+        t = ts.to_numpy()[idx]
+        dt = np.diff(t).astype("timedelta64[s]").astype(float)
+        brk |= np.abs(np.nan_to_num(dt, nan=0.0)) > args.seg_gap
+    cut = np.flatnonzero(brk)
+    starts = idx[np.concatenate(([0], cut + 1))]
+    ends = idx[np.concatenate((cut, [len(idx) - 1]))]
+    return list(zip(starts.tolist(), ends.tolist()))
+
+
+def report_segments(name: str, num: pd.DataFrame, ts: Optional[pd.Series], attack: np.ndarray, base: Dict[str, Any],
+                    info: Dict[str, Any], args: argparse.Namespace) -> None:
+    segs = segments_of(attack, ts, args)
+    emit(f"  ATTACK SEGMENTS (attack rows split by row gaps > {args.merge_gap} or time gaps > {args.seg_gap}s): {len(segs)}")
+    mu, sd, lo, hi = base["mu"], base["sd"], base["lo"], base["hi"]
+    wins: List[Dict[str, Any]] = []
+    emit(f"    {'#':>3s} {'start':19s} {'end':19s} {'rows':>6s} {'#|z|>3':>6s} {'class*':7s} most-shifted columns (z vs NORMAL baseline from {base['source']})")
+    for i, (s0, e0) in enumerate(segs, 1):
+        z = ((num.iloc[s0:e0 + 1].mean() - mu) / sd).dropna()
+        order = z.abs().sort_values(ascending=False).index
+        top = z.reindex(order)[:3]
+        shifted = [c for c in z.index if abs(z[c]) > 3.0]
+        stages = {stage_of(c) for c in shifted if stage_of(c) is not None}
+        cls = ("SS" if len(stages) <= 1 else "MS") + "-" + ("SP" if len(shifted) <= 1 else "MP")
+        t0 = str(ts.iloc[s0]) if ts is not None else f"row {s0}"
+        t1 = str(ts.iloc[e0]) if ts is not None else f"row {e0}"
+        wins.append({"index": i, "start_row": int(s0), "end_row": int(e0), "rows": int(e0 - s0 + 1), "start": t0, "end": t1,
+                     "n_columns_shifted_gt3sd": len(shifted), "stages_shifted": sorted(stages), "derived_class": cls,
+                     "top_shifted": {k: float(v) for k, v in top.items()}})
+        if i <= args.max_windows:
+            tops = ", ".join(f"{k}({v:+.1f})" for k, v in top.items())
+            emit(f"    {i:3d} {t0:19.19s} {t1:19.19s} {e0 - s0 + 1:6d} {len(shifted):6d} {cls:7s} {tops}")
+    if len(wins) > args.max_windows:
+        emit(f"    ... {len(wins) - args.max_windows} more segments in the JSON manifest")
+    emit("    * class is DERIVED from this data (columns shifted > 3 sd from normal; SS/MS = single/multi stage, "
+         "SP/MP = single/multi point) - it is not the official attack list")
+    if wins:
+        durs = [w["rows"] for w in wins]
+        emit(f"  segment length (rows ~ seconds): min {min(durs)}, median {int(np.median(durs))}, max {max(durs)}")
+    info["attack_segments"] = wins
+
+    # regime-confound indicator: how many attack rows sit outside the normal envelope, column by column
+    att = num[attack]
+    outside = ((att.lt(lo)) | (att.gt(hi))).mean().sort_values(ascending=False)
+    emit("  fraction of ATTACK rows outside the NORMAL [p0.5, p99.5] envelope, top 10 columns "
+         "(high = attack rows come from a different operating regime than normal -> leakage risk):")
+    emit("    " + ", ".join(f"{k}:{v:.0%}" for k, v in outside[:10].items()))
+    zall = ((att.mean() - mu) / sd).dropna()
+    emit("  mean shift of all attack rows (z, top 8): " + ", ".join(
+        f"{k}({zall[k]:+.1f})" for k in zall.abs().sort_values(ascending=False).index[:8]))
+    info["attack_vs_normal_envelope_top10"] = {k: float(v) for k, v in outside[:10].items()}
+
+
+def analyse_data(name: str, df: pd.DataFrame, report: Dict[str, Any], args: argparse.Namespace,
+                 state: Dict[str, Any]) -> None:
     info: Dict[str, Any] = {"rows": int(len(df)), "columns": list(df.columns)}
     emit(f"  rows={len(df):,}  columns={len(df.columns)}")
 
     ts_col = next((c for c in df.columns if "time" in c.lower()), None)
-    ts = parse_timestamps(df[ts_col]) if ts_col else None
+    ts, ts_note = (None, "no timestamp column")
+    if ts_col:
+        ts, ts_note = parse_timestamps(df[ts_col])
+        raw = df[ts_col].astype(str).str.strip()
+        emit(f"  timestamp col '{ts_col}': {ts_note}")
+        emit(f"    raw samples (first 2 / last 2): {raw.iloc[:2].tolist()} ... {raw.iloc[-2:].tolist()}")
     if ts is not None:
         d = ts.diff().dt.total_seconds().dropna()
         med = float(d.median()) if len(d) else float("nan")
-        gaps = int((d > max(1.5 * med, 1.5)).sum()) if len(d) else 0
-        info["timestamp"] = {"column": ts_col, "first": str(ts.iloc[0]), "last": str(ts.iloc[-1]),
-                             "median_step_s": med, "gaps_over_1.5x": gaps,
-                             "max_gap_s": float(d.max()) if len(d) else None}
-        emit(f"  timestamp col '{ts_col}': {ts.iloc[0]} -> {ts.iloc[-1]}  median step {med:g}s  "
-             f"gaps>1.5x: {gaps}  max gap {info['timestamp']['max_gap_s']:g}s")
-    else:
-        emit(f"  timestamp: {'column ' + repr(ts_col) + ' could not be parsed' if ts_col else 'no timestamp column'}")
+        big = d[d > max(1.5 * med, 1.5)]
+        back = int((d < 0).sum())
+        info["timestamp"] = {"column": ts_col, "note": ts_note, "first": str(ts.iloc[0]), "last": str(ts.iloc[-1]),
+                             "min": str(ts.min()), "max": str(ts.max()), "median_step_s": med, "gaps_over_1.5x": int(len(big)),
+                             "max_gap_s": float(d.max()) if len(d) else None, "backwards_steps": back,
+                             "unparsed": int(ts.isna().sum())}
+        emit(f"    first {ts.iloc[0]}  last {ts.iloc[-1]}  | min {ts.min()}  max {ts.max()}  | unparsed {int(ts.isna().sum()):,}")
+        emit(f"    median step {med:g}s  forward gaps>1.5x: {len(big)}  max gap {info['timestamp']['max_gap_s']:g}s  "
+             f"BACKWARD steps (non-monotonic): {back}")
+        per_day = ts.dt.date.value_counts().sort_index()
+        info["rows_per_date"] = {str(k): int(v) for k, v in per_day.items()}
+        shown = [f"{k}:{v:,}" for k, v in per_day.items()]
+        emit(f"    rows per calendar date ({len(per_day)} dates): " + " ".join(shown[:40]) + (" ..." if len(shown) > 40 else ""))
 
     lab_col = find_label_column(df)
     attack = None
@@ -184,20 +261,31 @@ def analyse_data(name: str, df: pd.DataFrame, report: Dict[str, Any], args: argp
 
     num_cols = [c for c in df.columns if c not in (ts_col, lab_col)]
     num = df[num_cols].apply(pd.to_numeric, errors="coerce")
-    non_numeric = [c for c in num_cols if num[c].isna().mean() > 0.5]
-    if non_numeric:
-        emit(f"  non-numeric columns (>50% unparsable): {non_numeric}")
-    num = num.drop(columns=non_numeric)
+    bad = [c for c in num_cols if num[c].isna().mean() > 0.5]
+    categorical: Dict[str, Any] = {}
+    for c in bad:
+        fixed = pd.to_numeric(df[c].astype(str).str.strip().str.replace(",", ".", regex=False), errors="coerce")
+        if fixed.notna().mean() > 0.9:
+            num[c] = fixed
+            emit(f"  column {c}: recovered as numeric after whitespace/decimal-comma cleanup")
+            continue
+        vc = df[c].astype(str).str.strip().value_counts(dropna=False)
+        categorical[c] = {str(k): int(v) for k, v in vc[:10].items()}
+        emit(f"  NON-NUMERIC column {c}: {len(vc)} distinct raw values; top: {categorical[c]}")
+    info["non_numeric_columns"] = categorical
+    num = num.drop(columns=list(categorical))
 
     base_mask = ~attack if attack is not None else np.ones(len(df), bool)
-    base = num[base_mask]
-    emit(f"  per-column statistics measured on {'NORMAL-labelled' if attack is not None else 'ALL'} rows ({int(base_mask.sum()):,})"
+    base_df = num[base_mask]
+    n_base = int(base_mask.sum())
+    emit(f"  per-column statistics measured on {'NORMAL-labelled' if attack is not None else 'ALL'} rows ({n_base:,})"
          + (" [table omitted by --brief; see JSON]:" if args.brief else ":"))
-    if not args.brief:
+    if not args.brief and n_base:
         emit(f"    {'column':10s} {'uniq':>5s} {'min':>9s} {'p0.5':>9s} {'p99.5':>9s} {'max':>9s} {'mean':>9s} {'std':>9s}  states(if <=6 values)")
     cols: Dict[str, Any] = {}
+    near_const: List[str] = []
     for c in num.columns:
-        x = base[c].dropna()
+        x = base_df[c].dropna()
         if x.empty:
             continue
         uniq = int(num[c].nunique(dropna=True))
@@ -209,46 +297,40 @@ def analyse_data(name: str, df: pd.DataFrame, report: Dict[str, Any], args: argp
             vc = num[c].value_counts(dropna=True).sort_index()
             st["state_counts_all_rows"] = {str(k): int(v) for k, v in vc.items()}
             states = " ".join(f"{k:g}:{v:,}" for k, v in vc.items())
+            if vc.max() / vc.sum() >= 0.995:
+                near_const.append(c)
         cols[c] = st
         if not args.brief:
             emit(f"    {c:10s} {uniq:5d} {st['min']:9.2f} {st['p0.5']:9.2f} {st['p99.5']:9.2f} {st['max']:9.2f} "
                  f"{st['mean']:9.2f} {st['std']:9.2f}  {states}")
     info["columns_stats"] = cols
+    info["near_constant_discrete_columns"] = near_const
+    emit(f"  discrete columns that are >=99.5% one state (little information): {near_const or 'none'}")
 
     present = [t for t in OUR_TAGS if t in cols]
     missing = [t for t in OUR_TAGS if t not in cols]
+    gone = [t for t in missing if t in categorical]
+    emit(f"  this project's 20 twin tags: {len(present)} numeric; not numeric-usable: {missing or 'none'}"
+         + (f" (of which present but non-numeric: {gone})" if gone else ""))
     info["twin_tags_present"], info["twin_tags_missing"] = present, missing
-    emit(f"  this project's 20 twin tags: {len(present)} present; missing: {missing or 'none'}")
     by_stage: Dict[int, List[str]] = {}
-    for c in cols:
-        s = stage_of(c)
-        if s is not None:
-            by_stage.setdefault(s, []).append(c)
-    emit("  columns by SWaT stage: " + "; ".join(f"P{k}: {len(v)}" for k, v in sorted(by_stage.items())))
+    for c in list(cols) + list(categorical):
+        st_ = stage_of(c)
+        if st_ is not None:
+            by_stage.setdefault(st_, []).append(c)
+    emit("  columns by SWaT stage (numeric + non-numeric): " + "; ".join(f"P{k}: {len(v)}" for k, v in sorted(by_stage.items())))
+    info["columns_by_stage"] = {f"P{k}": sorted(v) for k, v in by_stage.items()}
 
+    # normal-baseline for z-scores: first file with plenty of normal rows
+    if "base" not in state and n_base >= 1000:
+        mu, sd = base_df.mean(), base_df.std(ddof=0).replace(0, np.nan)
+        state["base"] = {"mu": mu, "sd": sd, "lo": base_df.quantile(0.005), "hi": base_df.quantile(0.995), "source": name}
     if attack is not None and attack.any():
-        starts, ends = runs(attack)
-        emit(f"  attack windows (contiguous attack-labelled runs): {len(starts)}")
-        emit("  windows if nearby runs are merged: " + ", ".join(
-            f"gap<={g}s -> {len(merge_runs(starts, ends, g))}" for g in (1, 10, 60, 300)))
-        mu, sd = base.mean(), base.std(ddof=0).replace(0, np.nan)
-        wins: List[Dict[str, Any]] = []
-        emit(f"    {'#':>3s} {'start':19s} {'end':19s} {'rows':>6s}  most-shifted columns (z vs normal mean)")
-        for i, (s, e) in enumerate(merge_runs(starts, ends, args.merge_gap), 1):
-            z = ((num.iloc[s:e + 1].mean() - mu) / sd).dropna()
-            top = z.reindex(z.abs().sort_values(ascending=False).index)[:3]
-            tops = ", ".join(f"{k}({v:+.1f})" for k, v in top.items())
-            t0 = str(ts.iloc[s]) if ts is not None else f"row {s}"
-            t1 = str(ts.iloc[e]) if ts is not None else f"row {e}"
-            wins.append({"index": i, "start_row": int(s), "end_row": int(e), "rows": int(e - s + 1),
-                         "start": t0, "end": t1, "top_shifted": {k: float(v) for k, v in top.items()}})
-            if i <= args.max_windows:
-                emit(f"    {i:3d} {t0:19.19s} {t1:19.19s} {e - s + 1:6d}  {tops}")
-        if len(wins) > args.max_windows:
-            emit(f"    ... {len(wins) - args.max_windows} more windows in the JSON manifest")
-        info["attack_windows"] = wins
-        durs = [w["rows"] for w in wins]
-        emit(f"  window length (rows ~ seconds): min {min(durs)}, median {int(np.median(durs))}, max {max(durs)}")
+        if "base" in state:
+            report_segments(name, num, ts, attack, state["base"], info, args)
+        else:
+            state.setdefault("deferred", []).append((name, num.copy(), ts, attack.copy(), info))
+            emit("  (attack segments for this file are reported after a file with NORMAL rows has been read)")
     report["data_files"][name] = info
 
 
@@ -283,6 +365,8 @@ def main() -> int:
     ap.add_argument("--merge-gap", type=int, default=1,
                     help="merge attack runs separated by <= this many rows when listing windows (default 1 = contiguous only)")
     ap.add_argument("--brief", action="store_true", help="omit the per-column table in the text report (kept in the JSON)")
+    ap.add_argument("--seg-gap", type=float, default=2.0,
+                    help="attack rows separated by more than this many seconds start a new segment (default 2)")
     ap.add_argument("--max-windows", type=int, default=80, help="windows printed in the text report")
     args = ap.parse_args()
 
@@ -326,6 +410,7 @@ def main() -> int:
     # 2-4. tables -----------------------------------------------------------------------------
     tables = [p for p in files if p.suffix.lower() in TABLE_EXT]
     net_cols: Dict[str, List[str]] = {}
+    state: Dict[str, Any] = {}
     emit(f"\n[2] TABLES ({len(tables)})")
     for p in tables:
         rel = str(p.relative_to(root))
@@ -346,8 +431,24 @@ def main() -> int:
         if len(df) < 500 and tagish < 5:
             analyse_attack_list(rel, df, report)
         else:
-            analyse_data(rel, df, report, args)
+            analyse_data(rel, df, report, args, state)
         del df
+
+    # deferred attack-segment reports (files that had no normal rows of their own)
+    for name, num, ts, attack, info in state.get("deferred", []):
+        emit(f"\n--- {name} (attack segments, baseline from {state['base']['source'] if 'base' in state else 'NONE AVAILABLE'})")
+        if "base" in state:
+            report_segments(name, num, ts, attack, state["base"], info, args)
+        else:
+            emit("  no file with enough normal rows to build a baseline")
+
+    # cross-file consistency
+    rows = {n: i["rows"] for n, i in report["data_files"].items()}
+    names = {n.lower(): n for n in rows}
+    if {"merged.csv", "normal.csv", "attack.csv"} <= set(names):
+        tot = rows[names["normal.csv"]] + rows[names["attack.csv"]]
+        emit(f"\ncross-check: normal.csv + attack.csv = {tot:,} rows; merged.csv = {rows[names['merged.csv']]:,} -> "
+             f"{'MATCH (merged is just the concatenation)' if tot == rows[names['merged.csv']] else 'DIFFERENT'}")
 
     # 5. network-level fields ---------------------------------------------------------------------
     emit("\n[3] NETWORK-LEVEL INFORMATION (decides the cyber-model adapter)")
