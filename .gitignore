@@ -12,3 +12,4 @@ models/candidates/
 
 benchmarks/latency_raw.csv
 benchmarks/latency.json
+.claude/worktrees/
