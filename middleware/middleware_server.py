@@ -87,7 +87,7 @@ log = logging.getLogger("industrialmind.middleware")
 
 LOG_FORMAT = "%(asctime)s %(levelname)-7s %(name)s - %(message)s"
 
-# How often the live telemetry + machine health line is logged.
+# How often the live telemetry + plant state line is logged.
 TELEMETRY_LOG_INTERVAL = float(os.environ.get("IM_TELEMETRY_LOG_SECONDS", "5"))
 _last_telemetry_log = 0.0
 
@@ -369,7 +369,7 @@ def _handle_downstream_write(
     #
     # Runs concurrently:
     #   Cyber Agent rules    + CyberModel anomaly score
-    #   Physical Agent rules + PhysicalModel health / RUL
+    #   Physical Agent rules + PhysicalModel plant state / anomaly score
     # then the Orchestrator fuses the rule verdicts into
     # PASS / DROP exactly as before.
     # -----------------------------------------------------
@@ -520,7 +520,11 @@ def _log_blocked(
             "cyber_anomaly_score": ml.get("anomaly_score"),
             "cyber_threat_flag": ml.get("threat_flag"),
             "cyber_model_status": ml.get("status"),
-            "plant_min_health_index": report["physical"]["model"].get("min_health_index"),
+            "plant_state": report["physical"]["model"].get("plant_state"),
+            "physical_model_status": report["physical"]["model"].get("status"),
+            "physical_anomaly_score": report["physical"]["model"].get("anomaly_score"),
+            "physical_attack_probability": report["physical"]["model"].get("attack_probability"),
+            "physical_bounds_violations": len(report["physical"]["model"].get("bounds_violations") or []),
             "mode": report.get("mode"),
         }
 
@@ -732,18 +736,18 @@ def _log_live_telemetry(now: float, pipeline: Any) -> None:
     health = pipeline.health_report()
 
     if health.get("status") == "OK":
-        worst = min(
-            health["machines"].items(),
-            key=lambda kv: kv[1]["health_index"]
-        )
+        score = health.get("anomaly_score")
+        prob = health.get("attack_probability")
         health_txt = (
-            f"min_health={health['min_health_index']:.2f} "
-            f"({worst[0]} RUL={worst[1]['rul_hours']:.0f}h)"
+            f"plant={health.get('plant_state')} "
+            f"score={'n/a' if score is None else f'{score:.3f}'} "
+            f"p_attack={'n/a' if prob is None else f'{prob:.3f}'} "
+            f"bounds_viol={len(health.get('bounds_violations') or [])}"
         )
     else:
         health_txt = (
-            f"health={health.get('status')} "
-            f"window={health.get('window_fill')}"
+            f"plant={health.get('plant_state', health.get('status'))} "
+            f"window={health.get('window_fill')}/{health.get('window_size')}"
         )
 
     log.info(f"[TELEMETRY] {values} | {health_txt}")
@@ -844,12 +848,13 @@ def _poll_once(
 
         # -------------------------------------------------
         # Feed the PhysicalModel sliding window and log a
-        # live telemetry + machine-health line.
+        # live telemetry + plant-state line.
         # -------------------------------------------------
 
         pipeline = get_pipeline()
         pipeline.ingest_telemetry(
-            dict(_plc_state["registers"])
+            dict(_plc_state["registers"]),
+            _plc_state.get("timestamp") or now,
         )
         _log_live_telemetry(now, pipeline)
 

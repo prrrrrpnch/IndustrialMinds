@@ -1,5 +1,8 @@
 """
-models/telemetry_generator.py - deterministic synthetic data for training and stress tests.
+models/telemetry_generator.py - deterministic SYNTHETIC data, TESTS AND STRESS BENCHMARKS ONLY.
+
+No model is trained on this any more (dataset policy: SWaT only) and no metric derived from it may be cited as
+real-data performance.
 
 There is no historical plant data in this project, so both ML models are
 trained on synthetic data produced here from the central machine config

@@ -52,7 +52,7 @@ Reference files are listed by path below; none are auto-loaded.
 - Pre-existing lab IPs remain only in synthetic-data files (telemetry_generator, train_models, evaluation, some tests); replaced when data is replaced in P5-P7/P11.
 - Plant = 5 stages x 4 points = 20 registers (10 actuators writable, 10 sensors read-only); register constants are SWaT tags (MV101, LIT101...). Old names (TANK_PRESSURE...) are gone.
 - Wire scale is x10 (0.1 resolution): pH/permeate flow are coarse; max representable 6553.5.
-- Model weights in models/weights are STALE (trained on the old 10 synthetic machines); they still load (per-channel features) but their scores mean nothing until P5/P6. Advisory only.
+- Old weights in models/weights are STALE synthetic artifacts; both models REFUSE them (schema check -> NO_MODEL), so the middleware runs on rules alone until a SWaT candidate is promoted.
 - `evaluation/` (xlsx, generate_test_data, evaluate_system) targets the OLD register names and is non-functional until replaced in P11.
 - SWaT archive facts (from tools/swat_inspect.py reports; data lives ONLY on the user's Windows machine, never in this container):
   attack.csv = 54,621 attack-only rows in 35 time-gap segments; normal.csv = 1,387,098 rows; merged.csv = their concatenation; 51 tags + Timestamp + `Normal/Attack`;
@@ -85,13 +85,16 @@ Reference files are listed by path below; none are auto-loaded.
 | `middleware/orchestrator.py` | fusion of verdicts (currently AND-gate) + dashboard forwarding |
 | `pipeline/multi_model_pipeline.py` | concurrent cyber/physical branches (rules + models) |
 | `models/cyber_model.py` | SWaT-trained CyberModel: Isolation Forest + supervised head over 8 actuator-event features (abstains on non-flip commands) |
-| `models/physical_model.py` | RF health+RUL (synthetic until P6) |
+| `models/physical_model.py` | SWaT-trained PhysicalModel: 30 s windows (1 Hz), 87 features, Isolation Forest + supervised head + measured envelope; abstains on NO_MODEL/WARMING_UP/ERROR; RUL removed |
+| `swat/physical_features.py` | physical window features + measured-bounds computation = THE feature implementation shared by training and live |
+| `models/train_physical_swat.py` | Phase 6 trainer (`--data-dir <archive> --candidate` or `--fixture`): bounds + model + report; candidates only |
+| `tests/test_swat_physical.py` | Phase 6 checks on the synthetic fixture (code paths, live==training scores) |
 | `docs/reports/cyber_training_report_swat.md/.json` | REAL SWaT held-out results of the cyber candidate (aggregate only): weak - test ROC-AUC 0.63, F1 0.137 |
 | `models/train_cyber_swat.py` | Phase 5 trainer (`--data-dir <archive> --candidate`, or `--fixture`); writes models/candidates/ + report + provenance |
 | `models/promote_candidate.py` | copy an approved candidate into models/weights/ (refuses without `confirm.py retrain <model>`) |
 | `swat/loader.py`, `swat/cyber_events.py` | chronological de-duplicated SWaT stream + segments + calendar blocks / actuator events + THE feature implementation shared by training and live |
 | `tests/test_swat_cyber.py`, `tests/swat_fixture.py` | Phase 5 checks on a synthetic SWaT-SHAPED fixture (code paths only, never real metrics) |
-| `models/train_models.py`, `models/telemetry_generator.py` | PHYSICAL model synthetic training only (cyber training removed; replaced in P6) |
+| `models/train_models.py`, `models/telemetry_generator.py` | train_models is RETIRED (stub); telemetry_generator is synthetic, tests/benchmarks only |
 | `models/tree_inference.py` | packed fast tree inference |
 | `models/weights/` | trained artifacts + `training_report.json` (guarded) |
 | `plc/plc.py` | PLC: Modbus server around the twin (actuator writes -> targets; sensors read-only) |

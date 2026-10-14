@@ -46,8 +46,9 @@ def state(over: dict | None = None) -> dict:
 
 pipe = MultiModelPipeline()
 stream = generate_stream(pipe.physical_model.window_size + 5, seed=3)["values"]
-for row in stream:
-    pipe.ingest_telemetry({i: v for i, v in enumerate(row)})
+_t0 = time.time() - len(stream)
+for k, row in enumerate(stream):   # explicit timestamps 1 s apart so 1 Hz decimation keeps every sample
+    pipe.ingest_telemetry({i: v for i, v in enumerate(row)}, timestamp=_t0 + k)
 
 # --- concurrency: record which thread runs each branch ---------------------
 seen = {}
@@ -90,9 +91,13 @@ check("unified report has decision + cyber + physical + timings", keys_ok)
 check("cyber section has rule verdict, model score and threat flags",
       {"rule_verdict", "model", "threat_flags"} <= set(rep["cyber"])
       and "anomaly_score" in rep["cyber"]["model"])   # value may be None (NO_MODEL) - not asserted
-check("physical section has rule verdict, per-machine health and health state",
-      len(rep["physical"]["model"]["machines"]) in (0, NUM_REGISTERS) and "health_state" in rep["physical"],
-      f"state={rep['physical']['health_state']} model={rep['physical']['model']['status']}")
+check("physical section has rule verdict, model report and plant state",
+      {"rule_verdict", "model", "plant_state"} <= set(rep["physical"])
+      and rep["physical"]["plant_state"] in ("NORMAL", "ALERT", "WARMING_UP", "NO_MODEL", "ERROR")
+      and {"status", "plant_state", "threat_flag", "bounds_violations"} <= set(rep["physical"]["model"]),
+      f"state={rep['physical']['plant_state']} model={rep['physical']['model']['status']}")
+check("health_report() returns the physical model assessment",
+      pipe.health_report()["model"] == "PhysicalModel")
 check("legit command -> PASS", rep["decision"]["verdict"] == "PASS")
 
 cyber_agent.reset_state()
