@@ -90,5 +90,5 @@ Reference files are listed by path below; none are auto-loaded.
 | 9 | No live network proof | P10 | open |
 | 10 | No reproducible verification | P11 | open |
 | 11 | README is setup only | P12 | open |
-| 12 | Junk files | P1 | open |
+| 12 | Junk files | P1 | CLOSED (2 stray scripts deleted; venv/.DS_Store/__MACOSX never in repo, now git-ignored) |
 | 13 | PPT/report numbers != repo benchmark | P11, P12 | open |
