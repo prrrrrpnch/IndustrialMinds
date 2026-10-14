@@ -114,7 +114,7 @@ check("sliding window shape [window_size, 10, features]",
 rep = pm.assess()
 his = [m["health_index"] for m in rep["machines"].values()]
 ruls = [m["rul_hours"] for m in rep["machines"].values()]
-check("report covers all 10 machines", len(rep["machines"]) == NUM_REGISTERS == 10)
+check("report covers every configured register", len(rep["machines"]) == NUM_REGISTERS)
 check("health indices normalised to [0, 1]", all(0.0 <= h <= 1.0 for h in his), str(his))
 check("RUL estimates present and >= 0", all(r >= 0 for r in ruls))
 check("assess latency < 10 ms", rep["latency_ms"] < 10, f"{rep['latency_ms']} ms")

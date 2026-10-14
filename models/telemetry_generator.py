@@ -25,7 +25,7 @@ from typing import Dict, Iterator, List, Optional, Tuple
 import numpy as np
 
 from docs.netconfig import LOOPBACK  # documented loopback default
-from docs.interfaces import MACHINES, NUM_REGISTERS, make_command, to_raw
+from docs.interfaces import MACHINES, NUM_REGISTERS, ACTUATOR_REGISTERS, make_command, to_raw
 from docs import hmac_auth
 
 # Telemetry sample period used by the middleware poll loop (seconds).
@@ -168,7 +168,7 @@ def generate_normal_commands(n: int, seed: int = 11,
         clock[src] += float(rng.uniform(1.5, 4.0))
         ts = clock[src]
 
-        reg = int(rng.integers(NUM_REGISTERS))
+        reg = int(ACTUATOR_REGISTERS[int(rng.integers(len(ACTUATOR_REGISTERS)))])   # only actuators are commanded
         m = MACHINES[reg]
         span = m["max"] - m["min"]
         step = m["operator"]["step"]

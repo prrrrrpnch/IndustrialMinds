@@ -13,10 +13,12 @@ ModbusSequentialDataBlock.setValues) only works on the pre-3.13 API. Don't
 
 from __future__ import annotations
 
+import os
 import time
 import threading
 
 from docs import netconfig
+from plc.twin import PlantTwin
 from docs.interfaces import MACHINES, NUM_REGISTERS, REGISTER_MAP, SCALE
 
 from pymodbus.datastore import ModbusSlaveContext, ModbusServerContext, ModbusSequentialDataBlock
@@ -26,13 +28,14 @@ from pymodbus.server import StartTcpServer
 
 _state_lock = threading.Lock()
 
-# One entry per machine in docs/interfaces.MACHINES (centralized config).
-_current_values = {m["register"]: float(m["initial"]) for m in MACHINES}
-
-_target_values = dict(_current_values)  # targets start equal to current
-
-# How fast each register can physically move per second (tune these)
-_RATE_PER_SEC = {m["register"]: float(m["rate_per_sec"]) for m in MACHINES}
+# The plant is a staged, physically coupled water-treatment twin (plc/twin.py).
+# Actuator registers accept commands; sensor registers are computed by the physics.
+# IM_TWIN_TIME_SCALE > 1 speeds the process up; IM_TWIN_NOISE=1 adds sensor noise.
+_twin = PlantTwin(
+    noise=os.environ.get("IM_TWIN_NOISE", "0") == "1",
+    time_scale=float(os.environ.get("IM_TWIN_TIME_SCALE", "1")),
+)
+_target_values = _twin.target   # actuator registers only (live view of the twin's commands)
 
 _recent_writes = []   # timestamps of recent writes, for the CPU-load metric
 _cpu_baseline = 5.0
@@ -65,15 +68,16 @@ def notify_upstream_response(register: int, value: float) -> None:
 
 
 def apply_write(register: int, value: float) -> None:
-    """Called by middleware when a command is forwarded. Updates plant target.
+    """Called by middleware when a command is forwarded. Updates an actuator target.
 
-    No bounds-checking here by design — that's the Physical Agent's job.
-    The PLC just records whatever target it's told and moves toward it.
+    No safety checking here by design — that's the Physical Agent's job. The PLC
+    just records the target and moves toward it. Sensor registers cannot be
+    commanded (the physics produces them); a write to one is ignored.
     """
     with _state_lock:
         if register not in _target_values:
-            raise ValueError(f"Unknown register: {register}")
-        _target_values[register] = value
+            return
+        _twin.set_target(register, value)
         _recent_writes.append(time.time())
 
     notify_upstream_response(register, value)
@@ -83,17 +87,7 @@ def apply_write(register: int, value: float) -> None:
 def tick(dt: float) -> None:
     """Advances the physics simulation by dt seconds. Call this in a loop."""
     with _state_lock:
-        for reg in _current_values:
-            current = _current_values[reg]
-            target = _target_values[reg]
-            max_step = _RATE_PER_SEC[reg] * dt
-
-            diff = target - current
-            if abs(diff) <= max_step:
-                _current_values[reg] = target
-            else:
-                _current_values[reg] = current + max_step * (1 if diff > 0 else -1)
-
+        _twin.step(dt)
         _update_cpu_load()
 
 
@@ -121,7 +115,7 @@ def get_telemetry() -> dict:
         return {
             "registers": {
                 REGISTER_MAP[reg]["name"]: round(val, 2)
-                for reg, val in _current_values.items()
+                for reg, val in _twin.values().items()
             },
             "cpu_load": round(_cpu_current, 1),
             "timestamp": time.time(),
@@ -174,7 +168,7 @@ def start_modbus_server(host: str = netconfig.PLC_LISTEN_HOST, port: int = netco
     def _sync_reads_loop() -> None:
         while True:
             with _state_lock:
-                for reg, val in _current_values.items():
+                for reg, val in _twin.values().items():
                     internal_sync_write(block, reg, [_to_raw(val)])
             time.sleep(0.1)
 

@@ -3,7 +3,10 @@ middleware/physical_agent.py — Physical Agent for the Industrial Mind middlewa
 
 Downstream (SCADA -> PLC):
   check_command(command, current_state) -> verdict
-  Three rule layers per command:
+  Four rule layers per command (all deterministic RULES, not models):
+    0. Actuator-only      — sensor registers (LIT/FIT/AIT/DPIT/PIT) are produced by
+                            the plant physics and can never be commanded
+                            -> WRITE_TO_SENSOR_REGISTER.
     1. Hard bounds        — value must be within the REGISTER_MAP safe range.
     2. Rate-of-change     — value must not imply a jump that the physical plant
                             cannot achieve between the last known timestamp and
@@ -48,9 +51,11 @@ from docs.interfaces import (
     MACHINES,
     MACHINE_BY_REGISTER,
     CROSS_REGISTER_RULES,
-    TANK_PRESSURE,
-    CONVEYOR_SPEED,
-    COOLING_VALVE,
+    ACTUATOR_REGISTERS,
+    MV101,
+    LIT101,
+    P501,
+    PIT501,
 )
 
 # ── Rate-of-change limits (degrees/sec, RPM/sec, PSI/sec) ──────────────────
@@ -153,44 +158,40 @@ def _check_cross_register(tx_id: str, command: dict, current_state: dict) -> Opt
     """
     Flags physically impossible register combinations.
 
-    Current rules:
-      A. Valve slamming shut (large negative COOLING_VALVE change) while
-         TANK_PRESSURE is already low  — the two together imply a state the
-         plant can't physically enter.
-      B. CONVEYOR_SPEED at or near max while TANK_PRESSURE is already near
-         max — extreme simultaneous load on two subsystems.
+    Current rules (stage-aware, SWaT-style twin):
+      A. VALVE_CLOSING_LOW_LEVEL: the S1 inlet valve MV101 closing sharply
+         while the raw tank LIT101 is already low - the tank would run dry.
+      B. RO_PRESSURE_OVERLOAD: RO high-pressure pump P501 near max speed while
+         the RO feed pressure PIT501 is already near its limit.
     """
     register = command.get("register")
     value    = command.get("value")
 
-    tank_pressure   = _get_value(current_state, TANK_PRESSURE)
-    conveyor_speed  = _get_value(current_state, CONVEYOR_SPEED)
-    cooling_valve   = _get_value(current_state, COOLING_VALVE)
+    level_101    = _get_value(current_state, LIT101)
+    inlet_valve  = _get_value(current_state, MV101)
+    ro_pressure  = _get_value(current_state, PIT501)
 
-    # Rule A: valve closing fast while tank pressure already low
-    if register == COOLING_VALVE and tank_pressure is not None and cooling_valve is not None:
-        valve_drop = cooling_valve - value            # positive = closing
-        pressure_lo, _ = _safe_range(TANK_PRESSURE)
-        pressure_threshold = pressure_lo + 15.0      # "already low" = < 15 PSI
+    # Rule A: inlet valve closing fast while the raw-water tank is already low
+    if register == MV101 and level_101 is not None and inlet_valve is not None:
+        valve_drop = inlet_valve - value              # positive = closing
+        level_lo, level_hi = _safe_range(LIT101)
+        low_threshold = level_lo + 0.20 * (level_hi - level_lo)   # "already low" = bottom 20 %
 
-        if valve_drop >= _SIG_MOVE[COOLING_VALVE] and tank_pressure < pressure_threshold:
+        if valve_drop >= _SIG_MOVE[MV101] and level_101 < low_threshold:
             return make_verdict(
                 tx_id, False,
-                "CROSS_REGISTER_VIOLATION:VALVE_CLOSING_LOW_PRESSURE:valve closing sharply with tank pressure already low",
+                "CROSS_REGISTER_VIOLATION:VALVE_CLOSING_LOW_LEVEL:inlet valve closing sharply with raw tank level already low",
                 "physical",
             )
 
-    # Rule B: conveyor near max while tank pressure near max
-    if register == CONVEYOR_SPEED and tank_pressure is not None:
-        _, pressure_hi = _safe_range(TANK_PRESSURE)
-        _, speed_hi    = _safe_range(CONVEYOR_SPEED)
-        pressure_near_max = tank_pressure > pressure_hi * 0.90
-        speed_near_max    = value > speed_hi * 0.90
-
-        if pressure_near_max and speed_near_max:
+    # Rule B: RO pump near max while RO feed pressure already near its limit
+    if register == P501 and ro_pressure is not None:
+        _, pressure_hi = _safe_range(PIT501)
+        _, pump_hi     = _safe_range(P501)
+        if ro_pressure > pressure_hi * 0.90 and value > pump_hi * 0.90:
             return make_verdict(
                 tx_id, False,
-                "CROSS_REGISTER_VIOLATION:CONVEYOR_PRESSURE_OVERLOAD:conveyor near max speed while tank pressure near limit",
+                "CROSS_REGISTER_VIOLATION:RO_PRESSURE_OVERLOAD:RO pump near max speed while RO feed pressure near limit",
                 "physical",
             )
 
@@ -297,6 +298,14 @@ def check_command(command: dict, current_state: dict) -> dict:
 
     if register not in REGISTER_MAP:
         return make_verdict(tx_id, False, f"UNKNOWN_REGISTER:{register}", "physical")
+
+    # Layer 0 — only actuators can be commanded
+    if register not in ACTUATOR_REGISTERS:
+        return make_verdict(
+            tx_id, False,
+            f"WRITE_TO_SENSOR_REGISTER:{REGISTER_MAP[register]['name']} is a sensor (read-only)",
+            "physical",
+        )
 
     # Layer 1 — hard bounds
     verdict = _check_bounds(tx_id, register, value)
