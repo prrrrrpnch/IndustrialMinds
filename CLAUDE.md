@@ -41,8 +41,8 @@ Reference files are listed by path below; none are auto-loaded.
 
 ## Known gotchas
 - `docs/` holds code (`interfaces.py`, `hmac_auth.py`, `attack_log.py`), not only docs.
-  `docs/interfaces.py: MACHINES` is the single source of truth for registers/bounds (bounds are
-  currently GUESSED — PART 0 item; replaced in Phase 3/6).
+  `docs/interfaces.py: MACHINES` is the single source of truth for registers/bounds (sensor ranges/nominals are
+  MEASURED from SWaT: docs/swat_bounds.json). plc/twin.py derives ALL its physics constants from MACHINES `initial`.
 - `check_feedback()` returns `tx_id=""` by design; caller must set it (docs/register_map.md).
 - `models/telemetry_generator.py` is synthetic data: never cite its metrics as real-data results.
 - Orchestrator forwards decisions to the dashboard via HTTP in a fire-and-forget thread.
@@ -74,6 +74,9 @@ Reference files are listed by path below; none are auto-loaded.
 | `README.md` | user-facing setup/usage; rewritten in Phase 12 |
 | `MODELS_RATIONALE.md` | changing/justifying the cyber or physical model design |
 | `CHECKLIST_VERIFICATION.txt` | legacy self-verification claims (numbers must match repo benchmarks — PART 0 item) |
+| `docs/swat_bounds.json` | MEASURED SWaT normal-operation statistics + envelope per sensor (aggregate; source of the twin calibration) |
+| `docs/reports/physical_training_report_swat_run1.md` | REAL SWaT held-out results of physical candidate run 1 (weak: test ROC-AUC 0.66, 2.8 alarm episodes/h; overfit + drift) |
+| `tests/test_bounds_alignment.py` | PART 0 #2 evidence: config/twin vs measured bounds (35 checks) |
 | `docs/netconfig.py` | any host/port/env-var question (single source for addresses) |
 | `docs/interfaces.py` | machines/registers/bounds, verdict/decision dict shapes, cross-register rules |
 | `docs/hmac_auth.py` | signed frame format, HMAC build/verify |
@@ -112,7 +115,7 @@ Reference files are listed by path below; none are auto-loaded.
 | # | Issue | Closed by | Status |
 |---|---|---|---|
 | 1 | Models trained only on synthetic data | P5 (cyber), P6 (physical) | cyber: trained on real SWaT, result WEAK (docs/reports), user decided NOT to promote -> cyber branch is RULES-ONLY (NO_MODEL), negative result is a documented limitation; physical open (P6) |
-| 2 | Guessed physical bounds | P6 (P3 only installs SWaT-style PLACEHOLDERS) | open |
+| 2 | Guessed physical bounds | P6 | CLOSED (docs/swat_bounds.json measured on real SWaT train-normal rows; MACHINES + twin calibrated to it; tests/test_bounds_alignment.py enforces) |
 | 3 | Hardcoded 127.0.0.1 | P2 | CLOSED (docs/netconfig.py; env+CLI; grep clean) |
 | 4 | Orchestrator is AND-gate | P7 | open |
 | 5 | No orchestrator model | P7 | open |

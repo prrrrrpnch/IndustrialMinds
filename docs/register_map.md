@@ -7,31 +7,32 @@ dosing, P3 ultrafiltration (+P6 backwash folded in), P4 dechlorination, P5 rever
 names are SWaT tags. **Actuators** accept SCADA commands; **sensors** are read-only and produced by
 the physics in `plc/twin.py` (a write to a sensor register is dropped: `WRITE_TO_SENSOR_REGISTER`).
 
-> Ranges/initial values are SWaT-style nominal PLACEHOLDERS until Phase 6 replaces them with
-> bounds measured from SWaT normal-operation data. Wire format: raw = value x 10 (one decimal).
+> Sensor `initial` values are the MEASURED SWaT normal-operation medians and sensor ranges enclose the measured
+> min/max (docs/swat_bounds.json; enforced by tests/test_bounds_alignment.py). Actuator `initial` values are nominal
+> setpoints (pumps/UV on >= 50 %). Wire format: raw = value x 10 (one decimal).
 
 | Reg | Tag | Stage | Kind | Label | Range | Initial | Max slew |
 |---|---|---|---|---|---|---|---|
-| 0 | MV101 | S1 Raw Water | actuator | Inlet Valve | 0 – 100 % | 32 | 10/s |
-| 1 | P101 | S1 Raw Water | actuator | Raw Water Pump | 0 – 100 % | 50 | 8/s |
-| 2 | LIT101 | S1 Raw Water | sensor | Raw Tank Level | 0 – 1000 mm | 667 | 200/s |
-| 3 | FIT101 | S1 Raw Water | sensor | Inlet Flow | 0 – 40 m3/h | 6.4 | 20/s |
-| 4 | P203 | S2 Chemical Dosing | actuator | HCl Dosing Pump | 0 – 100 % | 40 | 8/s |
-| 5 | P205 | S2 Chemical Dosing | actuator | NaOCl Dosing Pump | 0 – 100 % | 30 | 8/s |
-| 6 | AIT202 | S2 Chemical Dosing | sensor | Dosed-Water pH | 4 – 10 pH | 7.2 | 2/s |
-| 7 | FIT201 | S2 Chemical Dosing | sensor | Stage 2 Flow | 0 – 40 m3/h | 8 | 20/s |
-| 8 | MV302 | S3 Ultrafiltration | actuator | UF Feed Valve | 0 – 100 % | 80 | 10/s |
-| 9 | P302 | S3 Ultrafiltration | actuator | UF Feed Pump | 0 – 100 % | 40 | 8/s |
-| 10 | LIT301 | S3 Ultrafiltration | sensor | UF Tank Level | 0 – 1000 mm | 667 | 200/s |
-| 11 | DPIT301 | S3 Ultrafiltration | sensor | Membrane dP | 0 – 60 kPa | 13.2 | 10/s |
-| 12 | P402 | S4 Dechlorination | actuator | Dechlor Feed Pump | 0 – 100 % | 40 | 8/s |
-| 13 | UV401 | S4 Dechlorination | actuator | UV Lamp | 0 – 100 % | 60 | 10/s |
-| 14 | LIT401 | S4 Dechlorination | sensor | Dechlor Tank Level | 0 – 1000 mm | 667 | 200/s |
-| 15 | AIT402 | S4 Dechlorination | sensor | ORP | 0 – 800 mV | 290 | 150/s |
-| 16 | P501 | S5 Reverse Osmosis | actuator | RO High-Pressure Pump | 0 – 100 % | 60 | 8/s |
+| 0 | MV101 | S1 Raw Water | actuator | Inlet Valve | 0 – 100 % | 55 | 10/s |
+| 1 | P101 | S1 Raw Water | actuator | Raw Water Pump | 0 – 100 % | 70 | 8/s |
+| 2 | LIT101 | S1 Raw Water | sensor | Raw Tank Level | 0 – 1200 mm | 526.1 | 200/s |
+| 3 | FIT101 | S1 Raw Water | sensor | Inlet Flow | 0 – 3.5 m3/h | 2.39 | 5/s |
+| 4 | P203 | S2 Chemical Dosing | actuator | HCl Dosing Pump | 0 – 100 % | 60 | 8/s |
+| 5 | P205 | S2 Chemical Dosing | actuator | NaOCl Dosing Pump | 0 – 100 % | 60 | 8/s |
+| 6 | AIT202 | S2 Chemical Dosing | sensor | Dosed-Water pH | 5 – 10 pH | 8.37 | 1/s |
+| 7 | FIT201 | S2 Chemical Dosing | sensor | Stage 2 Flow | 0 – 3.5 m3/h | 2.44 | 5/s |
+| 8 | MV302 | S3 Ultrafiltration | actuator | UF Feed Valve | 0 – 100 % | 98 | 10/s |
+| 9 | P302 | S3 Ultrafiltration | actuator | UF Feed Pump | 0 – 100 % | 70 | 8/s |
+| 10 | LIT301 | S3 Ultrafiltration | sensor | UF Tank Level | 0 – 1200 mm | 918.4 | 200/s |
+| 11 | DPIT301 | S3 Ultrafiltration | sensor | Membrane dP | 0 – 60 kPa | 19.8 | 10/s |
+| 12 | P402 | S4 Dechlorination | actuator | Dechlor Feed Pump | 0 – 100 % | 70 | 8/s |
+| 13 | UV401 | S4 Dechlorination | actuator | UV Lamp | 0 – 100 % | 70 | 10/s |
+| 14 | LIT401 | S4 Dechlorination | sensor | Dechlor Tank Level | 0 – 1200 mm | 891.9 | 200/s |
+| 15 | AIT402 | S4 Dechlorination | sensor | ORP | 100 – 350 mV | 163.7 | 100/s |
+| 16 | P501 | S5 Reverse Osmosis | actuator | RO High-Pressure Pump | 0 – 100 % | 80 | 8/s |
 | 17 | MV503 | S5 Reverse Osmosis | actuator | RO Reject Valve | 0 – 100 % | 30 | 10/s |
-| 18 | PIT501 | S5 Reverse Osmosis | sensor | RO Feed Pressure | 0 – 2000 kPa | 1020 | 500/s |
-| 19 | FIT501 | S5 Reverse Osmosis | sensor | Permeate Flow | 0 – 10 m3/h | 3.72 | 5/s |
+| 18 | PIT501 | S5 Reverse Osmosis | sensor | RO Feed Pressure | 0 – 350 kPa | 252 | 200/s |
+| 19 | FIT501 | S5 Reverse Osmosis | sensor | Permeate Flow | 0 – 2.5 m3/h | 1.72 | 3/s |
 
 ## Inter-stage coupling (plc/twin.py)
 
