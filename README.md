@@ -144,7 +144,7 @@ One command regenerates everything quoted below and the full report:
 _Regenerate: `python -m benchmark.run_all [--data-dir <SWaT archive>]`. Full tables: `docs/reports/benchmark_report.md`. These numbers: Linux-6.18.44-fc-v114-x86_64-with-glibc2.39, Python 3.13.16, commit `c42e57c`._
 
 * **Decision latency** (real pipeline, in-process, 3000 commands x 3): mean **0.595 ms**, p95 **1.393 ms**, p99 **1.799 ms** per command (not network latency). Live Modbus round trip of a signed write to a running middleware (client side, 300 writes): mean 3.9392 ms, p95 5.9084 ms.
-* **Held-out SWaT test block:** NOT RUN on this machine (the data lives only where the archive is). No SWaT number is quoted until measured.
+* **Held-out SWaT test block** (real data, physical model only, advisory): ROC-AUC **0.82**, precision 0.37, recall 0.26, F1 0.31, 1.786 false-alarm episodes per hour, 6/10 attack segments detected.
 * **Rule-based checks** (constructed scenarios, not SWaT): 4400/4400 violating scenarios dropped with the expected reason, legitimate false-positive rate 0.0%. Deterministic rules: a regression check, not a detection claim.
 * **Twin** (synthetic plant, not SWaT): 0.25 model alarm episodes per hour on the healthy twin.
 

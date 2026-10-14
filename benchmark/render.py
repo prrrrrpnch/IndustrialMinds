@@ -86,6 +86,7 @@ def swat_md(res: Dict[str, Any]) -> List[str]:
     f = s["advisory_model_flag"]
     seg = s["segments"]
     L = [f"**{s['label']}.** {s['protocol_note']}.", "",
+         *([f"_Source: {s['provenance']}_", ""] if s.get("provenance") else []),
          f"Test block: {s['windows']:,} windows (stride {s['stride_s']} s): {s['attack_windows']:,} attack, {s['benign_windows']:,} benign ({s['benign_hours']} benign hours). "
          f"Operating point: Isolation Forest threshold {_num(s['operating_point']['isolation_forest_threshold'], 4)}, classifier threshold {_num(s['operating_point']['classifier_threshold'], 3)}, variant `{s['operating_point']['variant']}`.", "",
          "| Decision rule | precision | recall | F1 | false-positive rate | alarm episodes / benign hour |", "|---|---|---|---|---|---|"]
@@ -102,6 +103,9 @@ def swat_md(res: Dict[str, Any]) -> List[str]:
         c = ex["advisory_model_flag"]
         L.append(f"Excluding the largest segment ({ex['segment']}, {_pct(ex['share_of_attack_windows'])} of attack windows): precision {_num(c['precision'])}, recall {_num(c['recall'])}, F1 {_num(c['f1'])}.")
         L.append("")
+    if not seg.get("per_segment"):
+        return L + ["The per-segment table is not part of this record (it was taken from the printed console summary); "
+                    "re-run `python -m benchmark.swat_accuracy ... --out benchmarks/swat_accuracy.json` to include it."]
     L += ["| Segment | attack windows | duration (s) | flagged windows | detected | latency (s) |", "|---|---|---|---|---|---|"]
     for g in seg["per_segment"]:
         L.append(f"| {g['segment']} | {g['attack_windows']} | {g['duration_s']:.0f} | {g['flagged_windows']} | {'yes' if g['detected'] else 'no'} | {_num(g['detection_latency_s'], 0)} |")

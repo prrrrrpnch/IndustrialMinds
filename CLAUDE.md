@@ -139,7 +139,7 @@ Reference files are listed by path below; none are auto-loaded.
 | 7 | Twin is flat list, not SWaT-like | P3 | CLOSED (5 stages x 4 pts, coupled physics, propagation check passes) |
 | 8 | No per-layer journey visibility | P9 | CLOSED (decision carries `fusion`; middleware/trace.py; dashboard Packet Tracer panel; live-verified against logs/blocked_attacks.jsonl) |
 | 9 | No live network proof | P10 | PARTIAL: docs + tools done, capture/nonce correlation verified on loopback with real tshark; multi-laptop run PENDING hardware + IPs |
-| 10 | No reproducible verification | P11 | CLOSED for latency/rules/twin (one command, generated report, drift test); the HELD-OUT SWaT section awaits a local run (`python -m benchmark.run_all --data-dir ...`) |
+| 10 | No reproducible verification | P11 | CLOSED for latency/rules/twin (one command, generated report, drift test); the HELD-OUT SWaT section is recorded (benchmarks/swat_accuracy.json, from the user's console summary: test AUC 0.82, precision 0.37, recall 0.26, 1.79 false-alarm episodes/h, 6/10 segments; per-segment table absent). `run_all --data-dir` re-measures it locally |
 | 11 | README is setup only | P12 | open |
 | 12 | Junk files | P1 | CLOSED (2 stray scripts deleted; venv/.DS_Store/__MACOSX never in repo, now git-ignored) |
 | 13 | PPT/report numbers != repo benchmark | P11, P12 | PARTIAL: README numbers are generated from benchmarks/latest.json; CHECKLIST_VERIFICATION.txt / MODELS_RATIONALE.md flagged STALE, rewritten in P12; the user's PPT must be updated from docs/reports/benchmark_report.md |
