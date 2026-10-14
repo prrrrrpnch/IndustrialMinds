@@ -57,9 +57,10 @@ print("=" * 60)
 assert len(MACHINES) == 20 and len(ACTUATOR_REGISTERS) == 10 and len(SENSOR_REGISTERS) == 10
 
 # -- Test 1: Valid slow-moving value ------------------------------------------
-# Inlet valve MV101 at 32 %, command 33 % (1 % move, 1 s window) -> within rate
-v1 = physical_agent.check_command(cmd("tx-valid", MV101, 33.0), make_state(ts=NOW - 1.0))
-print(f"\n1. Valid slow move (MV101 32->33 % in 1s): {v1}")
+# Inlet valve MV101 at its nominal setpoint, command +1 % (1 s window) -> within rate
+NOM = {m["register"]: m["initial"] for m in MACHINES}
+v1 = physical_agent.check_command(cmd("tx-valid", MV101, NOM[MV101] + 1.0), make_state(ts=NOW - 1.0))
+print(f"\n1. Valid slow move (MV101 nominal -> +1 % in 1s): {v1}")
 assert v1["pass"], "Test 1 failed - expected PASS"
 
 # -- Test 2: In-bounds but too fast --------------------------------------------
@@ -208,16 +209,17 @@ print(f"13b. Recovery by raising P101 15->30 while P203 90: {v13b}")
 assert v13b["pass"], "Test 13b failed"
 
 # -- Test 14: rule B - RO pump near max while RO feed pressure near its limit ------
+PIT_MAX = [m["max"] for m in MACHINES if m["register"] == PIT501][0]
 v14 = physical_agent.check_command(cmd("tx-ro-overload", P501, 95.0),
-                                   make_state({P501: 90.0, PIT501: 1900.0}, ts=NOW - 10.0))
-print(f"\n14. RO_PRESSURE_OVERLOAD (P501 95 with PIT501 1900): {v14}")
+                                   make_state({P501: 90.0, PIT501: 0.95 * PIT_MAX}, ts=NOW - 10.0))
+print(f"\n14. RO_PRESSURE_OVERLOAD (P501 95 with PIT501 at 95 % of its range): {v14}")
 assert not v14["pass"] and "RO_PRESSURE_OVERLOAD" in v14["reason"], "Test 14 failed"
 v14b = physical_agent.check_command(cmd("tx-ro-ok", P501, 95.0),
-                                    make_state({P501: 90.0, PIT501: 1000.0}, ts=NOW - 10.0))
+                                    make_state({P501: 90.0, PIT501: NOM[PIT501]}, ts=NOW - 10.0))
 assert v14b["pass"], f"Test 14b failed: {v14b}"
 
 # -- Test 15: feedback works for sensors / ranges other than 0-100 -------------------
-# tolerance is 20 % of each register's own range (LIT101: 0-1000 mm -> 200 mm)
+# tolerance is 20 % of each register's own range (LIT101: 0-1200 mm -> 240 mm)
 assert physical_agent.check_feedback(600.0, 450.0, LIT101)["pass"]
 v15 = physical_agent.check_feedback(600.0, 300.0, LIT101)
 assert not v15["pass"] and "TELEMETRY_MISMATCH" in v15["reason"], "Test 15 failed"

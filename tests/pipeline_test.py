@@ -24,9 +24,10 @@ from middleware import orchestrator
 from docs import netconfig
 from docs.netconfig import LOOPBACK  # documented loopback default
 from docs import hmac_auth, attack_log
-from docs.interfaces import (MV101, P101, LIT101, PIT501, UV401,
+from docs.interfaces import (MACHINES, MV101, P101, LIT101, PIT501, UV401,
                              REGISTER_MAP, NUM_REGISTERS, DATASTORE_SIZE, FRAME_BASE)
 
+NOM = {m['register']: m['initial'] for m in MACHINES}   # nominal setpoints (docs/interfaces)
 TEST_IP = LOOPBACK   # what a local SCADA connection reports as its peer address
 
 
@@ -58,7 +59,7 @@ print("TEST 1: legit in-bounds write -> should PASS and reach the real PLC")
 print("=" * 70)
 before = read_real_plc()
 print("PLC state before:", before)
-send_signed(MV101, 36.0)   # inlet valve 32 -> 36 %, well within rate limit
+send_signed(MV101, NOM[MV101] + 4.0)   # inlet valve nominal +4 %, well within rate limit
 for _ in range(3):
     time.sleep(0.5)
     mw._poll_once(_warmup_block)
@@ -85,12 +86,12 @@ print("=" * 70)
 # _register_settled_since, 3 s after startup), so first settle P101 with a tiny
 # legitimate move; then the next command is judged over a window of ~1 s
 # (max ~9 %/s) instead of several seconds.
-send_signed(P101, 51.0)
+send_signed(P101, NOM[P101] + 1.0)
 for _ in range(3):
     time.sleep(0.4)
     mw._poll_once(_warmup_block)
 before = read_real_plc()
-send_signed(P101, 100.0)  # raw pump 50 -> 100 % instantly, way too fast (limit ~8.8 %/s)
+send_signed(P101, 100.0)  # raw pump nominal -> 100 % instantly, way too fast (limit ~8.8 %/s)
 time.sleep(1.0)
 after = read_real_plc()
 print(f"PLC P101 before={before[P101]:.2f} after={after[P101]:.2f}")
@@ -102,7 +103,7 @@ print("TEST 4: flood (same register, same source_ip) -> later ones DROP")
 print("=" * 70)
 log_before = len(orchestrator.get_log())
 for i in range(7):
-    send_signed(MV101, 36.0 + i * 0.1)  # tiny moves, in-bounds & in-rate
+    send_signed(MV101, NOM[MV101] + 4.0 + i * 0.1)  # tiny moves, in-bounds & in-rate
 decisions = orchestrator.get_log()[log_before:]
 passes = sum(1 for d in decisions if d["verdict"] == "PASS")
 drops = sum(1 for d in decisions if d["verdict"] == "DROP")
@@ -156,7 +157,7 @@ print("=" * 70)
 print("TEST 8: each blocked command is in the attack log with its real source IP")
 print("=" * 70)
 UNTRUSTED_IP = "127.9.8.7"   # loopback range, but not on the trusted whitelist (127.0.0.1 only)
-send_signed(MV101, 37.0, ip=UNTRUSTED_IP)   # untrusted source
+send_signed(MV101, NOM[MV101] + 5.0, ip=UNTRUSTED_IP)   # untrusted source
 recs = attack_log.AttackLogReader().records()
 print(f"{len(recs)} records in {attack_log.LOG_FILE}")
 print(json.dumps(recs[-1], indent=2))

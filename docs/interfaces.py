@@ -17,8 +17,7 @@ from typing import Any, Dict, Optional
 # stage 3 as an automatic UF-backwash cycle). Point names are SWaT tags.
 #
 # IMPORTANT (PART 0 / dataset policy): min/max/initial values below are
-# SWaT-style nominal PLACEHOLDERS. They are replaced by bounds measured from
-# SWaT normal-operation data in Phase 6 (models/weights + docs/swat_bounds.json).
+# MEASURED from SWaT normal-operation data (docs/swat_bounds.json); tests/test_bounds_alignment.py enforces it.
 # ---------------------------------------------------------------------------
 
 # Registers travel on the wire as unsigned 16-bit ints with one decimal of
@@ -30,31 +29,35 @@ SCALE = 10
 # (register, tag, stage, kind, label, description, min, max, unit, initial,
 #  rate_per_sec, sig_move, operator_step, bar_class)
 _POINTS = [
+    # Sensor ranges/initial values are MEASURED (docs/swat_bounds.json, SWaT train-block NORMAL rows):
+    #   initial = measured median; min/max = measured min/max widened ~25 % and rounded (physical display range);
+    #   the tighter normal envelope used by the envelope rule lives in swat_bounds.json.
+    # Actuator initial values are the NOMINAL setpoints (pumps/UV "on" = >= 50 %, like SWaT's state 2).
     # --- Stage 1: raw water (SWaT P1) ---------------------------------------
-    (0,  "MV101",  1, "actuator", "Inlet Valve",          "raw-water inlet motorised valve",       0, 100, "%",    32.0, 10.0, 25.0, 2.0, "info"),
-    (1,  "P101",   1, "actuator", "Raw Water Pump",       "raw-water transfer pump speed",         0, 100, "%",    50.0,  8.0, 25.0, 2.0, ""),
-    (2,  "LIT101", 1, "sensor",   "Raw Tank Level",       "raw water tank level",                  0, 1000, "mm", 667.0, 200.0, 250.0, 0.0, ""),
-    (3,  "FIT101", 1, "sensor",   "Inlet Flow",           "inlet flow into raw water tank",        0, 40,  "m3/h", 6.4,   20.0,  10.0, 0.0, "info"),
+    (0,  "MV101",  1, "actuator", "Inlet Valve",          "raw-water inlet motorised valve",       0, 100, "%",    55.0, 10.0, 25.0, 2.0, "info"),
+    (1,  "P101",   1, "actuator", "Raw Water Pump",       "raw-water transfer pump speed",         0, 100, "%",    70.0,  8.0, 25.0, 2.0, ""),
+    (2,  "LIT101", 1, "sensor",   "Raw Tank Level",       "raw water tank level",                  0, 1200, "mm", 526.1, 200.0, 250.0, 0.0, ""),
+    (3,  "FIT101", 1, "sensor",   "Inlet Flow",           "inlet flow into raw water tank",        0, 3.5, "m3/h", 2.39,   5.0,   1.0, 0.0, "info"),
     # --- Stage 2: chemical dosing (SWaT P2) ---------------------------------
-    (4,  "P203",   2, "actuator", "HCl Dosing Pump",      "hydrochloric acid dosing pump",         0, 100, "%",    40.0,  8.0, 25.0, 2.0, "warning"),
-    (5,  "P205",   2, "actuator", "NaOCl Dosing Pump",    "sodium hypochlorite dosing pump",       0, 100, "%",    30.0,  8.0, 25.0, 2.0, "warning"),
-    (6,  "AIT202", 2, "sensor",   "Dosed-Water pH",       "pH after chemical dosing",              4, 10,  "pH",   7.2,   2.0,   1.5, 0.0, "warning"),
-    (7,  "FIT201", 2, "sensor",   "Stage 2 Flow",         "flow through chemical dosing stage",    0, 40,  "m3/h", 8.0,   20.0,  10.0, 0.0, "info"),
+    (4,  "P203",   2, "actuator", "HCl Dosing Pump",      "hydrochloric acid dosing pump",         0, 100, "%",    60.0,  8.0, 25.0, 2.0, "warning"),
+    (5,  "P205",   2, "actuator", "NaOCl Dosing Pump",    "sodium hypochlorite dosing pump",       0, 100, "%",    60.0,  8.0, 25.0, 2.0, "warning"),
+    (6,  "AIT202", 2, "sensor",   "Dosed-Water pH",       "pH after chemical dosing",              5, 10,  "pH",   8.37,   1.0,   0.5, 0.0, "warning"),
+    (7,  "FIT201", 2, "sensor",   "Stage 2 Flow",         "flow through chemical dosing stage",    0, 3.5, "m3/h", 2.44,   5.0,   1.0, 0.0, "info"),
     # --- Stage 3: ultrafiltration (SWaT P3, backwash folded in from P6) -----
-    (8,  "MV302",  3, "actuator", "UF Feed Valve",        "ultrafiltration feed motorised valve",  0, 100, "%",    80.0, 10.0, 25.0, 2.0, "info"),
-    (9,  "P302",   3, "actuator", "UF Feed Pump",         "ultrafiltration feed pump speed",       0, 100, "%",    40.0,  8.0, 25.0, 2.0, ""),
-    (10, "LIT301", 3, "sensor",   "UF Tank Level",        "ultrafiltration tank level",            0, 1000, "mm", 667.0, 200.0, 250.0, 0.0, ""),
-    (11, "DPIT301",3, "sensor",   "Membrane dP",          "UF membrane differential pressure",     0, 60,  "kPa",  13.2,  10.0,  10.0, 0.0, "warning"),
+    (8,  "MV302",  3, "actuator", "UF Feed Valve",        "ultrafiltration feed motorised valve",  0, 100, "%",    98.0, 10.0, 25.0, 2.0, "info"),
+    (9,  "P302",   3, "actuator", "UF Feed Pump",         "ultrafiltration feed pump speed",       0, 100, "%",    70.0,  8.0, 25.0, 2.0, ""),
+    (10, "LIT301", 3, "sensor",   "UF Tank Level",        "ultrafiltration tank level",            0, 1200, "mm", 918.4, 200.0, 250.0, 0.0, ""),
+    (11, "DPIT301",3, "sensor",   "Membrane dP",          "UF membrane differential pressure",     0, 60,  "kPa",  19.8,  10.0,  10.0, 0.0, "warning"),
     # --- Stage 4: dechlorination (SWaT P4) ----------------------------------
-    (12, "P402",   4, "actuator", "Dechlor Feed Pump",    "dechlorination feed pump speed (SWaT P402 is the running S4 pump; P401 is idle)",        0, 100, "%",    40.0,  8.0, 25.0, 2.0, ""),
-    (13, "UV401",  4, "actuator", "UV Lamp",              "UV dechlorinator intensity",            0, 100, "%",    60.0, 10.0, 25.0, 2.0, "warning"),
-    (14, "LIT401", 4, "sensor",   "Dechlor Tank Level",   "dechlorination tank level",             0, 1000, "mm", 667.0, 200.0, 250.0, 0.0, ""),
-    (15, "AIT402", 4, "sensor",   "ORP",                  "oxidation-reduction potential",         0, 800, "mV",   290.0, 150.0, 120.0, 0.0, "warning"),
+    (12, "P402",   4, "actuator", "Dechlor Feed Pump",    "dechlorination feed pump speed (SWaT P402 is the running S4 pump; P401 is idle)", 0, 100, "%", 70.0,  8.0, 25.0, 2.0, ""),
+    (13, "UV401",  4, "actuator", "UV Lamp",              "UV dechlorinator intensity",            0, 100, "%",    70.0, 10.0, 25.0, 2.0, "warning"),
+    (14, "LIT401", 4, "sensor",   "Dechlor Tank Level",   "dechlorination tank level",             0, 1200, "mm", 891.9, 200.0, 250.0, 0.0, ""),
+    (15, "AIT402", 4, "sensor",   "ORP",                  "oxidation-reduction potential",         100, 350, "mV", 163.7, 100.0,  60.0, 0.0, "warning"),
     # --- Stage 5: reverse osmosis (SWaT P5) ---------------------------------
-    (16, "P501",   5, "actuator", "RO High-Pressure Pump","reverse-osmosis high-pressure pump",    0, 100, "%",    60.0,  8.0, 25.0, 2.0, ""),
-    (17, "MV503",  5, "actuator", "RO Reject Valve",      "RO concentrate (reject) valve",         0, 100, "%",    30.0, 10.0, 25.0, 2.0, "info"),
-    (18, "PIT501", 5, "sensor",   "RO Feed Pressure",     "RO membrane feed pressure",             0, 2000, "kPa", 1020.0, 500.0, 400.0, 0.0, "warning"),
-    (19, "FIT501", 5, "sensor",   "Permeate Flow",        "RO permeate flow",                      0, 10,  "m3/h", 3.72,   5.0,   2.0, 0.0, "info"),
+    (16, "P501",   5, "actuator", "RO High-Pressure Pump","reverse-osmosis high-pressure pump",    0, 100, "%",    80.0,  8.0, 25.0, 2.0, ""),
+    (17, "MV503",  5, "actuator", "RO Reject Valve",      "RO concentrate (reject) valve (twin-only synthetic: no SWaT counterpart)", 0, 100, "%", 30.0, 10.0, 25.0, 2.0, "info"),
+    (18, "PIT501", 5, "sensor",   "RO Feed Pressure",     "RO membrane feed pressure",             0, 350, "kPa", 252.0, 200.0, 100.0, 0.0, "warning"),
+    (19, "FIT501", 5, "sensor",   "Permeate Flow",        "RO permeate flow",                      0, 2.5, "m3/h", 1.72,   3.0,   1.0, 0.0, "info"),
 ]
 
 STAGES = {
