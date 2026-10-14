@@ -1,7 +1,7 @@
 """
 tests/test_middleware_efficiency.py - middleware stress test and benchmark.
 
-Pushes thousands of multivariate payloads (a 10-machine telemetry sample plus
+Pushes thousands of multivariate payloads (a 20-register telemetry sample plus
 a SCADA command) through the REAL middleware entry point
 (middleware_server._process_write -> MultiModelPipeline -> agents + models ->
 orchestrator -> PLC forward), and measures:
@@ -18,7 +18,7 @@ Phases
     2. capacity   - payloads processed back-to-back to find max throughput.
 
 Traffic mix: legitimate signed commands from --sources SCADA hosts, plus
-unsigned / tampered / forged / out-of-bounds / untrusted-source /
+unsigned / tampered / forged / out-of-bounds / untrusted-source / write-to-sensor /
 cross-register attacks (--attack-ratio).
 
 Results: logs/middleware_benchmark_<timestamp>.json (full breakdown) and one
@@ -50,21 +50,27 @@ from typing import Any, Dict, List, Optional, Tuple
 PROJECT_ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 LOG_DIR = os.path.join(PROJECT_ROOT, "logs")
 
-# Must be set before middleware modules are imported (read at import time).
-os.environ.setdefault("IM_TRUSTED_SOURCES", LOOPBACK + ",192.168.1.10,10.20.0.0/16")
-os.environ.setdefault("IM_LOG_DIR", os.path.join(LOG_DIR, "benchmark_attack_log"))
-
 sys.path.insert(0, PROJECT_ROOT)
+
+import importlib  # noqa: E402
+
+from docs import netconfig  # noqa: E402
+from docs.netconfig import LOOPBACK  # noqa: E402  documented loopback default
+
+# Must be set before middleware modules are imported (read at import time).
+# Legit SCADA hosts are 127.20.x.x; untrusted attackers use 127.30.x.x.
+TRUSTED_NET = "127.20.0.0/16"
+os.environ.setdefault("IM_TRUSTED_SOURCES", LOOPBACK + "," + TRUSTED_NET)
+os.environ.setdefault("IM_LOG_DIR", os.path.join(LOG_DIR, "benchmark_attack_log"))
+importlib.reload(netconfig)   # netconfig already read the env at import; re-read it
 
 import numpy as np  # noqa: E402
 import psutil  # noqa: E402
 
-from docs import netconfig
-from docs.netconfig import LOOPBACK  # documented loopback default
 from docs import hmac_auth  # noqa: E402
 from docs.interfaces import (  # noqa: E402
-    CONVEYOR_SPEED, COOLANT_FLOW, COOLING_VALVE, FEED_PUMP, FRAME_BASE, HEATER_TEMP, MACHINES,
-    NUM_REGISTERS, RELIEF_VALVE, TANK_PRESSURE, to_raw,
+    ACTUATOR_REGISTERS, SENSOR_REGISTERS, FRAME_BASE, MACHINES, NUM_REGISTERS,
+    P101, P203, to_raw,
 )
 from middleware import cyber_agent, orchestrator  # noqa: E402
 import middleware.middleware_server as mw  # noqa: E402
@@ -102,22 +108,22 @@ class InMemoryPLC:
 # Payload generation
 # ---------------------------------------------------------------------------
 
-ATTACK_KINDS = ["unsigned", "tampered", "forged", "out_of_bounds", "untrusted", "cross_register"]
+ATTACK_KINDS = ["unsigned", "tampered", "forged", "out_of_bounds", "untrusted", "cross_register",
+                "sensor_write"]
 
 
 # Normal operation stays inside a safe operating envelope (fraction of range)
 # so legitimate traffic never forms an unsafe cross-register combination.
-SAFE_ENVELOPE = {
-    TANK_PRESSURE: (0.2, 0.75), HEATER_TEMP: (0.2, 0.6), COOLING_VALVE: (0.4, 0.8),
-    FEED_PUMP: (0.2, 0.6), RELIEF_VALVE: (0.3, 0.8), COOLANT_FLOW: (0.3, 0.8),
-    CONVEYOR_SPEED: (0.2, 0.8),
-}
+# Every actuator stays within 30..75 % of its range, so no "<=" side of any
+# CROSS_REGISTER_RULES entry (<= 10 / <= 20) and no ">=" side (>= 60..80) can
+# line up with its partner.
+SAFE_ENVELOPE = {reg: (0.3, 0.75) for reg in ACTUATOR_REGISTERS}
 
 
 def build_payloads(n: int, seed: int, attack_ratio: float, n_sources: int,
                    rate: float = 300.0) -> List[Dict[str, Any]]:
     """
-    Each payload = one 10-machine telemetry sample + one Modbus write.
+    Each payload = one 20-register telemetry sample + one Modbus write.
 
     Legitimate traffic behaves like real operators: each SCADA host sends at
     most 4 commands per second (planned at the offered `rate`), never resends
@@ -125,7 +131,7 @@ def build_payloads(n: int, seed: int, attack_ratio: float, n_sources: int,
     """
     rng = np.random.default_rng(seed)
     telemetry = generate_stream(n, seed=seed, failing={8: 0.3, 2: 0.6}, envelopes=SAFE_ENVELOPE)["values"]
-    sources = [f"10.20.{i // 250}.{i % 250 + 1}" for i in range(n_sources)]
+    sources = [f"127.20.{i // 250}.{i % 250 + 1}" for i in range(n_sources)]
     recent: Dict[str, List[float]] = {s: [] for s in sources}      # planned send times
     sent: Dict[Tuple[str, int], List[Tuple[float, float]]] = {}      # (ip, reg) -> [(t, value)]
     wrong_key = b"attacker-guessed-key-000000000000000000000"
@@ -133,7 +139,7 @@ def build_payloads(n: int, seed: int, attack_ratio: float, n_sources: int,
 
     for i in range(n):
         tel = telemetry[i]
-        reg = int(rng.integers(NUM_REGISTERS))
+        reg = int(ACTUATOR_REGISTERS[int(rng.integers(len(ACTUATOR_REGISTERS)))])   # only actuators are commanded
         m = MACHINES[reg]
         span = m["max"] - m["min"]
         # Operator setpoints are always inside the machine range, even when the
@@ -174,12 +180,17 @@ def build_payloads(n: int, seed: int, attack_ratio: float, n_sources: int,
         elif kind == "out_of_bounds":
             sign_value = m["max"] * 1.5
         elif kind == "untrusted":
-            ip = f"172.16.{int(rng.integers(255))}.{int(rng.integers(1, 255))}"
+            ip = f"127.30.{int(rng.integers(255))}.{int(rng.integers(1, 255))}"
         elif kind == "cross_register":
+            # ACID_OVERDOSE_LOW_FLOW: HCl pump P203 creeps up to 80 % (a tiny, in-rate
+            # move) while the raw-water pump P101 is at 15 %.
             tel = tel.copy()
-            tel[HEATER_TEMP] = 115.0
-            reg, sign_value = COOLING_VALVE, 20.0
-            tel[COOLING_VALVE] = 22.0
+            tel[P203], tel[P101] = 79.9, 15.0
+            reg, sign_value = P203, 80.0
+        elif kind == "sensor_write":
+            # signed, trusted, in-bounds - but it targets a read-only sensor register
+            reg = int(SENSOR_REGISTERS[int(rng.integers(len(SENSOR_REGISTERS)))])
+            sign_value = float(MACHINES[reg]["initial"])
 
         payloads.append({"kind": kind, "ip": ip, "address": address, "fc": fc, "telemetry": tel,
                          "register": reg, "value": sign_value, "key": key, "tamper": tamper})
