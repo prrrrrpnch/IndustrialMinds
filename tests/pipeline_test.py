@@ -24,7 +24,7 @@ from middleware import orchestrator
 from docs import netconfig
 from docs.netconfig import LOOPBACK  # documented loopback default
 from docs import hmac_auth, attack_log
-from docs.interfaces import (TANK_PRESSURE, CONVEYOR_SPEED, COOLING_VALVE, HEATER_TEMP,
+from docs.interfaces import (MV101, P101, LIT101, PIT501, UV401,
                              REGISTER_MAP, NUM_REGISTERS, DATASTORE_SIZE, FRAME_BASE)
 
 TEST_IP = LOOPBACK   # what a local SCADA connection reports as its peer address
@@ -58,35 +58,43 @@ print("TEST 1: legit in-bounds write -> should PASS and reach the real PLC")
 print("=" * 70)
 before = read_real_plc()
 print("PLC state before:", before)
-send_signed(COOLING_VALVE, 50.0)   # 45 -> 50, well within rate limit
+send_signed(MV101, 36.0)   # inlet valve 32 -> 36 %, well within rate limit
 for _ in range(3):
     time.sleep(0.5)
     mw._poll_once(_warmup_block)
 after = read_real_plc()
 print("PLC state after (t+1.5s):", after)
-assert after[2] > before[2], "FAIL: cooling valve did not move on the real PLC after a PASS"
+assert after[MV101] > before[MV101], "FAIL: inlet valve MV101 did not move on the real PLC after a PASS"
 print("PASS confirmed: real PLC register actually changed.\n")
 
 print("=" * 70)
 print("TEST 2: out-of-bounds write -> should DROP, PLC must NOT move")
 print("=" * 70)
 before = read_real_plc()
-send_signed(TANK_PRESSURE, 500.0)  # way over the 100 PSI safe max
+send_signed(P101, 500.0)  # way over the 100 % safe max
 time.sleep(1.0)
 after = read_real_plc()
-print(f"PLC TANK_PRESSURE before={before[0]:.2f} after={after[0]:.2f}")
-assert abs(after[0] - before[0]) < 0.1, "FAIL: PLC moved even though the command should have DROPped"
+print(f"PLC P101 before={before[P101]:.2f} after={after[P101]:.2f}")
+assert abs(after[P101] - before[P101]) < 0.1, "FAIL: PLC moved even though the command should have DROPped"
 print("PASS confirmed: DROPped command never reached the PLC.\n")
 
 print("=" * 70)
 print("TEST 3: rate-of-change violation -> should DROP")
 print("=" * 70)
+# The rate window is "time since this register last settled" (middleware
+# _register_settled_since, 3 s after startup), so first settle P101 with a tiny
+# legitimate move; then the next command is judged over a window of ~1 s
+# (max ~9 %/s) instead of several seconds.
+send_signed(P101, 51.0)
+for _ in range(3):
+    time.sleep(0.4)
+    mw._poll_once(_warmup_block)
 before = read_real_plc()
-send_signed(CONVEYOR_SPEED, 100.0)  # 0 -> 100 RPM instantly, way too fast
+send_signed(P101, 100.0)  # raw pump 50 -> 100 % instantly, way too fast (limit ~8.8 %/s)
 time.sleep(1.0)
 after = read_real_plc()
-print(f"PLC CONVEYOR_SPEED before={before[1]:.2f} after={after[1]:.2f}")
-assert abs(after[1] - before[1]) < 0.5, "FAIL: PLC moved on a rate-of-change violation"
+print(f"PLC P101 before={before[P101]:.2f} after={after[P101]:.2f}")
+assert abs(after[P101] - before[P101]) < 0.5, "FAIL: PLC moved on a rate-of-change violation"
 print("PASS confirmed: rate-of-change violation correctly dropped.\n")
 
 print("=" * 70)
@@ -94,7 +102,7 @@ print("TEST 4: flood (same register, same source_ip) -> later ones DROP")
 print("=" * 70)
 log_before = len(orchestrator.get_log())
 for i in range(7):
-    send_signed(COOLING_VALVE, 50.0 + i * 0.1)  # tiny moves, in-bounds & in-rate
+    send_signed(MV101, 36.0 + i * 0.1)  # tiny moves, in-bounds & in-rate
 decisions = orchestrator.get_log()[log_before:]
 passes = sum(1 for d in decisions if d["verdict"] == "PASS")
 drops = sum(1 for d in decisions if d["verdict"] == "DROP")
@@ -124,19 +132,19 @@ print("TEST 6: unsigned write -> HMAC_MISSING, PLC must NOT move")
 print("=" * 70)
 time.sleep(1.1)   # leave the rate-limit window from TEST 4
 before = read_real_plc()
-send_unsigned(HEATER_TEMP, before[HEATER_TEMP] + 1.0)
+send_unsigned(UV401, before[UV401] + 1.0)
 time.sleep(1.0)
 after = read_real_plc()
 last = orchestrator.get_log()[-1]
 print("decision:", last)
 assert last["verdict"] == "DROP" and last["reason"].startswith("HMAC_MISSING")
-assert abs(after[HEATER_TEMP] - before[HEATER_TEMP]) < 0.1, "FAIL: unsigned command reached the PLC"
+assert abs(after[UV401] - before[UV401]) < 0.1, "FAIL: unsigned command reached the PLC"
 print("PASS confirmed: unsigned command blocked by Cyber Agent.\n")
 
 print("=" * 70)
 print("TEST 7: tampered signed frame -> HMAC_INVALID")
 print("=" * 70)
-frame = hmac_auth.build_frame(HEATER_TEMP, before[HEATER_TEMP] + 1.0)
+frame = hmac_auth.build_frame(UV401, before[UV401] + 1.0)
 frame[2] = 1400
 mw._process_write(FRAME_BASE, frame, {"source_ip": TEST_IP, "function_code": 16})
 last = orchestrator.get_log()[-1]
@@ -147,15 +155,32 @@ print("PASS confirmed.\n")
 print("=" * 70)
 print("TEST 8: each blocked command is in the attack log with its real source IP")
 print("=" * 70)
-send_signed(COOLING_VALVE, 51.0, ip="10.9.8.7")   # untrusted source
+UNTRUSTED_IP = "127.9.8.7"   # loopback range, but not on the trusted whitelist (127.0.0.1 only)
+send_signed(MV101, 37.0, ip=UNTRUSTED_IP)   # untrusted source
 recs = attack_log.AttackLogReader().records()
 print(f"{len(recs)} records in {attack_log.LOG_FILE}")
 print(json.dumps(recs[-1], indent=2))
 ips = {r["source_ip"] for r in recs}
-assert "10.9.8.7" in ips and TEST_IP in ips
+assert UNTRUSTED_IP in ips and TEST_IP in ips
 assert all("secret" not in json.dumps(r).lower() for r in recs)
 assert any(r["attack_type"] == "Missing HMAC (Unsigned Command)" for r in recs)
 print("PASS confirmed.\n")
+
+print("=" * 70)
+print("TEST 9: write to a SENSOR register -> WRITE_TO_SENSOR_REGISTER, PLC value unaffected")
+print("=" * 70)
+time.sleep(1.1)   # leave the rate-limit window
+before = read_real_plc()
+for reg in (LIT101, PIT501):
+    send_signed(reg, 5.0)
+    last = orchestrator.get_log()[-1]
+    print("decision:", last)
+    assert last["verdict"] == "DROP" and last["reason"].startswith("WRITE_TO_SENSOR_REGISTER"), last
+time.sleep(1.0)
+after = read_real_plc()
+# a sensor follows the physics, so it may drift slightly, but never jumps to the written 5.0
+assert abs(after[LIT101] - 5.0) > 50 and abs(after[PIT501] - 5.0) > 50, "FAIL: sensor value forced by a write"
+print("PASS confirmed: sensor writes dropped by the Physical Agent.\n")
 
 mw._plc_client.close()
 print("ALL PIPELINE TESTS COMPLETED")
