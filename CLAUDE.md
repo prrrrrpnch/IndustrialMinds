@@ -77,6 +77,7 @@ Reference files are listed by path below; none are auto-loaded.
 | Path | Open when |
 |---|---|
 | `README.md` | user-facing setup/usage; rewritten in Phase 12 |
+| `docs/PROJECT_DETAILS.md` (+ `.docx`) | COMPLETE technical description of every component, algorithm, parameter, result (for PPT / report / IEEE paper); numbers copied from benchmarks/ and docs/reports/ - update when they change |
 | `MODELS_RATIONALE.md` | changing/justifying the cyber or physical model design |
 | `CHECKLIST_VERIFICATION.txt` | legacy self-verification claims (numbers must match repo benchmarks — PART 0 item) |
 | `docs/swat_bounds.json` | MEASURED SWaT normal-operation statistics + envelope per sensor (aggregate; source of the twin calibration) |
