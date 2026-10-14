@@ -20,10 +20,10 @@ Reference files are listed by path below; none are auto-loaded.
 5. The guard is a guardrail for the agent, not a security boundary against a human with shell access.
 
 ## Working rules for this rework (source: user prompt, 12 phases + PART 0 issue list)
-- **POLICY AMENDMENT (user, after the P6 gate): the SWaT-only rule is LIFTED FOR THE CYBER MODEL ONLY.** The cyber model may be trained on a
-  user-supplied network-traffic dataset (name/format/license TBD; user must confirm usage terms). Physical model, bounds, twin calibration and
-  fusion evidence stay SWaT-only. The README dataset section and known-limitations must state this split plainly. Original rule follows.
-- **Dataset policy: SWaT (iTrust, SUTD) is the ONLY external dataset** (except the cyber-model amendment above). Anything SWaT can't supply is
+- **DECISION (user, after the P6 gate): NO CYBER ML MODEL. The cyber branch is RULE-BASED ONLY** (whitelist, function code, register allow-list,
+  rate limit, HMAC, nonce/replay). A user-proposed external traffic dataset was inspected and dropped; the SWaT-only dataset policy is
+  therefore UNCHANGED and no external dataset is used. The SWaT cyber candidate (weak) and its code stay as a documented negative result.
+- **Dataset policy: SWaT (iTrust, SUTD) is the ONLY external dataset.** Anything SWaT can't supply is
   (a) derived from SWaT columns/labels or (b) labeled synthetic/rule-tested and listed in known
   limitations. Never present self-generated data as real-data performance. No Morris et al.
 - Approval gates (stop and wait): P1 deletions, P3 twin table, P4 data in hand, P5/P6 weight
@@ -115,14 +115,14 @@ Reference files are listed by path below; none are auto-loaded.
 | `dashboard/app.py`, `dashboard/static/`, `dashboard/templates/` | Flask dashboard + UI |
 | `evaluation/` | legacy synthetic xlsx evaluation (superseded in Phase 11) |
 | `tests/` | unit/pipeline/stress tests |
-| `tools/traffic_inspect.py` | cyber-dataset onboarding: run locally on a network-traffic CSV/folder; aggregate-only report (roles, labels, windows, leakage screen) |
+| `tools/traffic_inspect.py` | UNUSED since the no-cyber-ML decision (inspected one traffic dataset: mostly non-Modbus, 1.2% Modbus rows); candidate for removal |
 | `tools/swat_inspect.py` | Phase 4: run locally on the SWaT folder; prints aggregate-only report + JSON manifest (no raw rows) |
 | `.claude/hooks/guard.py`, `.claude/hooks/confirm.py`, `.claude/settings.json` | hook logic / confirmation helper / wiring |
 
 ## PART 0 tracker (update at the end of each phase)
 | # | Issue | Closed by | Status |
 |---|---|---|---|
-| 1 | Models trained only on synthetic data | P5 (cyber), P6 (physical) | cyber: trained on real SWaT, result WEAK (docs/reports), user decided NOT to promote -> cyber branch is RULES-ONLY (NO_MODEL), negative result is a documented limitation; physical: run 2 on real SWaT (test AUC 0.83, F1 ~0.3), PROMOTED as ADVISORY at the 0.5 false-alarm/h operating point (user decision, P6 gate) -> NO synthetic-trained model is active any more |
+| 1 | Models trained only on synthetic data | P5 (cyber), P6 (physical) | cyber: trained on real SWaT, result WEAK (docs/reports); user DROPPED cyber ML entirely -> cyber branch is RULES-ONLY by design (negative result = documented limitation); physical: run 2 on real SWaT (test AUC 0.83, F1 ~0.3), PROMOTED as ADVISORY at the 0.5 false-alarm/h operating point (user decision, P6 gate) -> NO synthetic-trained model is active any more |
 | 2 | Guessed physical bounds | P6 | CLOSED (docs/swat_bounds.json measured on real SWaT train-normal rows; MACHINES + twin calibrated to it; tests/test_bounds_alignment.py enforces) |
 | 3 | Hardcoded 127.0.0.1 | P2 | CLOSED (docs/netconfig.py; env+CLI; grep clean) |
 | 4 | Orchestrator is AND-gate | P7 | open |
