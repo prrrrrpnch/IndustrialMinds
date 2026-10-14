@@ -74,6 +74,11 @@ Types `freeze`, `ramp`, `cross-register` follow behaviours seen in SWaT's labell
 `flood`, `replay` are **synthetic extensions** (SWaT has no network-layer attacks). The fixed, scripted attacks above stay for
 live demos (the three demo attacks are `flood`, `impossible-command`, `cross-register`).
 
+## Multi-laptop demo and Wireshark
+
+See `docs/topology.md` (4 laptops: roles, environment variables, firewall rules, preflight `python -m tools.check_topology`) and
+`docs/wireshark_setup.md` (capture filters, Modbus port preference, the side-by-side demo, `python -m tools.wire_correlate`).
+
 ## Packet tracer (dashboard, bottom panel)
 
 Click any command in the list to see every hop it met, with the values the backend actually computed: arrival (peer, function

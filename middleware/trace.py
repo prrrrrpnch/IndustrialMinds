@@ -21,6 +21,7 @@ from __future__ import annotations
 import time
 from typing import Any, Dict, List, Optional
 
+from docs import hmac_auth
 from docs.interfaces import CROSS_REGISTER_RULES, MACHINE_BY_REGISTER
 
 CYBER_ORDER = ["source_whitelist", "function_code", "register_allowlist", "rate_limit", "hmac", "replay"]
@@ -103,11 +104,17 @@ def build_trace(command: Dict[str, Any], state: Dict[str, Any], cyber_rule: Dict
     auth = command.get("auth")
     signature = "absent" if auth is None else ("malformed" if auth.get("malformed") else "present")
     fusion = decision.get("fusion", {})
+    wire = {}
+    if auth and not auth.get("malformed") and auth.get("nonce") is not None:
+        # The frame's nonce as the four 16-bit register words a Wireshark/tshark capture shows (words 3..6 of the FC16 write):
+        # this is how a packet on the wire is matched to this trace.
+        wire = {"nonce": f"{int(auth['nonce']):016x}", "nonce_words": hmac_auth._u64_to_regs(int(auth["nonce"])),
+                "frame_timestamp_ms": auth.get("timestamp_ms")}
     hops = [
         {"hop": "arrival", "layer": "network", "outcome": "INFO", "ms": None,
          "values": {"source": f"{command.get('source_ip')}:{command.get('source_port')}", "function_code": command.get("function_code"),
                     "register": f"{m.get('name', reg)} (#{reg})", "requested_value": command.get("value"),
-                    "raw_value": command.get("raw_value"), "signature": signature},
+                    "raw_value": command.get("raw_value"), "signature": signature, **wire},
          "checks": []},
         {"hop": "cyber_rules", "layer": "cyber", "outcome": _outcome(cyber_rule.get("pass")), "ms": None,
          "values": {"reason": cyber_rule.get("reason"), "auth_status": cyber_rule.get("auth_status", "NOT_CHECKED")},
