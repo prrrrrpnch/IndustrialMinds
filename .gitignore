@@ -9,3 +9,6 @@ logs/
 data/swat/raw/
 config/hmac_secret.key
 models/candidates/
+
+benchmarks/latency_raw.csv
+benchmarks/latency.json

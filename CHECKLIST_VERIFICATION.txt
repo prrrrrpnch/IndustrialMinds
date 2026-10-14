@@ -1,3 +1,7 @@
+!!! STALE - describes the PRE-REWORK system (10 machines, synthetic-trained models, RUL). Its numbers do NOT match the current
+!!! repository. The current, regenerable numbers are in docs/reports/benchmark_report.md (python -m benchmark.run_all).
+!!! Rewritten or removed in Phase 12.
+
 ================================================================================
            INDUSTRIALMIND SYSTEM REFACTORING & VERIFICATION CHECKLIST
                     Verified 2026-10-01 against this code base
