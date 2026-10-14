@@ -132,6 +132,7 @@ def main() -> None:
     txt = json.dumps({k: v for k, v in res.items() if k != "segments"} | {"segments": {k: v for k, v in res.get("segments", {}).items() if k != "per_segment"}}, indent=2)
     print(txt)
     if a.out:
+        os.makedirs(os.path.dirname(os.path.abspath(a.out)), exist_ok=True)
         with open(a.out, "w") as fh:
             json.dump(res, fh, indent=2)
 
