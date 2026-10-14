@@ -56,7 +56,6 @@ Reference files are listed by path below; none are auto-loaded.
 - Plant = 5 stages x 4 points = 20 registers (10 actuators writable, 10 sensors read-only); register constants are SWaT tags (MV101, LIT101...). Old names (TANK_PRESSURE...) are gone.
 - Wire scale is x10 (0.1 resolution): pH/permeate flow are coarse; max representable 6553.5.
 - models/weights: physical_model.joblib is the PROMOTED SWaT-trained model (advisory; operating point 0.5 false alarms/h, clf thr 0.601, variant drift_robust). The old synthetic cyber_model.joblib/training_report.json were deleted (user-confirmed); with no cyber weights the CyberModel reports NO_MODEL = cyber branch is rules-only.
-- `evaluation/` (xlsx, generate_test_data, evaluate_system) targets the OLD register names and is non-functional until replaced in P11.
 - SWaT archive facts (from tools/swat_inspect.py reports; data lives ONLY on the user's Windows machine, never in this container):
   attack.csv = 54,621 attack-only rows in 35 time-gap segments; normal.csv = 1,387,098 rows; merged.csv = their concatenation; 51 tags + Timestamp + `Normal/Attack`;
   timestamps `%d/%m/%Y %I:%M:%S %p`, 1 Hz, files NOT chronological. NO network fields, NO attack list, NO pcaps.
@@ -121,7 +120,6 @@ Reference files are listed by path below; none are auto-loaded.
 | `attacker/attacker.py`, `attacker/scenarios.py` | FIXED scripted attacks (3 DEMO: flood, impossible-command, cross-register) + `random` mode: seeded randomised plans (freeze/ramp/cross-register = SWaT-derived behaviours; impossible-command/flood/replay = SYNTHETIC EXTENSION); `--dry-run`, `--seed`, `--log-file` |
 | `tools/swat_attack_profile.py`, `tests/test_attacker_randomization.py` | run locally on SWaT -> docs/swat_attack_profile.json (aggregate; only the ramp range is calibrated, rest design defaults); the test is the P8 distribution check |
 | `dashboard/app.py`, `dashboard/static/`, `dashboard/templates/` | Flask dashboard + UI |
-| `evaluation/` | legacy synthetic xlsx evaluation, SUPERSEDED by benchmark/ (targets old register names, non-functional); deletion pending user confirm |
 | `tests/` | unit/pipeline/stress tests |
 | `docs/reports/fusion_training_report_swat.md` | Phase 7 fusion candidate, REAL SWaT held-out: val AUC 0.93 but TEST AUC 0.68 < physical alone 0.83; detects 4/10 test segments vs 6/10; NOT promoted (user decision: rule-based fusion instead) |
 | `tools/swat_inspect.py` | Phase 4: run locally on the SWaT folder; prints aggregate-only report + JSON manifest (no raw rows) |
