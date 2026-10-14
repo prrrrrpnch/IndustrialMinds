@@ -63,6 +63,7 @@ Reference files are listed by path below; none are auto-loaded.
   Segment 22 (35,900 rows, ~10 h) is 66% of all attack rows: always evaluate PER SEGMENT, split by calendar time blocks, never random rows. PIT502/AIT202 drift by day (leakage tell).
   SWaT actuators are discrete (pumps 1/2, valves 0/1/2); P401/P404/P502/P601/P603 constant, P402/P501/UV401 ~always on. MV503 does not exist in SWaT.
 - Phases 5-7 need the data on the machine that RUNS training: run the session locally (recommended) or have the user run `--candidate` training and paste reports.
+- DECISION (P5 gate): cyber ML candidate NOT promoted. models/weights/cyber_model.joblib is the OLD synthetic file, refused by the schema check; never promote it; remove only with a confirmed delete.
 - Cyber ML = actuator STATE-CHANGE events (1/2 -> 0/100 %); it abstains on writes that don't flip on/off. Old 13-feature weights in models/weights are refused (schema mismatch -> NO_MODEL) until the SWaT candidate is promoted.
 - Guard hook only fires on EXECUTING a training script (python ... train*), not on reads; avoid heredocs whose text mentions weights paths / training commands (false positives) - write scripts with the Write tool.
 - `docs/wireshark_setup.md` is currently an empty file (filled in Phase 10).
@@ -107,7 +108,7 @@ Reference files are listed by path below; none are auto-loaded.
 ## PART 0 tracker (update at the end of each phase)
 | # | Issue | Closed by | Status |
 |---|---|---|---|
-| 1 | Models trained only on synthetic data | P5 (cyber), P6 (physical) | cyber candidate trained on real SWaT, results WEAK (docs/reports), awaiting gate decision; physical open |
+| 1 | Models trained only on synthetic data | P5 (cyber), P6 (physical) | cyber: trained on real SWaT, result WEAK (docs/reports), user decided NOT to promote -> cyber branch is RULES-ONLY (NO_MODEL), negative result is a documented limitation; physical open (P6) |
 | 2 | Guessed physical bounds | P6 (P3 only installs SWaT-style PLACEHOLDERS) | open |
 | 3 | Hardcoded 127.0.0.1 | P2 | CLOSED (docs/netconfig.py; env+CLI; grep clean) |
 | 4 | Orchestrator is AND-gate | P7 | open |
