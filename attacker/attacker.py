@@ -531,15 +531,21 @@ def cross_register_attack() -> None:
     try:
 
         print("[ATTACK] Stage 1: close the inlet valve (safe on its own - pump is low)")
-        _ramp(client, MV101, goal=5.0, step=10.0, wait=3.0)
+        closed = _ramp(client, MV101, goal=5.0, step=10.0, wait=3.0)
 
-        print("[ATTACK] Stage 2: raise the raw-water pump speed (each step safe on its own)")
-        reached = _ramp(client, P101, goal=70.0, step=10.0, wait=3.0)
-
-        if reached:
-            print("[ATTACK] Pump reached goal - combined unsafe state was NOT prevented!")
+        if not closed:
+            # The pump is already above the dry-run threshold, so closing the inlet completes the unsafe combination.
+            print("[ATTACK] Middleware refused the step that completes the unsafe combination (inlet valve held above "
+                  "the dry-run threshold while the pump is fast). Unsafe state PREVENTED.")
         else:
-            print("[ATTACK] Middleware refused the step that completes the unsafe combination.")
+            print("[ATTACK] Stage 2: raise the raw-water pump speed (each step safe on its own)")
+            reached = _ramp(client, P101, goal=70.0, step=10.0, wait=3.0)
+
+            if reached:
+                print("[ATTACK] Both goals reached - combined unsafe state was NOT prevented "
+                      "(check that the plant was not already unsafe, e.g. after false-injection).")
+            else:
+                print("[ATTACK] Middleware refused the step that completes the unsafe combination.")
 
     finally:
 
