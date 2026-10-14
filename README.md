@@ -25,6 +25,8 @@ point and raises more false alarms than its target (see [Benchmarks](#benchmarks
 The cyber branch has **no learned model by design**: a SWaT-trained candidate was weak and was not promoted. A learned fusion model
 was also tried and **rejected**. Nothing here claims real-data performance for the cyber rules: SWaT contains no network traffic.
 
+**Complete technical description** of every component, algorithm, parameter and result (for slides, the report and a paper): [`docs/PROJECT_DETAILS.md`](docs/PROJECT_DETAILS.md) (also as `.docx`).
+
 Contents: [Quick start](#quick-start-one-laptop-10-minutes) · [Architecture](#architecture-what-each-layer-does) ·
 [Dataset](#dataset-swat-only) · [Twin](#the-digital-twin) · [Packet journey](#the-journey-of-one-command) ·
 [Setup per laptop](#setup-per-laptop-role) · [Training](#training-instructions-per-model) · [Attacker](#attacker-design) ·
