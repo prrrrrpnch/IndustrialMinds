@@ -51,7 +51,7 @@ Reference files are listed by path below; none are auto-loaded.
 - Orchestrator forwards decisions to the dashboard via HTTP in a fire-and-forget thread.
 - Models are advisory (MONITOR) unless `IM_CYBER_MODEL_ENFORCE=1`.
 - `docs/netconfig.py` is the ONLY place host/port defaults live (env vars documented in its header).
-- Weights were pickled with scikit-learn 1.8.0; env has 1.9.1 -> InconsistentVersionWarning (harmless; retrain in P5/P6 fixes).
+- requirements.txt pins scikit-learn==1.9.1: physical_model.joblib was last saved by this container (1.9.1); other versions warn. tests/test_environment.py enforces pin + clean load. The user's machine had 1.8.0: they must `pip install scikit-learn==1.9.1`.
 - Pre-existing lab IPs remain only in synthetic-data files (telemetry_generator, train_models, evaluation, some tests); replaced when data is replaced in P5-P7/P11.
 - Plant = 5 stages x 4 points = 20 registers (10 actuators writable, 10 sensors read-only); register constants are SWaT tags (MV101, LIT101...). Old names (TANK_PRESSURE...) are gone.
 - Wire scale is x10 (0.1 resolution): pH/permeate flow are coarse; max representable 6553.5.
@@ -86,6 +86,7 @@ Reference files are listed by path below; none are auto-loaded.
 | `docs/reports/twin_domain_gap_report.md` | SWaT-model on the healthy calibrated twin: 0.25 alarm episodes/h, attacks flagged in 1-4 s (TWIN measurement, not SWaT performance) |
 | `tools/twin_domain_gap.py` | measure a PhysicalModel on the calibrated twin (nominal false alarms + synthetic attack latency) |
 | `tests/test_bounds_alignment.py` | PART 0 #2 evidence: config/twin vs measured bounds (35 checks) |
+| `benchmark/` (`run_all.py`, `latency.py`, `rules_accuracy.py`, `swat_accuracy.py`, `render.py`) | Phase 11: ONE command `python -m benchmark.run_all [--data-dir <SWaT>]` regenerates benchmarks/latest.json + docs/reports/benchmark_report.md + the README BENCHMARK block (generated, never hand-typed; tests/test_benchmark.py fails on drift). Sections kept apart: latency / held-out SWaT (needs the archive; `benchmarks/swat_accuracy.json` is reused if present) / rule-based constructed scenarios / twin |
 | `docs/netconfig.py` | any host/port/env-var question (single source for addresses) |
 | `docs/topology.md`, `docs/wireshark_setup.md` | Phase 10: 4-laptop roles, env vars, firewall rules, preflight; capture filters, field names, side-by-side demo (verified on loopback with tshark 4.2.2) |
 | `tools/check_topology.py`, `tools/wire_correlate.py` | per-laptop preflight (`--role ... --multi`, HMAC fingerprint); match tshark frames to tracer entries by nonce and cross-check PLC leg (tests: test_check_topology, test_wire_correlate) |
@@ -120,7 +121,7 @@ Reference files are listed by path below; none are auto-loaded.
 | `attacker/attacker.py`, `attacker/scenarios.py` | FIXED scripted attacks (3 DEMO: flood, impossible-command, cross-register) + `random` mode: seeded randomised plans (freeze/ramp/cross-register = SWaT-derived behaviours; impossible-command/flood/replay = SYNTHETIC EXTENSION); `--dry-run`, `--seed`, `--log-file` |
 | `tools/swat_attack_profile.py`, `tests/test_attacker_randomization.py` | run locally on SWaT -> docs/swat_attack_profile.json (aggregate; only the ramp range is calibrated, rest design defaults); the test is the P8 distribution check |
 | `dashboard/app.py`, `dashboard/static/`, `dashboard/templates/` | Flask dashboard + UI |
-| `evaluation/` | legacy synthetic xlsx evaluation (superseded in Phase 11) |
+| `evaluation/` | legacy synthetic xlsx evaluation, SUPERSEDED by benchmark/ (targets old register names, non-functional); deletion pending user confirm |
 | `tests/` | unit/pipeline/stress tests |
 | `docs/reports/fusion_training_report_swat.md` | Phase 7 fusion candidate, REAL SWaT held-out: val AUC 0.93 but TEST AUC 0.68 < physical alone 0.83; detects 4/10 test segments vs 6/10; NOT promoted (user decision: rule-based fusion instead) |
 | `tools/swat_inspect.py` | Phase 4: run locally on the SWaT folder; prints aggregate-only report + JSON manifest (no raw rows) |
@@ -138,7 +139,7 @@ Reference files are listed by path below; none are auto-loaded.
 | 7 | Twin is flat list, not SWaT-like | P3 | CLOSED (5 stages x 4 pts, coupled physics, propagation check passes) |
 | 8 | No per-layer journey visibility | P9 | CLOSED (decision carries `fusion`; middleware/trace.py; dashboard Packet Tracer panel; live-verified against logs/blocked_attacks.jsonl) |
 | 9 | No live network proof | P10 | PARTIAL: docs + tools done, capture/nonce correlation verified on loopback with real tshark; multi-laptop run PENDING hardware + IPs |
-| 10 | No reproducible verification | P11 | open |
+| 10 | No reproducible verification | P11 | CLOSED for latency/rules/twin (one command, generated report, drift test); the HELD-OUT SWaT section awaits a local run (`python -m benchmark.run_all --data-dir ...`) |
 | 11 | README is setup only | P12 | open |
 | 12 | Junk files | P1 | CLOSED (2 stray scripts deleted; venv/.DS_Store/__MACOSX never in repo, now git-ignored) |
-| 13 | PPT/report numbers != repo benchmark | P11, P12 | open |
+| 13 | PPT/report numbers != repo benchmark | P11, P12 | PARTIAL: README numbers are generated from benchmarks/latest.json; CHECKLIST_VERIFICATION.txt / MODELS_RATIONALE.md flagged STALE, rewritten in P12; the user's PPT must be updated from docs/reports/benchmark_report.md |

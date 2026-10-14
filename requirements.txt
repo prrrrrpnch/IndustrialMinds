@@ -6,5 +6,7 @@ openpyxl>=3.1
 matplotlib>=3.7
 numpy>=1.26
 pandas>=2.0
-scikit-learn>=1.4
+# EXACT pin: models/weights/physical_model.joblib is a pickle; other scikit-learn versions warn (InconsistentVersionWarning)
+# and the load is refused by the test in tests/test_environment.py. If you retrain, re-pin to the version you trained with.
+scikit-learn==1.9.1
 joblib>=1.3

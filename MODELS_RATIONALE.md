@@ -1,3 +1,5 @@
+> **STALE: describes the pre-rework synthetic-trained models.** Current models and measured results: `docs/reports/` and `docs/reports/benchmark_report.md`. Rewritten in Phase 12.
+
 # Industrial Mind - Model Rationale
 
 > **Status (Phase 5):** section 2 (CyberModel) describes the ORIGINAL synthetic 13-feature Isolation Forest and is

@@ -1,0 +1,841 @@
+{
+  "latency": {
+    "label": "In-process decision latency of the real pipeline on a constructed workload (no sockets).",
+    "config": {
+      "commands_per_repeat": 3000,
+      "warmup": 300,
+      "repeats": 3,
+      "seed": 7,
+      "mix": "70% legitimate, 30% attacks (tamper, unsigned, replay, out-of-bounds, untrusted source, cross-register)"
+    },
+    "hops": {
+      "cyber_rules": {
+        "mean_ms": 0.0496,
+        "mean_ms_min_max_over_repeats": [
+          0.049,
+          0.0502
+        ],
+        "p95_ms": 0.0794,
+        "p95_ms_min_max_over_repeats": [
+          0.0778,
+          0.0816
+        ],
+        "p99_ms": 0.1106,
+        "p50_ms": 0.0454
+      },
+      "cyber_model": {
+        "mean_ms": 0.0105,
+        "mean_ms_min_max_over_repeats": [
+          0.0103,
+          0.0107
+        ],
+        "p95_ms": 0.0152,
+        "p95_ms_min_max_over_repeats": [
+          0.0151,
+          0.0152
+        ],
+        "p99_ms": 0.0417,
+        "p50_ms": 0.0089
+      },
+      "physical_rules": {
+        "mean_ms": 0.0306,
+        "mean_ms_min_max_over_repeats": [
+          0.0302,
+          0.0308
+        ],
+        "p95_ms": 0.0464,
+        "p95_ms_min_max_over_repeats": [
+          0.0449,
+          0.0477
+        ],
+        "p99_ms": 0.0747,
+        "p50_ms": 0.0272
+      },
+      "physical_model": {
+        "mean_ms": 0.2402,
+        "mean_ms_min_max_over_repeats": [
+          0.2377,
+          0.2425
+        ],
+        "p95_ms": 0.9862,
+        "p95_ms_min_max_over_repeats": [
+          0.9822,
+          0.9888
+        ],
+        "p99_ms": 1.22,
+        "p50_ms": 0.0056
+      },
+      "orchestrator": {
+        "mean_ms": 0.0138,
+        "mean_ms_min_max_over_repeats": [
+          0.0136,
+          0.014
+        ],
+        "p95_ms": 0.0251,
+        "p95_ms_min_max_over_repeats": [
+          0.0248,
+          0.0253
+        ],
+        "p99_ms": 0.046,
+        "p50_ms": 0.0111
+      },
+      "trace_build": {
+        "mean_ms": 0.0499,
+        "mean_ms_min_max_over_repeats": [
+          0.0489,
+          0.0507
+        ],
+        "p95_ms": 0.0788,
+        "p95_ms_min_max_over_repeats": [
+          0.0781,
+          0.0796
+        ],
+        "p99_ms": 0.1095,
+        "p50_ms": 0.0442
+      },
+      "branches": {
+        "mean_ms": 0.5118,
+        "mean_ms_min_max_over_repeats": [
+          0.5059,
+          0.5164
+        ],
+        "p95_ms": 1.2814,
+        "p95_ms_min_max_over_repeats": [
+          1.2728,
+          1.2979
+        ],
+        "p99_ms": 1.6259,
+        "p50_ms": 0.29
+      },
+      "total": {
+        "mean_ms": 0.5949,
+        "mean_ms_min_max_over_repeats": [
+          0.5899,
+          0.6006
+        ],
+        "p95_ms": 1.3928,
+        "p95_ms_min_max_over_repeats": [
+          1.3793,
+          1.4116
+        ],
+        "p99_ms": 1.7987,
+        "p50_ms": 0.3711
+      }
+    },
+    "repeats": [
+      {
+        "seed": 7,
+        "commands": 3167,
+        "hops": {
+          "cyber_rules": {
+            "n": 3167,
+            "mean_ms": 0.0502,
+            "p50_ms": 0.0459,
+            "p95_ms": 0.0816,
+            "p99_ms": 0.111,
+            "max_ms": 2.1927
+          },
+          "cyber_model": {
+            "n": 3167,
+            "mean_ms": 0.0107,
+            "p50_ms": 0.009,
+            "p95_ms": 0.0151,
+            "p99_ms": 0.04,
+            "max_ms": 0.8731
+          },
+          "physical_rules": {
+            "n": 3167,
+            "mean_ms": 0.0307,
+            "p50_ms": 0.0279,
+            "p95_ms": 0.0477,
+            "p99_ms": 0.0745,
+            "max_ms": 1.1075
+          },
+          "physical_model": {
+            "n": 3167,
+            "mean_ms": 0.2404,
+            "p50_ms": 0.006,
+            "p95_ms": 0.9875,
+            "p99_ms": 1.2312,
+            "max_ms": 2.5504
+          },
+          "orchestrator": {
+            "n": 3167,
+            "mean_ms": 0.014,
+            "p50_ms": 0.0114,
+            "p95_ms": 0.0253,
+            "p99_ms": 0.0449,
+            "max_ms": 0.3114
+          },
+          "trace_build": {
+            "n": 3167,
+            "mean_ms": 0.0507,
+            "p50_ms": 0.0455,
+            "p95_ms": 0.0796,
+            "p99_ms": 0.1036,
+            "max_ms": 1.7499
+          },
+          "branches": {
+            "n": 3167,
+            "mean_ms": 0.5164,
+            "p50_ms": 0.2976,
+            "p95_ms": 1.2736,
+            "p99_ms": 1.6451,
+            "max_ms": 4.9124
+          },
+          "total": {
+            "n": 3167,
+            "mean_ms": 0.6006,
+            "p50_ms": 0.3795,
+            "p95_ms": 1.3793,
+            "p99_ms": 1.8043,
+            "max_ms": 5.0615
+          }
+        },
+        "total_by_verdict": {
+          "DROP": {
+            "n": 936,
+            "mean_ms": 0.5732,
+            "p50_ms": 0.3629,
+            "p95_ms": 1.3548,
+            "p99_ms": 1.8356,
+            "max_ms": 2.9624
+          },
+          "PASS": {
+            "n": 2231,
+            "mean_ms": 0.6121,
+            "p50_ms": 0.3888,
+            "p95_ms": 1.3909,
+            "p99_ms": 1.7967,
+            "max_ms": 5.0615
+          }
+        },
+        "verdict_counts": {
+          "DROP": 936,
+          "PASS": 2231
+        }
+      },
+      {
+        "seed": 8,
+        "commands": 3158,
+        "hops": {
+          "cyber_rules": {
+            "n": 3158,
+            "mean_ms": 0.049,
+            "p50_ms": 0.0456,
+            "p95_ms": 0.0788,
+            "p99_ms": 0.1108,
+            "max_ms": 3.098
+          },
+          "cyber_model": {
+            "n": 3158,
+            "mean_ms": 0.0104,
+            "p50_ms": 0.0089,
+            "p95_ms": 0.0152,
+            "p99_ms": 0.0429,
+            "max_ms": 0.4451
+          },
+          "physical_rules": {
+            "n": 3158,
+            "mean_ms": 0.0308,
+            "p50_ms": 0.0267,
+            "p95_ms": 0.0449,
+            "p99_ms": 0.0731,
+            "max_ms": 3.369
+          },
+          "physical_model": {
+            "n": 3158,
+            "mean_ms": 0.2377,
+            "p50_ms": 0.0054,
+            "p95_ms": 0.9822,
+            "p99_ms": 1.1968,
+            "max_ms": 4.3026
+          },
+          "orchestrator": {
+            "n": 3158,
+            "mean_ms": 0.0136,
+            "p50_ms": 0.0108,
+            "p95_ms": 0.0248,
+            "p99_ms": 0.0522,
+            "max_ms": 0.2867
+          },
+          "trace_build": {
+            "n": 3158,
+            "mean_ms": 0.0501,
+            "p50_ms": 0.0436,
+            "p95_ms": 0.0781,
+            "p99_ms": 0.1189,
+            "max_ms": 2.006
+          },
+          "branches": {
+            "n": 3158,
+            "mean_ms": 0.5059,
+            "p50_ms": 0.2852,
+            "p95_ms": 1.2728,
+            "p99_ms": 1.5537,
+            "max_ms": 4.6786
+          },
+          "total": {
+            "n": 3158,
+            "mean_ms": 0.5899,
+            "p50_ms": 0.3648,
+            "p95_ms": 1.3875,
+            "p99_ms": 1.7655,
+            "max_ms": 4.7949
+          }
+        },
+        "total_by_verdict": {
+          "DROP": {
+            "n": 953,
+            "mean_ms": 0.52,
+            "p50_ms": 0.3442,
+            "p95_ms": 1.3248,
+            "p99_ms": 1.661,
+            "max_ms": 2.7957
+          },
+          "PASS": {
+            "n": 2205,
+            "mean_ms": 0.6201,
+            "p50_ms": 0.3759,
+            "p95_ms": 1.4184,
+            "p99_ms": 1.8077,
+            "max_ms": 4.7949
+          }
+        },
+        "verdict_counts": {
+          "DROP": 953,
+          "PASS": 2205
+        }
+      },
+      {
+        "seed": 9,
+        "commands": 3167,
+        "hops": {
+          "cyber_rules": {
+            "n": 3167,
+            "mean_ms": 0.0495,
+            "p50_ms": 0.0448,
+            "p95_ms": 0.0778,
+            "p99_ms": 0.11,
+            "max_ms": 3.4636
+          },
+          "cyber_model": {
+            "n": 3167,
+            "mean_ms": 0.0103,
+            "p50_ms": 0.0089,
+            "p95_ms": 0.0152,
+            "p99_ms": 0.0423,
+            "max_ms": 0.5308
+          },
+          "physical_rules": {
+            "n": 3167,
+            "mean_ms": 0.0302,
+            "p50_ms": 0.027,
+            "p95_ms": 0.0465,
+            "p99_ms": 0.0766,
+            "max_ms": 1.541
+          },
+          "physical_model": {
+            "n": 3167,
+            "mean_ms": 0.2425,
+            "p50_ms": 0.0055,
+            "p95_ms": 0.9888,
+            "p99_ms": 1.2321,
+            "max_ms": 6.7763
+          },
+          "orchestrator": {
+            "n": 3167,
+            "mean_ms": 0.0137,
+            "p50_ms": 0.0111,
+            "p95_ms": 0.0253,
+            "p99_ms": 0.041,
+            "max_ms": 0.3768
+          },
+          "trace_build": {
+            "n": 3167,
+            "mean_ms": 0.0489,
+            "p50_ms": 0.0435,
+            "p95_ms": 0.0787,
+            "p99_ms": 0.1061,
+            "max_ms": 0.8084
+          },
+          "branches": {
+            "n": 3167,
+            "mean_ms": 0.5131,
+            "p50_ms": 0.2873,
+            "p95_ms": 1.2979,
+            "p99_ms": 1.679,
+            "max_ms": 7.212
+          },
+          "total": {
+            "n": 3167,
+            "mean_ms": 0.5943,
+            "p50_ms": 0.3689,
+            "p95_ms": 1.4116,
+            "p99_ms": 1.8264,
+            "max_ms": 7.3406
+          }
+        },
+        "total_by_verdict": {
+          "DROP": {
+            "n": 938,
+            "mean_ms": 0.5584,
+            "p50_ms": 0.3413,
+            "p95_ms": 1.398,
+            "p99_ms": 1.853,
+            "max_ms": 5.942
+          },
+          "PASS": {
+            "n": 2229,
+            "mean_ms": 0.6095,
+            "p50_ms": 0.3815,
+            "p95_ms": 1.4242,
+            "p99_ms": 1.8223,
+            "max_ms": 7.3406
+          }
+        },
+        "verdict_counts": {
+          "DROP": 938,
+          "PASS": 2229
+        }
+      }
+    ],
+    "environment": {
+      "generated_utc": "2026-10-14 20:15:39",
+      "python": "3.13.16",
+      "platform": "Linux-6.18.44-fc-v114-x86_64-with-glibc2.39",
+      "machine": "x86_64",
+      "cpu_count": 4,
+      "numpy": "2.5.4",
+      "pandas": "3.0.6",
+      "scikit_learn": "1.9.1",
+      "joblib": "1.6.0",
+      "git_commit": "c42e57c",
+      "git_dirty": true
+    },
+    "live_modbus_round_trip": {
+      "status": "OK",
+      "writes": 300,
+      "round_trip": {
+        "n": 300,
+        "mean_ms": 3.9392,
+        "p50_ms": 3.5559,
+        "p95_ms": 5.9084,
+        "p99_ms": 7.4785,
+        "max_ms": 25.2026
+      }
+    }
+  },
+  "rules": {
+    "label": "RULE-BASED checks on CONSTRUCTED scenarios (deterministic rules; NOT SWaT, NOT a learned model)",
+    "per_case": 200,
+    "seed": 7,
+    "cases": [
+      {
+        "layer": "legitimate",
+        "case": "operator command, in bounds, slow",
+        "expected": "PASS",
+        "n": 200,
+        "as_expected": 200,
+        "rate": 1.0,
+        "dropped_any_reason": 0,
+        "unexpected_outcomes": {}
+      },
+      {
+        "layer": "cyber",
+        "case": "untrusted source",
+        "expected": "UNTRUSTED_SOURCE",
+        "n": 200,
+        "as_expected": 200,
+        "rate": 1.0,
+        "dropped_any_reason": 200,
+        "unexpected_outcomes": {}
+      },
+      {
+        "layer": "cyber",
+        "case": "invalid function code",
+        "expected": "INVALID_FUNCTION_CODE",
+        "n": 200,
+        "as_expected": 200,
+        "rate": 1.0,
+        "dropped_any_reason": 200,
+        "unexpected_outcomes": {}
+      },
+      {
+        "layer": "cyber",
+        "case": "unknown register",
+        "expected": "INVALID_REGISTER",
+        "n": 200,
+        "as_expected": 200,
+        "rate": 1.0,
+        "dropped_any_reason": 200,
+        "unexpected_outcomes": {}
+      },
+      {
+        "layer": "cyber",
+        "case": "rate-limit burst",
+        "expected": "RATE_LIMIT_EXCEEDED",
+        "n": 200,
+        "as_expected": 200,
+        "rate": 1.0,
+        "dropped_any_reason": 200,
+        "unexpected_outcomes": {}
+      },
+      {
+        "layer": "cyber",
+        "case": "HMAC missing (unsigned)",
+        "expected": "HMAC_MISSING",
+        "n": 200,
+        "as_expected": 200,
+        "rate": 1.0,
+        "dropped_any_reason": 200,
+        "unexpected_outcomes": {}
+      },
+      {
+        "layer": "cyber",
+        "case": "HMAC invalid: value tampered",
+        "expected": "HMAC_INVALID",
+        "n": 200,
+        "as_expected": 200,
+        "rate": 1.0,
+        "dropped_any_reason": 200,
+        "unexpected_outcomes": {}
+      },
+      {
+        "layer": "cyber",
+        "case": "HMAC invalid: wrong key",
+        "expected": "HMAC_INVALID",
+        "n": 200,
+        "as_expected": 200,
+        "rate": 1.0,
+        "dropped_any_reason": 200,
+        "unexpected_outcomes": {}
+      },
+      {
+        "layer": "cyber",
+        "case": "HMAC expired / future-dated",
+        "expected": "HMAC_EXPIRED",
+        "n": 200,
+        "as_expected": 200,
+        "rate": 1.0,
+        "dropped_any_reason": 200,
+        "unexpected_outcomes": {}
+      },
+      {
+        "layer": "cyber",
+        "case": "replayed frame",
+        "expected": "REPLAY_DETECTED",
+        "n": 200,
+        "as_expected": 200,
+        "rate": 1.0,
+        "dropped_any_reason": 200,
+        "unexpected_outcomes": {}
+      },
+      {
+        "layer": "physical",
+        "case": "write to a sensor register",
+        "expected": "WRITE_TO_SENSOR_REGISTER",
+        "n": 200,
+        "as_expected": 200,
+        "rate": 1.0,
+        "dropped_any_reason": 200,
+        "unexpected_outcomes": {}
+      },
+      {
+        "layer": "physical",
+        "case": "out-of-bounds value",
+        "expected": "OUT_OF_BOUNDS",
+        "n": 200,
+        "as_expected": 200,
+        "rate": 1.0,
+        "dropped_any_reason": 200,
+        "unexpected_outcomes": {}
+      },
+      {
+        "layer": "physical",
+        "case": "rate of change too fast",
+        "expected": "RATE_OF_CHANGE_EXCEEDED",
+        "n": 200,
+        "as_expected": 200,
+        "rate": 1.0,
+        "dropped_any_reason": 200,
+        "unexpected_outcomes": {}
+      },
+      {
+        "layer": "physical",
+        "case": "stage rule VALVE_CLOSING_LOW_LEVEL",
+        "expected": "CROSS_REGISTER_VIOLATION:VALVE_CLOSING_LOW_LEVEL",
+        "n": 200,
+        "as_expected": 200,
+        "rate": 1.0,
+        "dropped_any_reason": 200,
+        "unexpected_outcomes": {}
+      },
+      {
+        "layer": "physical",
+        "case": "stage rule RO_PRESSURE_OVERLOAD",
+        "expected": "CROSS_REGISTER_VIOLATION:RO_PRESSURE_OVERLOAD",
+        "n": 200,
+        "as_expected": 200,
+        "rate": 1.0,
+        "dropped_any_reason": 200,
+        "unexpected_outcomes": {}
+      },
+      {
+        "layer": "physical",
+        "case": "cross-register RAW_PUMP_DRY_RUN",
+        "expected": "CROSS_REGISTER_VIOLATION:RAW_PUMP_DRY_RUN",
+        "n": 200,
+        "as_expected": 200,
+        "rate": 1.0,
+        "dropped_any_reason": 200,
+        "unexpected_outcomes": {}
+      },
+      {
+        "layer": "physical",
+        "case": "cross-register RAW_TANK_OVERFLOW",
+        "expected": "CROSS_REGISTER_VIOLATION:RAW_TANK_OVERFLOW",
+        "n": 200,
+        "as_expected": 200,
+        "rate": 1.0,
+        "dropped_any_reason": 200,
+        "unexpected_outcomes": {}
+      },
+      {
+        "layer": "physical",
+        "case": "cross-register ACID_OVERDOSE_LOW_FLOW",
+        "expected": "CROSS_REGISTER_VIOLATION:ACID_OVERDOSE_LOW_FLOW",
+        "n": 200,
+        "as_expected": 200,
+        "rate": 1.0,
+        "dropped_any_reason": 200,
+        "unexpected_outcomes": {}
+      },
+      {
+        "layer": "physical",
+        "case": "cross-register UF_PUMP_DEADHEAD",
+        "expected": "CROSS_REGISTER_VIOLATION:UF_PUMP_DEADHEAD",
+        "n": 200,
+        "as_expected": 200,
+        "rate": 1.0,
+        "dropped_any_reason": 200,
+        "unexpected_outcomes": {}
+      },
+      {
+        "layer": "physical",
+        "case": "cross-register UF_TANK_OVERFLOW",
+        "expected": "CROSS_REGISTER_VIOLATION:UF_TANK_OVERFLOW",
+        "n": 200,
+        "as_expected": 200,
+        "rate": 1.0,
+        "dropped_any_reason": 200,
+        "unexpected_outcomes": {}
+      },
+      {
+        "layer": "physical",
+        "case": "cross-register CHLORINE_BREAKTHROUGH",
+        "expected": "CROSS_REGISTER_VIOLATION:CHLORINE_BREAKTHROUGH",
+        "n": 200,
+        "as_expected": 200,
+        "rate": 1.0,
+        "dropped_any_reason": 200,
+        "unexpected_outcomes": {}
+      },
+      {
+        "layer": "physical",
+        "case": "cross-register RO_PUMP_DEADHEAD",
+        "expected": "CROSS_REGISTER_VIOLATION:RO_PUMP_DEADHEAD",
+        "n": 200,
+        "as_expected": 200,
+        "rate": 1.0,
+        "dropped_any_reason": 200,
+        "unexpected_outcomes": {}
+      },
+      {
+        "layer": "physical",
+        "case": "cross-register RO_FEED_STARVATION",
+        "expected": "CROSS_REGISTER_VIOLATION:RO_FEED_STARVATION",
+        "n": 200,
+        "as_expected": 200,
+        "rate": 1.0,
+        "dropped_any_reason": 200,
+        "unexpected_outcomes": {}
+      }
+    ],
+    "legitimate_false_positive_rate": 0.0,
+    "violating_scenarios": 4400,
+    "violating_detected_with_expected_reason": 4400
+  },
+  "attacker_plans": {
+    "label": "Randomised ATTACKER PLANS through the RULE agents (constructed; swat-derived types follow SWaT behaviours, synthetic-extension types are network-layer constructions; physical ML model cold)",
+    "runs_per_type": 100,
+    "seed": 11,
+    "types": {
+      "freeze": {
+        "origin": "swat-derived",
+        "runs": 100,
+        "runs_with_a_drop": 80,
+        "run_drop_rate": 0.8,
+        "frames": 584,
+        "frames_dropped": 348,
+        "median_frame_of_first_drop": 2.0,
+        "drop_reasons": {
+          "REPLAY_DETECTED": 319,
+          "CROSS_REGISTER_VIOLATION": 29
+        }
+      },
+      "ramp": {
+        "origin": "swat-derived",
+        "runs": 100,
+        "runs_with_a_drop": 22,
+        "run_drop_rate": 0.22,
+        "frames": 872,
+        "frames_dropped": 63,
+        "median_frame_of_first_drop": 3.0,
+        "drop_reasons": {
+          "CROSS_REGISTER_VIOLATION": 35,
+          "RATE_OF_CHANGE_EXCEEDED": 28
+        }
+      },
+      "cross-register": {
+        "origin": "swat-derived",
+        "runs": 100,
+        "runs_with_a_drop": 100,
+        "run_drop_rate": 1.0,
+        "frames": 1039,
+        "frames_dropped": 248,
+        "median_frame_of_first_drop": 8.0,
+        "drop_reasons": {
+          "CROSS_REGISTER_VIOLATION": 148,
+          "RATE_OF_CHANGE_EXCEEDED": 100
+        }
+      },
+      "impossible-command": {
+        "origin": "synthetic-extension",
+        "runs": 100,
+        "runs_with_a_drop": 100,
+        "run_drop_rate": 1.0,
+        "frames": 215,
+        "frames_dropped": 215,
+        "median_frame_of_first_drop": 1.0,
+        "drop_reasons": {
+          "OUT_OF_BOUNDS": 215
+        }
+      },
+      "flood": {
+        "origin": "synthetic-extension",
+        "runs": 100,
+        "runs_with_a_drop": 100,
+        "run_drop_rate": 1.0,
+        "frames": 2588,
+        "frames_dropped": 2109,
+        "median_frame_of_first_drop": 6.0,
+        "drop_reasons": {
+          "RATE_LIMIT_EXCEEDED": 2088,
+          "REPLAY_DETECTED": 12,
+          "RATE_OF_CHANGE_EXCEEDED": 9
+        }
+      },
+      "replay": {
+        "origin": "synthetic-extension",
+        "runs": 100,
+        "runs_with_a_drop": 100,
+        "run_drop_rate": 1.0,
+        "frames": 427,
+        "frames_dropped": 327,
+        "median_frame_of_first_drop": 2.0,
+        "drop_reasons": {
+          "REPLAY_DETECTED": 327
+        }
+      }
+    }
+  },
+  "twin": {
+    "label": "TWIN MEASUREMENT (synthetic plant calibrated to SWaT) - NOT SWaT detection performance",
+    "weights": "physical_model.joblib",
+    "selected_variant": "drift_robust",
+    "nominal": {
+      "simulated_hours": 4.0,
+      "plant_state_seconds": {
+        "WARMING_UP": 29,
+        "NORMAL": 14358,
+        "ALERT": 13
+      },
+      "model_flag_seconds": 13,
+      "model_flag_fraction": 0.0009,
+      "model_alarm_episodes": 1,
+      "model_alarm_episodes_per_hour": 0.25,
+      "envelope_violation_seconds": 0,
+      "envelope_alarm_episodes_per_hour": 0.0,
+      "anomaly_score_quantiles_p50_p95_p99_max": [
+        0.5314,
+        0.5529,
+        0.5636,
+        0.6266
+      ],
+      "isolation_forest_threshold": 0.6108445141752824,
+      "backwashes": 1
+    },
+    "scenarios": {
+      "p101_stop (raw pump stops)": {
+        "changes": {
+          "P101": 5.0
+        },
+        "alarm_seconds_before_attack": 0,
+        "first_model_flag_after_s": 3,
+        "first_envelope_violation_after_s": 3
+      },
+      "acid_overdose (HCl max, raw pump low)": {
+        "changes": {
+          "P203": 100.0,
+          "P101": 15.0
+        },
+        "alarm_seconds_before_attack": 0,
+        "first_model_flag_after_s": 2,
+        "first_envelope_violation_after_s": 2
+      },
+      "chlorine_breakthrough (NaOCl max, UV off)": {
+        "changes": {
+          "P205": 100.0,
+          "UV401": 0.0
+        },
+        "alarm_seconds_before_attack": 0,
+        "first_model_flag_after_s": 8,
+        "first_envelope_violation_after_s": 8
+      },
+      "ro_deadhead (RO pump max, reject valve shut)": {
+        "changes": {
+          "P501": 100.0,
+          "MV503": 0.0
+        },
+        "alarm_seconds_before_attack": 0,
+        "first_model_flag_after_s": 1,
+        "first_envelope_violation_after_s": 1
+      },
+      "uf_valve_shut (UF feed valve closes)": {
+        "changes": {
+          "MV302": 2.0
+        },
+        "alarm_seconds_before_attack": 0,
+        "first_model_flag_after_s": 4,
+        "first_envelope_violation_after_s": 16
+      }
+    }
+  },
+  "swat": {
+    "status": "NOT RUN: no --data-dir given and no benchmarks/swat_accuracy.json"
+  },
+  "environment": {
+    "generated_utc": "2026-10-14 20:17:13",
+    "python": "3.13.16",
+    "platform": "Linux-6.18.44-fc-v114-x86_64-with-glibc2.39",
+    "machine": "x86_64",
+    "cpu_count": 4,
+    "numpy": "2.5.4",
+    "pandas": "3.0.6",
+    "scikit_learn": "1.9.1",
+    "joblib": "1.6.0",
+    "git_commit": "c42e57c",
+    "git_dirty": true
+  }
+}
