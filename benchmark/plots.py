@@ -17,7 +17,7 @@ import matplotlib.pyplot as plt  # noqa: E402
 import numpy as np  # noqa: E402
 
 FIG_DIR_REL = os.path.join("docs", "reports", "figures")
-NAMES = {"confusion": "swat_confusion_matrix.png", "latency": "latency_per_hop.png", "rules": "rule_checks.png",
+NAMES = {"middleware": "middleware_confusion_matrices.png", "confusion": "swat_confusion_matrix.png", "latency": "latency_per_hop.png", "rules": "rule_checks.png",
          "plans": "attacker_plans.png", "twin": "twin_detection_latency.png", "segments": "swat_segments.png"}
 
 
@@ -43,6 +43,40 @@ def _cm_axis(ax, c: Dict[str, Any], title: str) -> None:
     ax.set_ylabel("true window label")
     f = c.get("f1")
     ax.set_title(f"{title}\nprecision {c['precision']}, recall {c['recall']}, F1 {f}", fontsize=9)
+
+
+def _grid(ax, m, rows, cols, title) -> None:
+    m = np.array(m, dtype=float)
+    pct = m / np.maximum(m.sum(axis=1, keepdims=True), 1)
+    ax.imshow(pct, cmap="Blues", vmin=0, vmax=1, aspect="auto")
+    for i in range(m.shape[0]):
+        for j in range(m.shape[1]):
+            ax.text(j, i, f"{int(m[i, j]):,}\n{100 * pct[i, j]:.1f}%", ha="center", va="center", color="white" if pct[i, j] > 0.55 else "black", fontsize=8)
+    ax.set_xticks(range(len(cols)), cols, fontsize=8)
+    ax.set_yticks(range(len(rows)), rows, fontsize=8)
+    ax.set_title(title, fontsize=8.5)
+
+
+def middleware(res: Dict[str, Any], out_dir: str) -> str:
+    """The whole middleware, three levels of evidence side by side (each panel labelled with what its data is)."""
+    s, rc, ap = res["swat"], res["rules"]["confusion"], res["attacker_plans"]["run_level_confusion"]
+    panels = []
+    if s.get("status") == "OK":
+        c = s["advisory_model_flag"]
+        panels.append(([[c["tn"], c["fp"]], [c["fn"], c["tp"]]], ["PASS", "ALERT"], ["benign", "attack"],
+                       f"REAL SWaT held-out windows\nphysical model -> PASS/ALERT\nacc {c['accuracy']}  F1 {c['f1']}"))
+    t = rc["three_class"]
+    panels.append(([[t["truth_PASS (legitimate)"][k] for k in ("PASS", "ALERT", "DROP")], [t["truth_DROP (violating)"][k] for k in ("PASS", "ALERT", "DROP")]],
+                   ["PASS", "ALERT", "DROP"], ["legitimate", "violating"],
+                   f"CONSTRUCTED commands, rule layers\n3-class decision\nacc {rc['overall']['accuracy']}  F1 {rc['overall']['f1']}"))
+    panels.append(([[ap["tn"], ap["fp"]], [ap["fn"], ap["tp"]]], ["no flag", "flagged"], ["benign run", "attack run"],
+                   f"CONSTRUCTED sessions, rule layers\n(incl. stealthy freeze/ramp)\nacc {ap['accuracy']}  F1 {ap['f1']}"))
+    fig, axes = plt.subplots(1, len(panels), figsize=(4.2 * len(panels), 3.9))
+    for ax, (m, cols, rows, title) in zip(np.atleast_1d(axes), panels):
+        _grid(ax, m, rows, cols, title)
+        ax.set_xlabel("predicted", fontsize=8)
+    fig.suptitle("Whole middleware: confusion matrices at three levels of evidence (rows = truth)", fontsize=10)
+    return _save(fig, out_dir, NAMES["middleware"])
 
 
 def confusion(res: Dict[str, Any], out_dir: str) -> str | None:
@@ -134,7 +168,7 @@ def segments(res: Dict[str, Any], out_dir: str) -> str | None:
 def figure_names(res: Dict[str, Any]) -> List[str]:
     """Which figures make_all() draws for this result (pure: used by the renderers so documents never depend on the filesystem)."""
     s = res["swat"]
-    out = []
+    out = [NAMES["middleware"]]
     if s.get("status") == "OK":
         out.append(NAMES["confusion"])
     out += [NAMES["latency"], NAMES["rules"], NAMES["plans"], NAMES["twin"]]
@@ -145,5 +179,5 @@ def figure_names(res: Dict[str, Any]) -> List[str]:
 
 def make_all(res: Dict[str, Any], root: str) -> List[str]:
     out = os.path.join(root, FIG_DIR_REL)
-    made = [confusion(res, out), latency(res, out), rules(res, out), plans(res, out), twin(res, out), segments(res, out)]
+    made = [middleware(res, out), confusion(res, out), latency(res, out), rules(res, out), plans(res, out), twin(res, out), segments(res, out)]
     return [m for m in made if m]

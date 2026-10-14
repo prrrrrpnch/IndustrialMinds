@@ -163,6 +163,33 @@ def _rule_cases(rng: np.random.Generator) -> List[Tuple[Case, Callable[[int], Tu
     return cases
 
 
+def metrics(tp: int, fp: int, fn: int, tn: int) -> Dict[str, Any]:
+    n = tp + fp + fn + tn
+    prec = tp / (tp + fp) if tp + fp else None
+    rec = tp / (tp + fn) if tp + fn else None
+    spec = tn / (tn + fp) if tn + fp else None
+    f1 = 2 * prec * rec / (prec + rec) if prec and rec else (0.0 if prec is not None and rec is not None else None)
+    r = lambda v: None if v is None else round(float(v), 4)
+    return {"tp": tp, "fp": fp, "fn": fn, "tn": tn, "n": n, "accuracy": r((tp + tn) / n if n else None), "precision": r(prec), "recall": r(rec),
+            "specificity": r(spec), "f1": r(f1), "false_positive_rate": r(1 - spec if spec is not None else None),
+            "balanced_accuracy": r((rec + spec) / 2 if rec is not None and spec is not None else None)}
+
+
+def command_confusion(rows: List[Dict[str, Any]]) -> Dict[str, Any]:
+    """COMMAND-level confusion of the RULE layers on the constructed scenarios. Positive = a violating command; flagged = DROP or ALERT.
+    Also the 3-class matrix (truth PASS/DROP x predicted PASS/ALERT/DROP) and per-layer binary scores (that layer's violations vs the legitimate commands)."""
+    leg = next(r for r in rows if r["layer"] == "legitimate")
+    flagged = lambda r: r["predicted"]["DROP"] + r["predicted"]["ALERT"]
+    viol = [r for r in rows if r["layer"] != "legitimate"]
+    overall = metrics(sum(flagged(r) for r in viol), flagged(leg), sum(r["predicted"]["PASS"] for r in viol), leg["predicted"]["PASS"])
+    three = {"truth_PASS (legitimate)": leg["predicted"], "truth_DROP (violating)": {c: sum(r["predicted"][c] for r in viol) for c in ("PASS", "ALERT", "DROP")}}
+    layers = {}
+    for layer in ("cyber", "physical"):
+        v = [r for r in viol if r["layer"] == layer]
+        layers[layer] = metrics(sum(r["as_expected"] for r in v), leg["n"] - leg["as_expected"], sum(r["n"] - r["as_expected"] for r in v), leg["as_expected"])
+    return {"overall": overall, "three_class": three, "per_layer": layers}
+
+
 def judge(decision: Dict[str, Any], expected: str) -> Tuple[bool, str]:
     if expected == "PASS":
         return decision["verdict"] in ("PASS", "ALERT"), decision["reason"].split(":")[0]
@@ -175,7 +202,7 @@ def run_rule_cases(per_case: int = 200, seed: int = 7) -> Dict[str, Any]:
     pipe = MultiModelPipeline()
     rows = []
     for (layer, name, expected), build in _rule_cases(rng):
-        ok, any_drop, seen = 0, 0, Counter()
+        ok, any_drop, seen, pred_classes = 0, 0, Counter(), Counter()
         for i in range(per_case):
             cmds, state = build(i)
             cyber_agent.reset_state()
@@ -185,17 +212,33 @@ def run_rule_cases(per_case: int = 200, seed: int = 7) -> Dict[str, Any]:
             good, got = judge(dec, expected)
             ok += good
             any_drop += dec["verdict"] == "DROP"
+            pred_classes[dec["verdict"]] += 1
             if not good:
                 seen[got] += 1
         rows.append({"layer": layer, "case": name, "expected": expected, "n": per_case, "as_expected": ok,
-                     "rate": round(ok / per_case, 4), "dropped_any_reason": any_drop, "unexpected_outcomes": dict(seen)})
+                     "rate": round(ok / per_case, 4), "dropped_any_reason": any_drop, "unexpected_outcomes": dict(seen),
+                     "predicted": {c: pred_classes.get(c, 0) for c in ("PASS", "ALERT", "DROP")}})
     pipe.shutdown()
     leg = next(r for r in rows if r["layer"] == "legitimate")
     viol = [r for r in rows if r["layer"] != "legitimate"]
+    conf = command_confusion(rows)
     return {"label": "RULE-BASED checks on CONSTRUCTED scenarios (deterministic rules; NOT SWaT, NOT a learned model)",
             "per_case": per_case, "seed": seed, "cases": rows,
-            "legitimate_false_positive_rate": round(1 - leg["rate"], 4),
+            "legitimate_false_positive_rate": round(1 - leg["rate"], 4), "confusion": conf,
             "violating_scenarios": sum(r["n"] for r in viol), "violating_detected_with_expected_reason": sum(r["as_expected"] for r in viol)}
+
+
+def _benign_run(rng: np.random.Generator) -> Dict[str, Any]:
+    """A legitimate operator session: a few small, slow, in-bounds set-point changes on random actuators, spaced 2 to 10 s apart."""
+    acts = W.actuators()
+    steps, t = [], 0.0
+    for _ in range(int(rng.integers(2, 6))):
+        reg = int(rng.choice(acts))
+        lo, hi = W.bounds(reg)
+        nominal = W.nominal_registers()[reg]
+        steps.append({"t": round(t, 3), "kind": "signed", "register": reg, "tag": str(reg), "value": float(np.clip(nominal + rng.uniform(-3, 3), lo, hi))})
+        t += float(rng.uniform(2.0, 10.0))
+    return {"steps": steps}
 
 
 def run_attack_plans(per_type: int = 100, seed: int = 11) -> Dict[str, Any]:
@@ -236,8 +279,29 @@ def run_attack_plans(per_type: int = 100, seed: int = 11) -> Dict[str, Any]:
         out[typ] = {"origin": origin, "runs": per_type, "runs_with_a_drop": dropped_runs, "run_drop_rate": round(dropped_runs / per_type, 4),
                     "frames": frames, "frames_dropped": frames_dropped,
                     "median_frame_of_first_drop": float(np.median(first_drop)) if first_drop else None, "drop_reasons": dict(reasons.most_common())}
+    benign_flagged, benign_runs = 0, per_type
+    rng = np.random.default_rng(seed + 999)
+    for s in range(benign_runs):
+        plan = _benign_run(rng)
+        cyber_agent.reset_state()
+        regs, changed = W.nominal_registers(), {}
+        t0 = W.T0 + 90000.0 + s * 100.0
+        flagged = False
+        for k, st in enumerate(plan["steps"]):
+            t = t0 + st["t"]
+            fr = hmac_auth.build_frame(st["register"], st["value"], timestamp_ms=int(t * 1000))
+            dec = pipe.process_command(W.signed(0, 0, t, frame=fr, tx=f"b{s}-{k}"), W.make_state(regs, changed.get(st["register"], t - 10.0)))["decision"]
+            if dec["verdict"] in ("DROP", "ALERT"):
+                flagged = True
+            else:
+                regs[st["register"]], changed[st["register"]] = st["value"], t
+        benign_flagged += flagged
+    attack_runs = sum(v["runs"] for v in out.values())
+    attack_detected = sum(v["runs_with_a_drop"] for v in out.values())
+    run_conf = metrics(attack_detected, benign_flagged, attack_runs - attack_detected, benign_runs - benign_flagged)
     pipe.shutdown()
-    return {"label": "Randomised ATTACKER PLANS through the RULE agents (constructed; swat-derived types follow SWaT behaviours, "
+    return {"run_level_confusion": run_conf, "benign_runs": benign_runs,
+            "label": "Randomised ATTACKER PLANS through the RULE agents (constructed; swat-derived types follow SWaT behaviours, "
                      "synthetic-extension types are network-layer constructions; physical ML model cold)",
             "runs_per_type": per_type, "seed": seed, "types": out}
 
