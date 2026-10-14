@@ -55,7 +55,7 @@ Reference files are listed by path below; none are auto-loaded.
 - Pre-existing lab IPs remain only in synthetic-data files (telemetry_generator, train_models, evaluation, some tests); replaced when data is replaced in P5-P7/P11.
 - Plant = 5 stages x 4 points = 20 registers (10 actuators writable, 10 sensors read-only); register constants are SWaT tags (MV101, LIT101...). Old names (TANK_PRESSURE...) are gone.
 - Wire scale is x10 (0.1 resolution): pH/permeate flow are coarse; max representable 6553.5.
-- models/weights: physical_model.joblib is the PROMOTED SWaT-trained model (advisory; operating point 0.5 false alarms/h, clf thr 0.601, variant drift_robust). cyber_model.joblib and training_report.json are OLD SYNTHETIC leftovers: the cyber model refuses them (NO_MODEL = cyber branch is rules-only); delete them only with a user-confirmed delete.
+- models/weights: physical_model.joblib is the PROMOTED SWaT-trained model (advisory; operating point 0.5 false alarms/h, clf thr 0.601, variant drift_robust). The old synthetic cyber_model.joblib/training_report.json were deleted (user-confirmed); with no cyber weights the CyberModel reports NO_MODEL = cyber branch is rules-only.
 - `evaluation/` (xlsx, generate_test_data, evaluate_system) targets the OLD register names and is non-functional until replaced in P11.
 - SWaT archive facts (from tools/swat_inspect.py reports; data lives ONLY on the user's Windows machine, never in this container):
   attack.csv = 54,621 attack-only rows in 35 time-gap segments; normal.csv = 1,387,098 rows; merged.csv = their concatenation; 51 tags + Timestamp + `Normal/Attack`;
@@ -68,7 +68,7 @@ Reference files are listed by path below; none are auto-loaded.
 - Phases 5-7 need the data on the machine that RUNS training: run the session locally (recommended) or have the user run `--candidate` training and paste reports.
 - DECISION (P6 gate): physical candidate promoted as advisory at the 0.5/h budget (threshold edited from the trained 0.558 to 0.601, recorded in metadata). Physical ML never blocks; the envelope rule is alert-only.
 - DECISION (P7 gate): learned fusion NOT promoted (docs/reports/fusion_training_report_swat.md); orchestrator = deterministic four-branch rules. `models/train_fusion_swat.py --candidate` stays as the reproducible negative result.
-- DECISION (P5 gate): cyber ML candidate NOT promoted. models/weights/cyber_model.joblib is the OLD synthetic file, refused by the schema check; never promote it; remove only with a confirmed delete.
+- DECISION (P5 gate): cyber ML candidate NOT promoted. the old synthetic cyber weights were deleted; there are no cyber weights in models/weights.
 - Cyber ML = actuator STATE-CHANGE events (1/2 -> 0/100 %); it abstains on writes that don't flip on/off. Old 13-feature weights in models/weights are refused (schema mismatch -> NO_MODEL) until the SWaT candidate is promoted.
 - Guard hook only fires on EXECUTING a training script (python ... train*), not on reads; avoid heredocs whose text mentions weights paths / training commands (false positives) - write scripts with the Write tool.
 - `docs/wireshark_setup.md` is currently an empty file (filled in Phase 10).
@@ -108,7 +108,7 @@ Reference files are listed by path below; none are auto-loaded.
 | `tests/test_swat_cyber.py`, `tests/swat_fixture.py` | Phase 5 checks on a synthetic SWaT-SHAPED fixture (code paths only, never real metrics) |
 | `models/train_models.py`, `models/telemetry_generator.py` | train_models is RETIRED (stub); telemetry_generator is synthetic, tests/benchmarks only |
 | `models/tree_inference.py` | packed fast tree inference |
-| `models/weights/` | physical_model.joblib (PROMOTED, SWaT-only) + its report; stale synthetic cyber_model.joblib/training_report.json (guarded) |
+| `models/weights/` | physical_model.joblib (PROMOTED, SWaT-only) + its report (no cyber weights: cyber is rules-only) |
 | `plc/plc.py` | PLC: Modbus server around the twin (actuator writes -> targets; sensors read-only) |
 | `plc/twin.py` | staged SWaT-style physics (5 stages, 20 points, inter-stage coupling); env IM_TWIN_TIME_SCALE / IM_TWIN_NOISE |
 | `tests/test_twin_propagation.py` | Phase 3 check: perturb S1, assert S2..S5 respond in order (`--live` over Modbus) |
