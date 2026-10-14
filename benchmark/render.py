@@ -24,6 +24,37 @@ def _num(v: Any, d: int = 3) -> str:
     return "n/a" if v is None else f"{v:.{d}f}"
 
 
+def glance_rows(res: Dict[str, Any]) -> List[List[str]]:
+    rows = []
+    s = res["swat"]
+    f = lambda c: [str(c["n"] if "n" in c else c["tp"] + c["fp"] + c["fn"] + c["tn"]), _num(c.get("accuracy")), _num(c.get("precision")), _num(c.get("recall")),
+                   _num(c.get("f1")), _num(c.get("false_positive_rate")), f"{c['tn']:,} / {c['fp']:,} / {c['fn']:,} / {c['tp']:,}"]
+    if s.get("status") == "OK":
+        rows.append(["Physical model flag -> ALERT", "REAL SWaT held-out windows"] + f(s["advisory_model_flag"]))
+    rc = res["rules"]["confusion"]
+    rows.append(["Rule layers, all violations vs legitimate commands", "constructed commands"] + f(rc["overall"]))
+    rows.append(["  cyber layer only", "constructed commands"] + f(rc["per_layer"]["cyber"]))
+    rows.append(["  physical layer only", "constructed commands"] + f(rc["per_layer"]["physical"]))
+    rows.append(["Rule layers, attack sessions vs benign sessions (incl. stealthy freeze/ramp)", "constructed sessions"] + f(res["attacker_plans"]["run_level_confusion"]))
+    return rows
+
+
+def glance_md(res: Dict[str, Any], figure_prefix: str) -> List[str]:
+    L = ["| What is scored | Evidence | n | Accuracy | Precision | Recall | F1 | False-positive rate | TN / FP / FN / TP |", "|---|---|---|---|---|---|---|---|---|"]
+    L += ["| " + " | ".join(r) + " |" for r in glance_rows(res)]
+    rc = res["rules"]["confusion"]["three_class"]
+    L += ["", "Three-class decision matrix of the rule layers on constructed commands (rows = truth, columns = decision):", "",
+          "| truth | PASS | ALERT | DROP |", "|---|---|---|---|"]
+    for k, v in rc.items():
+        L.append(f"| {k} | {v['PASS']:,} | {v['ALERT']:,} | {v['DROP']:,} |")
+    L += ["", f"![Whole-middleware confusion matrices]({figure_prefix}{NAMES['middleware']})", "",
+          "**How to read this.** There is no single accuracy for the whole middleware, because the evidence has different strengths and must not be pooled. "
+          "Only the first row is real-data performance (physical model, advisory, SWaT held-out). The other rows test the deterministic RULE layers on scenarios *we built*: "
+          "perfect scores there mean each rule fires on what it was written for (a regression check), and the session-level row shows the honest gap, the stealthy "
+          "in-bounds attacks the rules do not stop. Accuracy alone is misleading on imbalanced data: judge by recall, precision and the false-positive rate."]
+    return L
+
+
 def latency_md(res: Dict[str, Any]) -> List[str]:
     lat, env = res["latency"], res["environment"]
     c = lat["config"]
@@ -140,7 +171,7 @@ def render_markdown(res: Dict[str, Any]) -> str:
          "| 2. Held-out SWaT | REAL data (test block) | the only real-data detection performance (physical side) |",
          "| 3. Rule-based checks | constructed scenarios | each deterministic rule fires on what it was written for |",
          "| 4. Twin measurements | synthetic plant | demo behaviour of the model on the digital twin |", "",
-         "## 1. Latency (per hop)", ""] + latency_md(res) + ["", "## 2. Held-out SWaT (real data)", ""] + swat_md(res) + \
+         "## Whole middleware at a glance", ""] + glance_md(res, "figures/") + ["", "## 1. Latency (per hop)", ""] + latency_md(res) + ["", "## 2. Held-out SWaT (real data)", ""] + swat_md(res) + \
         ["", "## 3. Rule-based checks and constructed scenarios (NOT SWaT, NOT a learned model)", ""] + rules_md(res) + \
         ["", "## 4. Digital-twin measurements (synthetic plant, NOT SWaT)", ""] + twin_md(res) + \
         ["", "## Known limitations", "",
@@ -176,6 +207,9 @@ def render_readme_block(res: Dict[str, Any]) -> str:
     L += [f"* **Rule-based checks** (constructed scenarios, not SWaT): {r['violating_detected_with_expected_reason']}/{r['violating_scenarios']} violating scenarios "
           f"dropped with the expected reason, legitimate false-positive rate {_pct(r['legitimate_false_positive_rate'])}. Deterministic rules: a regression check, not a detection claim.",
           f"* **Twin** (synthetic plant, not SWaT): {res['twin']['nominal']['model_alarm_episodes_per_hour']} model alarm episodes per hour on the healthy twin.", ""]
+    L += ["", "**Whole middleware at a glance** (details and the 3-class matrix in the report):", ""] + glance_md(res, "docs/reports/figures/")[:2 + len(glance_rows(res))] + [""]
+    L.append(f"![Whole-middleware confusion matrices](docs/reports/figures/{NAMES['middleware']})")
+    L.append("")
     if s.get("status") == "OK":
         L.append(f"![Held-out SWaT confusion matrices](docs/reports/figures/{NAMES['confusion']})")
         L.append("")

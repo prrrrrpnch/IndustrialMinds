@@ -1,6 +1,6 @@
 # IndustrialMind benchmark report
 
-_Generated 2026-10-14 20:17:13 UTC by `python -m benchmark.run_all` at commit `c42e57c`. Every number below comes from `benchmarks/latest.json`; nothing is typed by hand._
+_Generated 2026-10-14 21:33:44 UTC by `python -m benchmark.run_all` at commit `4dffbcb`. Every number below comes from `benchmarks/latest.json`; nothing is typed by hand._
 
 Four sections, deliberately separate because they answer different questions and have different evidential weight:
 
@@ -11,34 +11,55 @@ Four sections, deliberately separate because they answer different questions and
 | 3. Rule-based checks | constructed scenarios | each deterministic rule fires on what it was written for |
 | 4. Twin measurements | synthetic plant | demo behaviour of the model on the digital twin |
 
+## Whole middleware at a glance
+
+| What is scored | Evidence | n | Accuracy | Precision | Recall | F1 | False-positive rate | TN / FP / FN / TP |
+|---|---|---|---|---|---|---|---|---|
+| Physical model flag -> ALERT | REAL SWaT held-out windows | 28075 | 0.955 | 0.366 | 0.263 | 0.306 | 0.018 | 26,532 / 483 / 781 / 279 |
+| Rule layers, all violations vs legitimate commands | constructed commands | 4600 | 1.000 | 1.000 | 1.000 | 1.000 | 0.000 | 200 / 0 / 0 / 4,400 |
+|   cyber layer only | constructed commands | 2000 | 1.000 | 1.000 | 1.000 | 1.000 | 0.000 | 200 / 0 / 0 / 1,800 |
+|   physical layer only | constructed commands | 2800 | 1.000 | 1.000 | 1.000 | 1.000 | 0.000 | 200 / 0 / 0 / 2,600 |
+| Rule layers, attack sessions vs benign sessions (incl. stealthy freeze/ramp) | constructed sessions | 700 | 0.860 | 1.000 | 0.837 | 0.911 | 0.000 | 100 / 0 / 98 / 502 |
+
+Three-class decision matrix of the rule layers on constructed commands (rows = truth, columns = decision):
+
+| truth | PASS | ALERT | DROP |
+|---|---|---|---|
+| truth_PASS (legitimate) | 200 | 0 | 0 |
+| truth_DROP (violating) | 0 | 0 | 4,400 |
+
+![Whole-middleware confusion matrices](figures/middleware_confusion_matrices.png)
+
+**How to read this.** There is no single accuracy for the whole middleware, because the evidence has different strengths and must not be pooled. Only the first row is real-data performance (physical model, advisory, SWaT held-out). The other rows test the deterministic RULE layers on scenarios *we built*: perfect scores there mean each rule fires on what it was written for (a regression check), and the session-level row shows the honest gap, the stealthy in-bounds attacks the rules do not stop. Accuracy alone is misleading on imbalanced data: judge by recall, precision and the false-positive rate.
+
 ## 1. Latency (per hop)
 
 **What this is.** In-process decision latency of the real pipeline on a constructed workload (no sockets). 3000 commands x 3 repeats after 300 warm-up, seed 7; 70% legitimate, 30% attacks (tamper, unsigned, replay, out-of-bounds, untrusted source, cross-register).
 
-Measured on Linux-6.18.44-fc-v114-x86_64-with-glibc2.39, Python 3.13.16, 4 CPUs, scikit-learn 1.9.1, commit `c42e57c`. Latency depends on the machine: re-run `python -m benchmark.run_all` on yours.
+Measured on Linux-6.18.44-fc-v114-x86_64-with-glibc2.39, Python 3.13.16, 4 CPUs, scikit-learn 1.9.1, commit `4dffbcb`. Latency depends on the machine: re-run `python -m benchmark.run_all` on yours.
 
 | Hop | mean (ms) | p50 (ms) | p95 (ms) | p99 (ms) |
 |---|---|---|---|---|
-| Cyber Agent rules | 0.0496 | 0.0454 | 0.0794 | 0.1106 |
-| Cyber model (NO_MODEL stub) | 0.0105 | 0.0089 | 0.0152 | 0.0417 |
-| Physical Agent rules | 0.0306 | 0.0272 | 0.0464 | 0.0747 |
-| Physical model (assess; includes window refresh) | 0.2402 | 0.0056 | 0.9862 | 1.2200 |
-| Orchestrator fusion | 0.0138 | 0.0111 | 0.0251 | 0.0460 |
-| Packet-trace build | 0.0499 | 0.0442 | 0.0788 | 0.1095 |
-| Both branches (concurrent, wall time) | 0.5118 | 0.2900 | 1.2814 | 1.6259 |
-| TOTAL per command | 0.5949 | 0.3711 | 1.3928 | 1.7987 |
+| Cyber Agent rules | 0.0406 | 0.0354 | 0.0706 | 0.0921 |
+| Cyber model (NO_MODEL stub) | 0.0086 | 0.0072 | 0.0139 | 0.0350 |
+| Physical Agent rules | 0.0270 | 0.0245 | 0.0416 | 0.0607 |
+| Physical model (assess; includes window refresh) | 0.2206 | 0.0051 | 0.9207 | 1.1063 |
+| Orchestrator fusion | 0.0112 | 0.0089 | 0.0226 | 0.0360 |
+| Packet-trace build | 0.0436 | 0.0365 | 0.0750 | 0.1084 |
+| Both branches (concurrent, wall time) | 0.4458 | 0.2444 | 1.1751 | 1.3795 |
+| TOTAL per command | 0.5180 | 0.3150 | 1.2659 | 1.4883 |
 
 ![Per-hop latency](figures/latency_per_hop.png)
 
-Spread of the total across repeats: mean 0.5899-0.6006 ms, p95 1.3793-1.4116 ms. The two branches overlap, so hops do not sum to the total.
+Spread of the total across repeats: mean 0.509-0.5297 ms, p95 1.2435-1.3055 ms. The two branches overlap, so hops do not sum to the total.
 
-Live Modbus round trip of a signed write to a running middleware (300 writes): mean 3.9392 ms, p95 5.9084 ms, p99 7.4785 ms.
+Live Modbus round trip of a signed write to a running middleware (300 writes): mean 4.1684 ms, p95 4.764 ms, p99 13.1886 ms.
 
 ## 2. Held-out SWaT (real data)
 
 **PROMOTED physical model on the HELD-OUT SWaT test block (real data, aggregate only).** test block was also seen in physical training run 2 (revised protocol): held-out, not a pristine blind test.
 
-_Source: measured by the user on their Windows machine (benchmark.swat_accuracy, console summary pasted into the chat; scikit-learn 1.8.0 loading weights pickled with 1.9.1, so an InconsistentVersionWarning was printed; the AUC 0.8245 agrees with the training run-2 test AUC of 0.83); per-segment table not included_
+_Source: reused from benchmarks/swat_accuracy.json (measured earlier on the machine that holds the archive)_
 
 Test block: 28,075 windows (stride 5 s): 1,060 attack, 27,015 benign (37.521 benign hours). Operating point: Isolation Forest threshold 0.6108, classifier threshold 0.601, variant `drift_robust`.
 
