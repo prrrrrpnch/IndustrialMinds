@@ -31,7 +31,7 @@ import numpy as np
 
 from docs.interfaces import MACHINE_BY_NAME, MACHINE_BY_REGISTER
 from models.tree_inference import PackedForestRegressor, PackedIsolationForest
-from swat.physical_features import (ACTUATORS, FEATURE_NAMES, ON_THRESHOLD, SENSORS, WINDOW, Norm, window_features)
+from swat.physical_features import (ACTUATORS, FEATURE_NAMES, ON_THRESHOLD, SENSORS, VARIANTS, WINDOW, Norm, window_features)
 
 log = logging.getLogger("industrialmind.models.physical")
 
@@ -67,6 +67,15 @@ class PhysicalModel:
         self.norm: Optional[Norm] = None
         self.status = "NO_MODEL"
         self.metadata: Dict[str, Any] = {}
+        self.variant = "full"                      # feature subset used by the heads (see swat.physical_features.VARIANTS)
+        self._cols = np.array(VARIANTS["full"])
+
+    def set_variant(self, name: str) -> "PhysicalModel":
+        self.variant, self._cols = name, np.array(VARIANTS[name])
+        return self
+
+    def _sel(self, X: np.ndarray) -> np.ndarray:
+        return np.atleast_2d(X)[:, self._cols]
 
     # --------------------------------------------------------------- window
     @staticmethod
@@ -108,11 +117,11 @@ class PhysicalModel:
             raise ValueError(f"expected [n, {len(FEATURE_NAMES)}] features, got {X_normal.shape}")
         self.bounds, self.norm = bounds, Norm(bounds)
         self._model = IsolationForest(n_estimators=100, max_samples=256, contamination="auto",
-                                      random_state=self.random_state).fit(X_normal)
+                                      random_state=self.random_state).fit(self._sel(X_normal))
         self._packed = PackedIsolationForest(self._model)
         self.threshold = float(np.quantile(self.anomaly_scores(X_normal), self.threshold_quantile))
         self.status = "OK"
-        self.metadata.update({"feature_names": list(FEATURE_NAMES), "window": self.window_size,
+        self.metadata.update({"feature_names": list(FEATURE_NAMES), "variant": self.variant, "window": self.window_size,
                               "trained_normal_windows": int(X_normal.shape[0]), "if_threshold_quantile": self.threshold_quantile})
         return self
 
@@ -122,7 +131,7 @@ class PhysicalModel:
         from sklearn.ensemble import RandomForestRegressor
         self._clf = RandomForestRegressor(n_estimators=n_estimators, max_depth=max_depth, min_samples_leaf=min_samples_leaf,
                                           max_features="sqrt", random_state=self.random_state, n_jobs=-1
-                                          ).fit(X, y.astype(float), sample_weight=sample_weight)
+                                          ).fit(self._sel(X), y.astype(float), sample_weight=sample_weight)
         self._clf.n_jobs = 1
         self._clf_packed = PackedForestRegressor(self._clf)
         self.metadata.update({"trained_labelled_windows": int(X.shape[0]), "attack_windows_in_training": int(np.sum(y)),
@@ -134,12 +143,12 @@ class PhysicalModel:
     def anomaly_scores(self, X: np.ndarray) -> np.ndarray:
         if self._packed is None:
             raise RuntimeError("PhysicalModel has no trained weights")
-        return -self._packed.score_samples(np.atleast_2d(X))
+        return -self._packed.score_samples(self._sel(X))
 
     def attack_probability(self, X: np.ndarray) -> np.ndarray:
         if self._clf_packed is None:
             raise RuntimeError("PhysicalModel has no supervised head")
-        return self._clf_packed.predict(np.atleast_2d(X))
+        return self._clf_packed.predict(self._sel(X))
 
     def predict(self, X: np.ndarray) -> np.ndarray:
         flag = self.anomaly_scores(X) > self.threshold
@@ -229,6 +238,7 @@ class PhysicalModel:
                 inst._clf_packed = PackedForestRegressor(inst._clf)
                 inst.clf_threshold = float(blob["clf_threshold"])
             inst.bounds, inst.norm = blob["bounds"], Norm(blob["bounds"])
+            inst.set_variant(meta.get("variant", "full"))
             inst.window_size = int(meta.get("window", WINDOW))
             inst._buf = deque(maxlen=inst.window_size)
             inst.metadata = meta

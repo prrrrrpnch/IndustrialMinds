@@ -757,6 +757,30 @@ def _log_live_telemetry(now: float, pipeline: Any) -> None:
 # PLC POLLING
 # =========================================================
 
+ENVELOPE_ALERTS = os.environ.get("IM_ENVELOPE_ALERTS", "1") != "0"
+ENVELOPE_ALERT_INTERVAL = float(os.environ.get("IM_ENVELOPE_ALERT_SECONDS", "30"))
+_last_envelope_alert: Dict[str, float] = {}
+
+
+def _check_upstream_envelope(registers: Dict[Any, float], now: float) -> None:
+    """Raise an upstream DROP decision for sensors outside the measured envelope (rate-limited per sensor)."""
+    try:
+        verdict = physical_agent.check_telemetry(registers)
+        if verdict["pass"]:
+            return
+        fresh = [v for v in verdict["violations"] if now - _last_envelope_alert.get(v["tag"], 0.0) >= ENVELOPE_ALERT_INTERVAL]
+        if not fresh:
+            return
+        for v in fresh:
+            _last_envelope_alert[v["tag"]] = now
+        verdict["tx_id"] = f"UP-ENV-{int(now * 1000)}"
+        verdict["command"] = "UPSTREAM TELEMETRY " + ",".join(v["tag"] for v in fresh)
+        orchestrator.decide(None, verdict, now)
+        log.warning("[UPSTREAM] %s", verdict["reason"])
+    except Exception:
+        log.exception("upstream envelope check failed - ignored (rules elsewhere still gate)")
+
+
 def _poll_once(
     block: "MiddlewareDataBlock"
 ) -> None:
@@ -857,6 +881,16 @@ def _poll_once(
             _plc_state.get("timestamp") or now,
         )
         _log_live_telemetry(now, pipeline)
+
+        # -------------------------------------------------
+        # Upstream sensor-envelope RULE (measured SWaT envelope).
+        # Detect-and-ALERT: the telemetry is still mirrored to SCADA; an
+        # upstream DROP decision is raised on the dashboard, at most once
+        # per sensor per ENVELOPE_ALERT_INTERVAL seconds.
+        # -------------------------------------------------
+
+        if ENVELOPE_ALERTS:
+            _check_upstream_envelope(dict(_plc_state["registers"]), now)
 
         # -------------------------------------------------
         # Check ONLY commands that were PASSed

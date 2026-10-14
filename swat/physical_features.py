@@ -36,6 +36,14 @@ FEATURE_NAMES: List[str] = (
 )
 _I101, _I201 = SENSORS.index("FIT101"), SENSORS.index("FIT201")
 
+# Feature-set variants (validation picks one): "drift_robust" drops the absolute sensor levels (.last/.mean),
+# which carry the day-to-day drift of SWaT, keeping dynamics (std/slope/range/delta), actuators and envelope features.
+_ABS_LEVEL = {f"{s}.{f}" for s in SENSORS for f in ("last", "mean")}
+VARIANTS: Dict[str, List[int]] = {
+    "full": list(range(len(FEATURE_NAMES))),
+    "drift_robust": [i for i, n in enumerate(FEATURE_NAMES) if n not in _ABS_LEVEL],
+}
+
 PROVENANCE: List[Tuple[str, str, str]] = [
     ("<sensor>.last/mean/std/slope/range/delta (10 sensors x 6)",
      "z-scored 1 Hz sensor columns " + ", ".join(SENSORS) + " over a 30 s trailing window (mean/std from train-block normal rows)", "real (SWaT columns), derived statistics"),
@@ -69,9 +77,12 @@ def compute_bounds(sensor_values: pd.DataFrame) -> Dict[str, Any]:
         q = np.quantile(x, [0.001, 0.005, 0.5, 0.995, 0.999])
         span = q[4] - q[0]
         m = ENVELOPE_MARGIN * span
+        lo = float(q[0] - m)
+        if x.min() >= 0.0:
+            lo = max(lo, 0.0)          # a sensor that is never negative cannot have a negative envelope
         out[s] = {"n": int(x.size), "min": float(x.min()), "p0.1": float(q[0]), "p0.5": float(q[1]), "median": float(q[2]),
                   "p99.5": float(q[3]), "p99.9": float(q[4]), "max": float(x.max()), "mean": float(x.mean()),
-                  "std": float(x.std()), "envelope_lo": float(q[0] - m), "envelope_hi": float(q[4] + m)}
+                  "std": float(x.std()), "envelope_lo": lo, "envelope_hi": float(q[4] + m)}
     return out
 
 

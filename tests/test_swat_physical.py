@@ -72,7 +72,7 @@ check("report carries the fixture banner, provenance, bounds-rule validation and
       "SYNTHETIC FIXTURE" in md and "Feature provenance" in md and "Measured-envelope RULE" in md and "RUL" in md)
 te = rep["results"]["test"]["combined_either"]
 check("confusion cells add up to the test windows", te["tn"] + te["fp"] + te["fn"] + te["tp"] == rep["windows"]["by_block"]["test"]["windows"])
-check("classifier regularisation was chosen from a grid on validation (not test)", len(rep["classifier_selection"]["grid"]) == 4)
+check("variant + regularisation chosen from a grid on validation (not test); operating curve reported", len(rep["classifier_selection"]["grid"]) == 8 and "operating_curve_test" in rep)
 try:
     run(arch, WEIGHTS_DIR, seed=7, fixture=True)
     check("trainer refuses to write into models/weights", False)
@@ -81,8 +81,8 @@ except SystemExit:
 pm = PhysicalModel.load(os.path.join(out, "physical_model.joblib"))
 check("candidate loads (status OK) with both heads and thresholds", pm.status == "OK" and pm.clf_threshold is not None and pm.threshold is not None)
 Xs = X[:2000]
-d_if = np.abs(pm.anomaly_scores(Xs) - (-pm._model.score_samples(Xs))).max()
-d_cl = np.abs(pm.attack_probability(Xs) - pm._clf.predict(Xs)).max()
+d_if = np.abs(pm.anomaly_scores(Xs) - (-pm._model.score_samples(pm._sel(Xs)))).max()
+d_cl = np.abs(pm.attack_probability(Xs) - pm._clf.predict(pm._sel(Xs))).max()
 check("packed inference == sklearn (Isolation Forest and classifier)", d_if < 1e-12 and d_cl < 1e-12, f"{d_if:.1e} / {d_cl:.1e}")
 
 print("\nTRAIN/LIVE CONSISTENCY")
@@ -174,6 +174,26 @@ try:
     check("middleware [TELEMETRY] line renders with an OK model", True)
 except Exception as exc:
     check("middleware [TELEMETRY] line renders with an OK model", False, repr(exc))
+
+print("\nUPSTREAM ENVELOPE ALERT (middleware)")
+calls = []
+_orig_decide = mw.orchestrator.decide
+mw.orchestrator.decide = lambda cv, pv, st=None: calls.append((cv, pv)) or {}
+try:
+    mw._last_envelope_alert.clear()
+    tele = {m["name"]: m["initial"] for m in MACHINE_BY_NAME.values()}
+    mw._check_upstream_envelope(dict(tele), 1000.0)
+    check("nominal telemetry raises no upstream alert", calls == [])
+    bad_t = dict(tele, LIT301=5000.0)
+    mw._check_upstream_envelope(dict(bad_t), 1000.0)
+    check("an out-of-envelope sensor raises ONE upstream DROP decision (cyber verdict None = upstream path)",
+          len(calls) == 1 and calls[0][0] is None and calls[0][1]["pass"] is False and "LIT301" in calls[0][1]["reason"])
+    mw._check_upstream_envelope(dict(bad_t), 1010.0)
+    check("the same sensor is rate-limited (no second alert within the interval)", len(calls) == 1)
+    mw._check_upstream_envelope(dict(bad_t), 1000.0 + mw.ENVELOPE_ALERT_INTERVAL + 1)
+    check("...and alerts again after the interval", len(calls) == 2)
+finally:
+    mw.orchestrator.decide = _orig_decide
 
 print("\nALL PASS" if fails == 0 else f"\n{fails} CHECK(S) FAILED")
 raise SystemExit(1 if fails else 0)

@@ -224,6 +224,22 @@ assert physical_agent.check_feedback(600.0, 450.0, LIT101)["pass"]
 v15 = physical_agent.check_feedback(600.0, 300.0, LIT101)
 assert not v15["pass"] and "TELEMETRY_MISMATCH" in v15["reason"], "Test 15 failed"
 
+# -- Test 16: upstream sensor-envelope RULE (measured SWaT envelope) -------------------------------------
+print("\n16. check_telemetry (upstream sensor envelope rule)")
+nominal_tele = {m["name"]: m["initial"] for m in MACHINES}
+assert physical_agent.check_telemetry(nominal_tele)["pass"], "nominal twin telemetry must be inside the measured envelope"
+for sreg in SENSOR_REGISTERS:
+    lo, hi, _src = physical_agent.SENSOR_ENVELOPE[sreg]
+    name = [m["name"] for m in MACHINES if m["register"] == sreg][0]
+    hi_v = physical_agent.check_telemetry({**nominal_tele, name: hi + 0.01 * (abs(hi) + 1.0)})
+    assert not hi_v["pass"] and hi_v["violations"][0]["tag"] == name and "SENSOR_ENVELOPE_VIOLATION" in hi_v["reason"], name
+    by_reg = physical_agent.check_telemetry({sreg: hi + 1.0 + abs(hi)})            # integer keys work too
+    assert not by_reg["pass"], name
+two = physical_agent.check_telemetry({**nominal_tele, "LIT301": 5000.0, "AIT202": 14.0})
+assert {v["tag"] for v in two["violations"]} == {"LIT301", "AIT202"}, "all offenders are reported"
+assert physical_agent.check_telemetry({})["pass"], "no readings -> nothing to violate"
+print("    all 10 sensors: nominal passes, above-envelope drops, int/name keys, multiple offenders reported")
+
 print("\n" + "=" * 60)
-print("All 15 test groups passed")
+print("All 16 test groups passed")
 print("=" * 60)
