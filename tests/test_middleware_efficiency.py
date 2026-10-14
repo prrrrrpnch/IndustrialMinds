@@ -231,7 +231,7 @@ def process(payload: Dict[str, Any]) -> Tuple[float, str, str]:
     service_ms = (time.perf_counter() - t0) * 1000.0
 
     # Emulate the PLC confirming instantly so pending setpoints don't accumulate
-    # (plant dynamics are out of scope here - see evaluation/ for detection quality).
+    # (plant dynamics are out of scope here - see benchmark/ for detection quality).
     with mw._state_lock:
         mw._pending_commands.clear()
 
