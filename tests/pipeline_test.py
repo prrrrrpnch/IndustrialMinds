@@ -21,11 +21,13 @@ from pymodbus.client import ModbusTcpClient
 
 import middleware.middleware_server as mw
 from middleware import orchestrator
+from docs import netconfig
+from docs.netconfig import LOOPBACK  # documented loopback default
 from docs import hmac_auth, attack_log
 from docs.interfaces import (TANK_PRESSURE, CONVEYOR_SPEED, COOLING_VALVE, HEATER_TEMP,
                              REGISTER_MAP, NUM_REGISTERS, DATASTORE_SIZE, FRAME_BASE)
 
-TEST_IP = "127.0.0.1"   # what a local SCADA connection reports as its peer address
+TEST_IP = LOOPBACK   # what a local SCADA connection reports as its peer address
 
 
 def send_signed(register, value, ip=TEST_IP):
@@ -40,7 +42,7 @@ def send_unsigned(register, value, ip=TEST_IP):
 
 # Wire up the middleware's PLC-facing client manually (skip start_middleware_server,
 # which would also try to launch the blocking StartTcpServer call).
-mw._plc_client = ModbusTcpClient(host="127.0.0.1", port=5020)
+mw._plc_client = ModbusTcpClient(host=netconfig.PLC_HOST, port=netconfig.PLC_PORT)
 assert mw._plc_client.connect(), "middleware could not connect to the real PLC"
 
 from pymodbus.datastore import ModbusSequentialDataBlock as _MSDB

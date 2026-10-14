@@ -18,6 +18,7 @@ from typing import Dict, List, Tuple
 
 import numpy as np
 
+from docs.netconfig import LOOPBACK  # documented loopback default
 from docs.interfaces import MACHINES, NUM_REGISTERS
 from models.cyber_model import CyberFeatureExtractor, CyberModel, DEFAULT_WEIGHTS as CYBER_W
 from models.physical_model import (
@@ -87,7 +88,7 @@ def train_physical(seed: int = 101, val_seed: int = 202, per_machine: int = 40) 
 # ---------------------------------------------------------------------------
 
 def train_cyber(seed: int = 11, val_seed: int = 12, n: int = 20000) -> Tuple[CyberModel, Dict]:
-    sources = ["127.0.0.1", "192.168.1.10"] + [f"10.20.0.{i}" for i in range(1, 9)]
+    sources = [LOOPBACK, "192.168.1.10"] + [f"10.20.0.{i}" for i in range(1, 9)]
     model = CyberModel().fit(generate_normal_commands(n, seed=seed, sources=sources))
 
     ext = CyberFeatureExtractor()

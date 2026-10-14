@@ -24,6 +24,7 @@ from typing import Dict, Iterator, List, Optional, Tuple
 
 import numpy as np
 
+from docs.netconfig import LOOPBACK  # documented loopback default
 from docs.interfaces import MACHINES, NUM_REGISTERS, make_command, to_raw
 from docs import hmac_auth
 
@@ -157,7 +158,7 @@ def generate_normal_commands(n: int, seed: int = 11,
     Commands are properly HMAC-signed so feature extraction sees real frames.
     """
     rng = np.random.default_rng(seed)
-    sources = sources or ["127.0.0.1", "192.168.1.10"]
+    sources = sources or [LOOPBACK, "192.168.1.10"]
     plant = {m["register"]: float(m["initial"]) for m in MACHINES}
     clock = {s: start_time + float(rng.uniform(0, 2)) for s in sources}
 

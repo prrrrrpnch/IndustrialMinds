@@ -25,7 +25,7 @@ import uuid
 from pymodbus.client import ModbusTcpClient
 
 from docs.interfaces import REGISTER_MAP, MACHINES, NUM_REGISTERS, FRAME_BASE, from_raw
-from docs import hmac_auth
+from docs import hmac_auth, netconfig
 
 
 # ============================================================
@@ -202,7 +202,7 @@ def send_write(client: ModbusTcpClient, register: int, value: float) -> None:
 # OPERATOR SIMULATION
 # ============================================================
 
-def run_operator_loop(host: str = "127.0.0.1", port: int = 5021) -> None:
+def run_operator_loop(host: str = netconfig.MIDDLEWARE_HOST, port: int = netconfig.MIDDLEWARE_PORT) -> None:
     """
     Connect to middleware and continuously simulate
     normal SCADA operator commands.
@@ -301,15 +301,15 @@ def main() -> None:
 
     parser.add_argument(
         "--host",
-        default="127.0.0.1",
-        help="Middleware host"
+        default=netconfig.MIDDLEWARE_HOST,
+        help="Middleware host (env IM_MIDDLEWARE_HOST)"
     )
 
     parser.add_argument(
         "--port",
         type=int,
-        default=5021,
-        help="Middleware Modbus port"
+        default=netconfig.MIDDLEWARE_PORT,
+        help="Middleware Modbus port (env IM_MIDDLEWARE_PORT)"
     )
 
     args = parser.parse_args()

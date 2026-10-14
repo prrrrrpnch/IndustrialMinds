@@ -51,7 +51,7 @@ PROJECT_ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 LOG_DIR = os.path.join(PROJECT_ROOT, "logs")
 
 # Must be set before middleware modules are imported (read at import time).
-os.environ.setdefault("IM_TRUSTED_SOURCES", "127.0.0.1,192.168.1.10,10.20.0.0/16")
+os.environ.setdefault("IM_TRUSTED_SOURCES", LOOPBACK + ",192.168.1.10,10.20.0.0/16")
 os.environ.setdefault("IM_LOG_DIR", os.path.join(LOG_DIR, "benchmark_attack_log"))
 
 sys.path.insert(0, PROJECT_ROOT)
@@ -59,6 +59,8 @@ sys.path.insert(0, PROJECT_ROOT)
 import numpy as np  # noqa: E402
 import psutil  # noqa: E402
 
+from docs import netconfig
+from docs.netconfig import LOOPBACK  # documented loopback default
 from docs import hmac_auth  # noqa: E402
 from docs.interfaces import (  # noqa: E402
     CONVEYOR_SPEED, COOLANT_FLOW, COOLING_VALVE, FEED_PUMP, FRAME_BASE, HEATER_TEMP, MACHINES,
@@ -408,9 +410,9 @@ def main() -> int:
 
     if args.live_plc:
         from pymodbus.client import ModbusTcpClient
-        mw._plc_client = ModbusTcpClient("127.0.0.1", port=5020)
+        mw._plc_client = ModbusTcpClient(netconfig.PLC_HOST, port=netconfig.PLC_PORT)
         if not mw._plc_client.connect():
-            log.error("--live-plc: cannot reach PLC on 127.0.0.1:5020")
+            log.error("--live-plc: cannot reach PLC on %s:%s", netconfig.PLC_HOST, netconfig.PLC_PORT)
             return 2
     else:
         mw._plc_client = InMemoryPLC()

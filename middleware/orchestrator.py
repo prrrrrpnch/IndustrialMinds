@@ -12,6 +12,7 @@ import threading
 import time
 import urllib.request
 
+from docs import netconfig
 from docs.interfaces import make_decision
 
 _decision_log = []
@@ -22,7 +23,7 @@ def _forward_decision_to_dashboard(payload: dict) -> None:
         try:
             data = json.dumps(payload).encode("utf-8")
             req = urllib.request.Request(
-                "http://127.0.0.1:5050/api/security-event",
+                f"{netconfig.DASHBOARD_URL}/api/security-event",
                 data=data,
                 headers={"Content-Type": "application/json"},
             )
