@@ -20,7 +20,10 @@ Reference files are listed by path below; none are auto-loaded.
 5. The guard is a guardrail for the agent, not a security boundary against a human with shell access.
 
 ## Working rules for this rework (source: user prompt, 12 phases + PART 0 issue list)
-- **Dataset policy: SWaT (iTrust, SUTD) is the ONLY external dataset.** Anything SWaT can't supply is
+- **POLICY AMENDMENT (user, after the P6 gate): the SWaT-only rule is LIFTED FOR THE CYBER MODEL ONLY.** The cyber model may be trained on a
+  user-supplied network-traffic dataset (name/format/license TBD; user must confirm usage terms). Physical model, bounds, twin calibration and
+  fusion evidence stay SWaT-only. The README dataset section and known-limitations must state this split plainly. Original rule follows.
+- **Dataset policy: SWaT (iTrust, SUTD) is the ONLY external dataset** (except the cyber-model amendment above). Anything SWaT can't supply is
   (a) derived from SWaT columns/labels or (b) labeled synthetic/rule-tested and listed in known
   limitations. Never present self-generated data as real-data performance. No Morris et al.
 - Approval gates (stop and wait): P1 deletions, P3 twin table, P4 data in hand, P5/P6 weight
@@ -112,6 +115,7 @@ Reference files are listed by path below; none are auto-loaded.
 | `dashboard/app.py`, `dashboard/static/`, `dashboard/templates/` | Flask dashboard + UI |
 | `evaluation/` | legacy synthetic xlsx evaluation (superseded in Phase 11) |
 | `tests/` | unit/pipeline/stress tests |
+| `tools/traffic_inspect.py` | cyber-dataset onboarding: run locally on a network-traffic CSV/folder; aggregate-only report (roles, labels, windows, leakage screen) |
 | `tools/swat_inspect.py` | Phase 4: run locally on the SWaT folder; prints aggregate-only report + JSON manifest (no raw rows) |
 | `.claude/hooks/guard.py`, `.claude/hooks/confirm.py`, `.claude/settings.json` | hook logic / confirmation helper / wiring |
 
