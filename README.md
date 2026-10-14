@@ -473,6 +473,7 @@ Stated plainly. None of these is hidden elsewhere.
 | Physical model shows `WARMING_UP` | normal for the first ~30 s after start; it needs a full 30 s window |
 | `InconsistentVersionWarning` / model status `NO_MODEL` | scikit-learn is not the pinned version: `pip install scikit-learn==1.9.1` |
 | Wireshark shows no Modbus | the Modbus/TCP port preference is not set to 5021/5020 (do not use Decode As) |
+| Yellow `ALERT` rows keep appearing after an attack (e.g. Cross-Register) and do not stop | expected: the attack's first steps (such as closing the inlet valve MV101 from 55 % to about 15-20 %) were allowed and moved the plant off its normal state (the raw tank drains), so the advisory physical model keeps flagging every command. SCADA's own writes only nudge it back about 2 points per cycle (many minutes). **Fix: Ctrl-C the PLC window and run `python -m plc.plc` again** (the dashboard Reset does not reset the plant); ALERTs stop about 30-40 s later, when the model's window has refilled. |
 | Plant looks broken in the next run | an attack changed it; restart `python -m plc.plc` |
 | Dashboard empty although the middleware works | the dashboard URL (`IM_DASHBOARD_URL`) on the middleware laptop, or the dashboard is not running; the middleware never blocks on it |
 | `Address already in use` | a previous process is still running on 5020, 5021 or 5050 |
