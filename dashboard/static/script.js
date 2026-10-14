@@ -1182,11 +1182,87 @@ function setupBlockedSection() {
 // START
 // =========================================================
 
+// =========================================================
+// PACKET TRACER (Phase 9): per-tx hop-by-hop view
+// =========================================================
+
+let tracerSelected = null;     // full tx_id the user clicked; null = follow the latest
+let tracerLastKey = "";
+
+const HOP_TITLES = {
+    arrival: "1  Arrival (network)",
+    cyber_rules: "2  Cyber Agent - rules",
+    cyber_model: "3  Cyber model (advisory)",
+    physical_rules: "4  Physical Agent - rules",
+    physical_model: "5  Physical model (advisory)",
+    orchestrator: "6  Orchestrator - fusion",
+    outcome: "7  Outcome",
+};
+
+function fmtVal(v) {
+    if (v === null || v === undefined) return "—";
+    if (typeof v === "object") return Object.entries(v).map(([k, x]) => `${k}=${fmtVal(x)}`).join(", ");
+    if (typeof v === "number") return Number.isInteger(v) ? String(v) : String(Math.round(v * 10000) / 10000);
+    return String(v);
+}
+
+function renderTrace(t) {
+    const box = document.getElementById("tracer-detail");
+    if (!box) return;
+    const head = `<div class="tracer-head"><b>${safe(t.short_id)}</b> <span class="verdict ${verdictClass(t.verdict)}">${safe(t.verdict)}</span> ` +
+        `<span class="tracer-reason">${safe(t.reason)}</span> <span class="tracer-id">${safe(t.tx_id)}</span></div>`;
+    const hops = (t.hops || []).map((h) => {
+        const checks = (h.checks || []).map((c) =>
+            `<li class="chk chk-${String(c.result).toLowerCase()}"><span class="chk-name">${safe(c.check)}</span>` +
+            `<span class="chk-res">${safe(c.result)}</span><span class="chk-detail">${safe(c.detail)}</span></li>`).join("");
+        const vals = Object.entries(h.values || {}).map(([k, v]) =>
+            `<div class="kv"><span class="k">${safe(k)}</span><span class="v">${safe(fmtVal(v))}</span></div>`).join("");
+        const ms = (h.ms === null || h.ms === undefined) ? "" : `<span class="hop-ms">${fmtVal(h.ms)} ms</span>`;
+        return `<div class="hop hop-${String(h.outcome).toLowerCase()}"><div class="hop-title">${safe(HOP_TITLES[h.hop] || h.hop)}` +
+            `<span class="hop-outcome">${safe(h.outcome)}</span>${ms}</div>${checks ? `<ul class="chk-list">${checks}</ul>` : ""}<div class="kvs">${vals}</div></div>`;
+    }).join('<div class="hop-arrow">&#9660;</div>');
+    const tm = Object.entries(t.timings_ms || {}).map(([k, v]) => `${k} ${fmtVal(v)} ms`).join("  ·  ");
+    box.innerHTML = head + hops + (tm ? `<div class="tracer-timings">timings: ${safe(tm)}</div>` : "");
+}
+
+async function refreshTracer() {
+    try {
+        const r = await fetch("/api/traces", { cache: "no-store" });
+        if (!r.ok) return;
+        const list = await r.json();
+        const ul = document.getElementById("tracer-list");
+        if (!ul) return;
+        const key = JSON.stringify(list.map((x) => x.tx_id)) + tracerSelected;
+        if (key !== tracerLastKey) {
+            tracerLastKey = key;
+            ul.innerHTML = list.map((x) =>
+                `<li class="tr-item${x.tx_id === (tracerSelected || (list[0] && list[0].tx_id)) ? " sel" : ""}" data-tx="${safe(x.tx_id)}">` +
+                `<span class="tr-id">${safe(x.short_id)}</span><span class="verdict ${verdictClass(x.verdict)}">${safe(x.verdict)}</span>` +
+                `<span class="tr-cmd">${safe(x.command)}=${safe(x.value)}</span></li>`).join("");
+            ul.querySelectorAll(".tr-item").forEach((li) => li.addEventListener("click", () => {
+                const first = ul.querySelector('.tr-item');
+                tracerSelected = (li === first) ? null : li.dataset.tx;   // newest item = follow live
+                tracerLastKey = "";
+                refreshTracer();
+            }));
+        }
+        const follow = document.getElementById("tracer-follow");
+        if (follow) follow.textContent = tracerSelected ? "pinned (click the newest item to follow)" : "following latest";
+        const target = tracerSelected || (list[0] && list[0].tx_id);
+        if (!target) return;
+        const d = await fetch(`/api/trace/${encodeURIComponent(target)}`, { cache: "no-store" });
+        if (d.ok) renderTrace(await d.json());
+    } catch (e) { /* dashboard keeps running without the tracer */ }
+}
+
 document.addEventListener(
     "DOMContentLoaded",
     () => {
 
         setupButtons();
+
+        refreshTracer();
+        setInterval(refreshTracer, 1000);
 
         setupBlockedSection();
 

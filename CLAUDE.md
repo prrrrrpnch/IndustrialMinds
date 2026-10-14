@@ -93,6 +93,7 @@ Reference files are listed by path below; none are auto-loaded.
 | `middleware/middleware_server.py` | Modbus proxy, downstream/upstream handling, poll loop |
 | `middleware/cyber_agent.py` | rule checks: whitelist, FC, register, rate, HMAC, replay |
 | `middleware/physical_agent.py` | rule checks: bounds, rate-of-change, cross-register, feedback |
+| `middleware/trace.py` | Phase 9 packet-tracer: builds the per-tx hop-by-hop trace from the REAL verdicts/model reports/decision (checks after the first failure = NOT_RUN); dashboard `/api/trace(s)`; panel at the bottom of the dashboard; tests/test_trace.py |
 | `middleware/orchestrator.py` | RULE-BASED four-branch fusion: cyber/physical rule fail -> DROP; rules pass + advisory physical-model flag -> ALERT (forwarded); else PASS; + dashboard forwarding |
 | `pipeline/multi_model_pipeline.py` | concurrent cyber/physical branches (rules + models) |
 | `models/cyber_model.py` | SWaT-trained CyberModel: Isolation Forest + supervised head over 8 actuator-event features (abstains on non-flip commands) |
@@ -132,7 +133,7 @@ Reference files are listed by path below; none are auto-loaded.
 | 5 | No orchestrator model | P7 | CLOSED AS NEGATIVE RESULT (cross-fitted GBM fusion on real SWaT: test AUC 0.68 < physical alone 0.83, 4/10 vs 6/10 segments; user chose NOT to promote; rule-based fusion is the design; documented limitation) |
 | 6 | Attacker deterministic | P8 | CLOSED (randomised plans, distribution check in tests/test_attacker_randomization.py; SWaT-derived ranges pending a local run of tools/swat_attack_profile.py) |
 | 7 | Twin is flat list, not SWaT-like | P3 | CLOSED (5 stages x 4 pts, coupled physics, propagation check passes) |
-| 8 | No per-layer journey visibility | P9 | open |
+| 8 | No per-layer journey visibility | P9 | CLOSED (decision carries `fusion`; middleware/trace.py; dashboard Packet Tracer panel; live-verified against logs/blocked_attacks.jsonl) |
 | 9 | No live network proof | P10 | open |
 | 10 | No reproducible verification | P11 | open |
 | 11 | README is setup only | P12 | open |

@@ -32,7 +32,7 @@ from concurrent.futures import Future, ThreadPoolExecutor
 from typing import Any, Callable, Dict, Mapping, Optional, Tuple, Union
 
 from docs.interfaces import make_verdict
-from middleware import cyber_agent, orchestrator, physical_agent
+from middleware import cyber_agent, orchestrator, physical_agent, trace as tracer
 from models.cyber_model import CyberModel
 from models.physical_model import PhysicalModel
 
@@ -125,7 +125,17 @@ class MultiModelPipeline:
                         "latency_ms": round((time.time() - start_time) * 1000, 3), "direction": "downstream"}
 
         total_ms = (time.perf_counter() - t0) * 1000.0
+        timings = {"branches": round((t_branches - t0) * 1000.0, 4), "cyber_model": cyber_ml.get("latency_ms"),
+                   "physical_model": phys_ml.get("latency_ms"), "total": round(total_ms, 4)}
+        mode = "ENFORCE" if self.enforce_cyber_model else "MONITOR"
+        try:
+            hop_trace = tracer.build_trace(command, current_state, cyber_rule, gate_cyber, cyber_ml, phys_rule, phys_ml,
+                                           decision, timings, mode)
+        except Exception:
+            log.exception("trace build failed on tx=%s (decision unaffected)", tx_id)
+            hop_trace = None
         return {
+            "trace": hop_trace,
             "tx_id": tx_id,
             "source_ip": command.get("source_ip"),
             "register": command.get("register"),

@@ -20,7 +20,7 @@ import sys
 import subprocess
 import threading
 import time
-from collections import deque
+from collections import OrderedDict, deque
 from typing import Any, Dict, Optional
 
 from flask import Flask, Response, jsonify, render_template, request
@@ -58,6 +58,10 @@ _scada_to_plc = deque(maxlen=MAX_EVENTS)
 _plc_to_scada = deque(maxlen=MAX_EVENTS)
 
 _cpu_history = deque(maxlen=60)
+
+# Phase 9 packet-tracer: one hop-by-hop trace per command, newest first (full tx_id -> trace).
+MAX_TRACES = 300
+_traces: "OrderedDict[str, Dict[str, Any]]" = OrderedDict()
 
 _metrics = {
     "total": 0,
@@ -360,6 +364,44 @@ def security_event() -> Response:
     })
 
 
+@app.route("/api/trace", methods=["POST"])
+def post_trace() -> Response:
+    """Middleware -> dashboard: the hop-by-hop trace of ONE command (what each layer actually computed)."""
+    data = request.get_json(silent=True) or {}
+    tx = str(data.get("tx_id") or "")
+    if not tx or not isinstance(data.get("hops"), list):
+        return jsonify({"success": False}), 400
+    data["short_id"] = _short_tx_id(tx)
+    with _lock:
+        _traces.pop(tx, None)
+        _traces[tx] = data
+        while len(_traces) > MAX_TRACES:
+            _traces.popitem(last=False)
+    return jsonify({"success": True})
+
+
+@app.route("/api/traces")
+def list_traces() -> Response:
+    """Newest-first summaries for the packet-tracer list."""
+    with _lock:
+        items = list(_traces.values())[::-1][:60]
+    return jsonify([{"tx_id": t["tx_id"], "short_id": t["short_id"], "time": _format_time(t.get("time")),
+                     "verdict": t.get("verdict"), "reason": t.get("reason"),
+                     "command": next((h["values"].get("register") for h in t["hops"] if h["hop"] == "arrival"), None),
+                     "value": next((h["values"].get("requested_value") for h in t["hops"] if h["hop"] == "arrival"), None)}
+                    for t in items])
+
+
+@app.route("/api/trace/<tx>")
+def get_trace(tx: str) -> ResponseReturnValue:
+    """One full trace, by full tx_id or by the dashboard's short id (TX-007)."""
+    with _lock:
+        t = _traces.get(tx) or next((v for v in _traces.values() if v.get("short_id") == tx), None)
+    if t is None:
+        return jsonify({"error": "unknown tx_id"}), 404
+    return jsonify(t)
+
+
 @app.route(
     "/api/telemetry",
     methods=["POST"]
@@ -614,6 +656,7 @@ def reset_dashboard() -> Response:
 
         _event_counter = 0
         _tx_id_map.clear()
+        _traces.clear()
 
     print(
         "[DASHBOARD] Reset"
