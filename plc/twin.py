@@ -9,8 +9,8 @@ The stages are COUPLED - a change upstream propagates downstream:
   S2 dosing      P203 (HCl) -> AIT202 pH ; P205 (NaOCl) -> chlorine carried on
   S3 UF          MV302 -> [LIT301 tank] -> P302 ; DPIT301 rises with flow + fouling,
                  automatic backwash briefly cuts output when DPIT301 is high
-  S4 dechlor     [LIT401 tank] <- S3 filtrate ; P401 draw ; UV401 removes chlorine -> AIT402 ORP
-  S5 RO          PIT501 = P501 pressure, starved when the S4 feed (P401 flow) is low,
+  S4 dechlor     [LIT401 tank] <- S3 filtrate ; P402 draw ; UV401 removes chlorine -> AIT402 ORP
+  S5 RO          PIT501 = P501 pressure, starved when the S4 feed (P402 flow) is low,
                  raised by closing the reject valve MV503 ; FIT501 permeate follows PIT501
 
 Actuators ramp toward the commanded target at their configured rate. Sensors are
@@ -30,7 +30,7 @@ from typing import Dict, Optional
 from docs.interfaces import (
     MACHINES, MACHINE_BY_REGISTER, ACTUATOR_REGISTERS,
     MV101, P101, LIT101, FIT101, P203, P205, AIT202, FIT201,
-    MV302, P302, LIT301, DPIT301, P401, UV401, LIT401, AIT402,
+    MV302, P302, LIT301, DPIT301, P402, UV401, LIT401, AIT402,
     P501, MV503, PIT501, FIT501,
 )
 
@@ -134,7 +134,7 @@ class PlantTwin:
                 self.backwashes += 1
 
         # ---- S4 dechlorination
-        q4out = _pump_out(a[P401], self.l4)
+        q4out = _pump_out(a[P402], self.l4)
         self.q4out = _lag(self.q4out, q4out, dt, 1.0)
         self.chlor_in4 = _lag(self.chlor_in4, self.chlor2, dt, 4.0)
         self.chlor4 = _lag(self.chlor4, self.chlor_in4 * (1.0 - 0.85 * a[UV401]), dt, 2.0)

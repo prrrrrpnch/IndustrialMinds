@@ -1,5 +1,10 @@
 """
-Cyber Agent — checks traffic-level behavior of incoming Modbus commands.
+Cyber Agent — the RULE-BASED half of the cyber branch (deterministic rules, NOT a learned model).
+The learned half is models/cyber_model.py (SWaT-trained, advisory). These rules cannot be validated
+against SWaT: SWaT contains no HMAC signatures, replay tags or source addresses, so they are tested by
+unit tests and by rule-tested/constructed scenarios, and reported as such.
+
+Checks traffic-level behavior of incoming Modbus commands.
 Does NOT care what a value means physically — only how it arrived.
 
 Check order (first failure wins):

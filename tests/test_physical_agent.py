@@ -29,7 +29,7 @@ sys.path.insert(0, str(Path(__file__).resolve().parent.parent))
 from docs.interfaces import (make_command, MACHINES, MACHINE_BY_REGISTER, CROSS_REGISTER_RULES,
                              ACTUATOR_REGISTERS, SENSOR_REGISTERS,
                              MV101, P101, LIT101, FIT101, P203, P205, AIT202, FIT201,
-                             MV302, P302, LIT301, DPIT301, P401, UV401, LIT401, AIT402,
+                             MV302, P302, LIT301, DPIT301, P402, UV401, LIT401, AIT402,
                              P501, MV503, PIT501, FIT501)
 from docs.netconfig import LOOPBACK
 from middleware import physical_agent
@@ -175,7 +175,7 @@ RULE_CASES = [
     ("UF_TANK_OVERFLOW",       {P302: 5.0, MV302: 70.0},   MV302, 85.0),
     ("CHLORINE_BREAKTHROUGH",  {UV401: 5.0, P205: 70.0},   P205,  85.0),
     ("RO_PUMP_DEADHEAD",       {MV503: 5.0, P501: 60.0},   P501,  75.0),
-    ("RO_FEED_STARVATION",     {P401: 5.0, P501: 50.0},    P501,  65.0),
+    ("RO_FEED_STARVATION",     {P402: 5.0, P501: 50.0},    P501,  65.0),
 ]
 assert {c[0] for c in RULE_CASES} == {r["id"] for r in CROSS_REGISTER_RULES}, \
     "Test 13 must cover every rule in CROSS_REGISTER_RULES"

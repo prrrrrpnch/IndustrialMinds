@@ -46,7 +46,7 @@ _POINTS = [
     (10, "LIT301", 3, "sensor",   "UF Tank Level",        "ultrafiltration tank level",            0, 1000, "mm", 667.0, 200.0, 250.0, 0.0, ""),
     (11, "DPIT301",3, "sensor",   "Membrane dP",          "UF membrane differential pressure",     0, 60,  "kPa",  13.2,  10.0,  10.0, 0.0, "warning"),
     # --- Stage 4: dechlorination (SWaT P4) ----------------------------------
-    (12, "P401",   4, "actuator", "Dechlor Feed Pump",    "dechlorination feed pump speed",        0, 100, "%",    40.0,  8.0, 25.0, 2.0, ""),
+    (12, "P402",   4, "actuator", "Dechlor Feed Pump",    "dechlorination feed pump speed (SWaT P402 is the running S4 pump; P401 is idle)",        0, 100, "%",    40.0,  8.0, 25.0, 2.0, ""),
     (13, "UV401",  4, "actuator", "UV Lamp",              "UV dechlorinator intensity",            0, 100, "%",    60.0, 10.0, 25.0, 2.0, "warning"),
     (14, "LIT401", 4, "sensor",   "Dechlor Tank Level",   "dechlorination tank level",             0, 1000, "mm", 667.0, 200.0, 250.0, 0.0, ""),
     (15, "AIT402", 4, "sensor",   "ORP",                  "oxidation-reduction potential",         0, 800, "mV",   290.0, 150.0, 120.0, 0.0, "warning"),
@@ -65,6 +65,10 @@ STAGES = {
     5: {"id": "S5", "name": "Reverse Osmosis",    "swat": "P5"},
 }
 
+# Points that exist only in this twin (SWaT's P5 has pumps and sensors but no motorised valve):
+# they are covered by the rule-based agents and generic features only, never by SWaT-trained models.
+SYNTHETIC_ONLY_TAGS = {"MV503"}
+
 MACHINES = [
     {
         "register": reg, "name": tag, "machine": f"S{stage} {desc}", "label": label,
@@ -74,6 +78,8 @@ MACHINES = [
         # SCADA operator profile (actuators only): hold near the nominal setpoint
         "operator": ({"target": float(init), "step": float(step)} if kind == "actuator" else None),
         "bar_class": bar,
+        # False = twin-only SYNTHETIC point with no SWaT counterpart (no SWaT column to learn from)
+        "swat_backed": tag not in SYNTHETIC_ONLY_TAGS,
     }
     for (reg, tag, stage, kind, label, desc, lo, hi, unit, init, rate, sig, step, bar) in _POINTS
 ]
@@ -82,7 +88,7 @@ MACHINES = [
 MV101, P101, LIT101, FIT101 = 0, 1, 2, 3
 P203, P205, AIT202, FIT201 = 4, 5, 6, 7
 MV302, P302, LIT301, DPIT301 = 8, 9, 10, 11
-P401, UV401, LIT401, AIT402 = 12, 13, 14, 15
+P402, UV401, LIT401, AIT402 = 12, 13, 14, 15
 P501, MV503, PIT501, FIT501 = 16, 17, 18, 19
 
 MACHINE_BY_REGISTER = {m["register"]: m for m in MACHINES}
@@ -148,7 +154,7 @@ CROSS_REGISTER_RULES = [
     {
         "id": "RO_FEED_STARVATION",
         "description": "RO high-pressure pump at high speed while the dechlorination feed pump is nearly off (S5 <- S4)",
-        "conditions": [(P501, ">=", 60.0), (P401, "<=", 10.0)],
+        "conditions": [(P501, ">=", 60.0), (P402, "<=", 10.0)],
     },
 ]
 

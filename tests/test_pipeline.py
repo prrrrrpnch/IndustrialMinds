@@ -18,7 +18,7 @@ import numpy as np  # noqa: E402
 from docs.netconfig import LOOPBACK  # documented loopback default
 from docs import hmac_auth  # noqa: E402
 from docs.interfaces import (MACHINES, NUM_REGISTERS, MV101, P101, LIT101, P203, P205, UV401,  # noqa: E402
-                             MV302, P302, P401, P501, MV503, make_command)
+                             MV302, P302, P402, P501, MV503, make_command)
 from middleware import cyber_agent, orchestrator, physical_agent  # noqa: E402
 from models.telemetry_generator import generate_stream  # noqa: E402
 from pipeline.multi_model_pipeline import MultiModelPipeline  # noqa: E402
@@ -114,7 +114,7 @@ for rid, base, reg, val in [
         ("RAW_PUMP_DRY_RUN", {MV101: 5.0, P101: 55.0}, P101, 65.0),
         ("UF_PUMP_DEADHEAD", {MV302: 5.0, P302: 50.0}, P302, 65.0),
         ("CHLORINE_BREAKTHROUGH", {UV401: 5.0, P205: 70.0}, P205, 85.0),
-        ("RO_FEED_STARVATION", {P401: 5.0, P501: 50.0}, P501, 65.0)]:
+        ("RO_FEED_STARVATION", {P402: 5.0, P501: 50.0}, P501, 65.0)]:
     cyber_agent.reset_state()
     rep = pipe.process_command(signed(reg, val, tx=rid), state(base))
     check(f"{rid} DROPped through pipeline",

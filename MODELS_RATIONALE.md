@@ -1,5 +1,10 @@
 # Industrial Mind - Model Rationale
 
+> **Status (Phase 5):** section 2 (CyberModel) describes the ORIGINAL synthetic 13-feature Isolation Forest and is
+> superseded: the CyberModel is now trained on SWaT only, with an 8-feature schema derived from actuator state
+> changes plus a supervised head. See `swat/cyber_events.py` (feature provenance) and
+> `models/candidates/cyber_training_report.md` (generated). The physical-model section stays until Phase 6.
+
 This document explains why the two learned models were added the way they
 were, the mathematics behind them, how they meet the sub-10 ms edge budget,
 and what they can and cannot be trusted for.

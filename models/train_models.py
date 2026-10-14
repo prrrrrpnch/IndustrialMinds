@@ -1,5 +1,7 @@
 """
-models/train_models.py - deterministic training for CyberModel and PhysicalModel.
+models/train_models.py - deterministic SYNTHETIC training for the PhysicalModel (replaced by SWaT in Phase 6).
+
+The CyberModel is no longer trained here: it is SWaT-only (see models/train_cyber_swat.py).
 
     python -m models.train_models            # writes models/weights/*.joblib + training_report.json
 
@@ -18,15 +20,13 @@ from typing import Dict, List, Tuple
 
 import numpy as np
 
-from docs.netconfig import LOOPBACK  # documented loopback default
 from docs.interfaces import MACHINES, NUM_REGISTERS
-from models.cyber_model import CyberFeatureExtractor, CyberModel, DEFAULT_WEIGHTS as CYBER_W
 from models.physical_model import (
     DEFAULT_WEIGHTS as PHYS_W, DEFAULT_WINDOW, PhysicalModel, WINDOW_FEATURE_NAMES,
     series_to_steps, window_features,
 )
 from models.telemetry_generator import (
-    RUL_HORIZON_HOURS, generate_channel, generate_normal_commands,
+    RUL_HORIZON_HOURS, generate_channel,
 )
 
 log = logging.getLogger("industrialmind.train")
@@ -83,26 +83,6 @@ def train_physical(seed: int = 101, val_seed: int = 202, per_machine: int = 40) 
     return model, metrics
 
 
-# ---------------------------------------------------------------------------
-# Cyber dataset
-# ---------------------------------------------------------------------------
-
-def train_cyber(seed: int = 11, val_seed: int = 12, n: int = 20000) -> Tuple[CyberModel, Dict]:
-    sources = [LOOPBACK, "192.168.1.10"] + [f"10.20.0.{i}" for i in range(1, 9)]
-    model = CyberModel().fit(generate_normal_commands(n, seed=seed, sources=sources))
-
-    ext = CyberFeatureExtractor()
-    Xv = np.vstack([ext.transform(c, s) for c, s in generate_normal_commands(4000, seed=val_seed, sources=sources)])
-    flags = model.predict(Xv)
-    metrics = {
-        "train_commands": n,
-        "threshold": round(model.threshold, 5),
-        "validation_normal_commands": int(Xv.shape[0]),
-        "validation_false_positive_rate": round(float(flags.mean()), 4),
-    }
-    return model, metrics
-
-
 def main() -> None:
     logging.basicConfig(level=logging.INFO, format="%(asctime)s %(levelname)s %(name)s - %(message)s")
     ap = argparse.ArgumentParser()
@@ -110,10 +90,7 @@ def main() -> None:
     args = ap.parse_args()
 
     t0 = time.time()
-    log.info("Training CyberModel (Isolation Forest) on synthetic legitimate traffic ...")
-    cyber, cm = train_cyber(n=5000 if args.quick else 20000)
-    cyber.save(CYBER_W)
-    log.info("CyberModel saved -> %s  %s", CYBER_W, cm)
+    log.info("CyberModel is trained on SWaT only: python -m models.train_cyber_swat --data-dir <archive> --candidate")
 
     log.info("Training PhysicalModel (Random Forest RUL) on synthetic run-to-failure trajectories ...")
     phys, pm = train_physical(per_machine=12 if args.quick else 40)
@@ -121,8 +98,8 @@ def main() -> None:
     log.info("PhysicalModel saved -> %s", PHYS_W)
     log.info("PhysicalModel validation: %s", {k: v for k, v in pm.items() if k != "feature_importances"})
 
-    report = {"cyber_model": cm, "physical_model": pm, "training_seconds": round(time.time() - t0, 1),
-              "deterministic_seeds": {"cyber": [11, 12], "physical": [101, 202]}}
+    report = {"cyber_model": "see models/candidates/cyber_training_report.json (SWaT only)", "physical_model": pm, "training_seconds": round(time.time() - t0, 1),
+              "deterministic_seeds": {"physical": [101, 202]}}
     os.makedirs(os.path.dirname(REPORT), exist_ok=True)
     with open(REPORT, "w") as fh:
         json.dump(report, fh, indent=2)

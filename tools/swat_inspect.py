@@ -42,7 +42,7 @@ import pandas as pd
 
 # The 20 points of this project's twin (docs/interfaces.py) - SWaT tag names.
 OUR_TAGS = ["MV101", "P101", "LIT101", "FIT101", "P203", "P205", "AIT202", "FIT201",
-            "MV302", "P302", "LIT301", "DPIT301", "P401", "UV401", "LIT401", "AIT402",
+            "MV302", "P302", "LIT301", "DPIT301", "P402", "UV401", "LIT401", "AIT402",
             "P501", "MV503", "PIT501", "FIT501"]
 
 TAG_RE = re.compile(r"\b([A-Za-z]{1,5})\s*-?\s*(\d{3})\b")

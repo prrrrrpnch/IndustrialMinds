@@ -109,7 +109,8 @@ class MultiModelPipeline:
         if self.enforce_cyber_model and cyber_rule.get("pass") and cyber_ml.get("threat_flag"):
             gate_cyber = dict(cyber_rule, **{
                 "pass": False,
-                "reason": f"ML_ANOMALY:score={cyber_ml.get('anomaly_score')}>thr={cyber_ml.get('threshold'):.3f}",
+                "reason": (f"ML_ANOMALY:{'+'.join(cyber_ml.get('flagged_by') or ['model'])} "
+                           f"score={cyber_ml.get('anomaly_score')} p={cyber_ml.get('attack_probability')}"),
             })
 
         if command_label is not None:

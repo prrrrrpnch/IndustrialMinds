@@ -62,6 +62,8 @@ Reference files are listed by path below; none are auto-loaded.
   Segment 22 (35,900 rows, ~10 h) is 66% of all attack rows: always evaluate PER SEGMENT, split by calendar time blocks, never random rows. PIT502/AIT202 drift by day (leakage tell).
   SWaT actuators are discrete (pumps 1/2, valves 0/1/2); P401/P404/P502/P601/P603 constant, P402/P501/UV401 ~always on. MV503 does not exist in SWaT.
 - Phases 5-7 need the data on the machine that RUNS training: run the session locally (recommended) or have the user run `--candidate` training and paste reports.
+- Cyber ML = actuator STATE-CHANGE events (1/2 -> 0/100 %); it abstains on writes that don't flip on/off. Old 13-feature weights in models/weights are refused (schema mismatch -> NO_MODEL) until the SWaT candidate is promoted.
+- Guard hook only fires on EXECUTING a training script (python ... train*), not on reads; avoid heredocs whose text mentions weights paths / training commands (false positives) - write scripts with the Write tool.
 - `docs/wireshark_setup.md` is currently an empty file (filled in Phase 10).
 
 ## File index (open only when relevant)
@@ -80,8 +82,13 @@ Reference files are listed by path below; none are auto-loaded.
 | `middleware/physical_agent.py` | rule checks: bounds, rate-of-change, cross-register, feedback |
 | `middleware/orchestrator.py` | fusion of verdicts (currently AND-gate) + dashboard forwarding |
 | `pipeline/multi_model_pipeline.py` | concurrent cyber/physical branches (rules + models) |
-| `models/cyber_model.py`, `models/physical_model.py` | Isolation Forest (13 features) / RF health+RUL |
-| `models/train_models.py`, `models/telemetry_generator.py` | training (currently synthetic) |
+| `models/cyber_model.py` | SWaT-trained CyberModel: Isolation Forest + supervised head over 8 actuator-event features (abstains on non-flip commands) |
+| `models/physical_model.py` | RF health+RUL (synthetic until P6) |
+| `models/train_cyber_swat.py` | Phase 5 trainer (`--data-dir <archive> --candidate`, or `--fixture`); writes models/candidates/ + report + provenance |
+| `models/promote_candidate.py` | copy an approved candidate into models/weights/ (refuses without `confirm.py retrain <model>`) |
+| `swat/loader.py`, `swat/cyber_events.py` | chronological de-duplicated SWaT stream + segments + calendar blocks / actuator events + THE feature implementation shared by training and live |
+| `tests/test_swat_cyber.py`, `tests/swat_fixture.py` | Phase 5 checks on a synthetic SWaT-SHAPED fixture (code paths only, never real metrics) |
+| `models/train_models.py`, `models/telemetry_generator.py` | PHYSICAL model synthetic training only (cyber training removed; replaced in P6) |
 | `models/tree_inference.py` | packed fast tree inference |
 | `models/weights/` | trained artifacts + `training_report.json` (guarded) |
 | `plc/plc.py` | PLC: Modbus server around the twin (actuator writes -> targets; sensors read-only) |
@@ -98,7 +105,7 @@ Reference files are listed by path below; none are auto-loaded.
 ## PART 0 tracker (update at the end of each phase)
 | # | Issue | Closed by | Status |
 |---|---|---|---|
-| 1 | Models trained only on synthetic data | P5, P6 (SWaT) | open |
+| 1 | Models trained only on synthetic data | P5 (cyber), P6 (physical) | cyber candidate built (pending gate + real-data run); physical open |
 | 2 | Guessed physical bounds | P6 (P3 only installs SWaT-style PLACEHOLDERS) | open |
 | 3 | Hardcoded 127.0.0.1 | P2 | CLOSED (docs/netconfig.py; env+CLI; grep clean) |
 | 4 | Orchestrator is AND-gate | P7 | open |
