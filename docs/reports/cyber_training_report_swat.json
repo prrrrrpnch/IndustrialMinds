@@ -1,0 +1,531 @@
+{
+  "fixture_not_real_results": false,
+  "generated": "2026-10-14 22:35:36",
+  "seconds": 11.5,
+  "environment": {
+    "python": "3.14.4",
+    "platform": "Windows-11-10.0.26300-SP0",
+    "numpy": "2.4.3",
+    "pandas": "3.0.5",
+    "sklearn": "1.8.0"
+  },
+  "data": {
+    "files": {
+      "normal.csv": {
+        "rows": 1387098,
+        "attack_rows": 0
+      },
+      "attack.csv": {
+        "rows": 54621,
+        "attack_rows": 54621
+      }
+    },
+    "rows_read": 1441719,
+    "rows": 946719,
+    "duplicate_timestamps_dropped": 495000,
+    "duplicates_exact": 495000,
+    "duplicates_conflicting": 0,
+    "chunks": 2,
+    "n_segments": 35,
+    "segments_crossing_midnight": 0,
+    "blocks": {
+      "train": {
+        "rows": 633600,
+        "attack_rows": 8682,
+        "segments": 17
+      },
+      "val": {
+        "rows": 172719,
+        "attack_rows": 40634,
+        "segments": 8
+      },
+      "test": {
+        "rows": 140400,
+        "attack_rows": 5305,
+        "segments": 10
+      }
+    },
+    "nan_share": {
+      "MV101": 0.5248
+    }
+  },
+  "events": {
+    "total": 3666,
+    "attack": 151,
+    "by_actuator": {
+      "MV101": 240,
+      "MV302": 914,
+      "P101": 504,
+      "P203": 504,
+      "P205": 546,
+      "P302": 917,
+      "P402": 17,
+      "P501": 11,
+      "UV401": 13
+    },
+    "by_block": {
+      "train": {
+        "events": 2377,
+        "attack_events": 79
+      },
+      "val": {
+        "events": 609,
+        "attack_events": 42
+      },
+      "test": {
+        "events": 680,
+        "attack_events": 30
+      }
+    }
+  },
+  "thresholds": {
+    "isolation_forest": 0.6762754631713558,
+    "classifier": 0.4240789336286453,
+    "classifier_note": "max validation F1 = 0.225"
+  },
+  "results": {
+    "train": {
+      "isolation_forest": {
+        "tn": 2286,
+        "fp": 12,
+        "fn": 67,
+        "tp": 12,
+        "precision": 0.5,
+        "recall": 0.1518987341772152,
+        "f1": 0.23300970873786409,
+        "n": 2377,
+        "attack_events": 79,
+        "roc_auc": 0.7154046997389033,
+        "average_precision": 0.2307830642818608
+      },
+      "classifier": {
+        "tn": 1908,
+        "fp": 390,
+        "fn": 14,
+        "tp": 65,
+        "precision": 0.14285714285714285,
+        "recall": 0.8227848101265823,
+        "f1": 0.2434456928838951,
+        "n": 2377,
+        "attack_events": 79,
+        "roc_auc": 0.9170357272697227,
+        "average_precision": 0.5135834272322027
+      },
+      "combined_either": {
+        "tn": 1901,
+        "fp": 397,
+        "fn": 14,
+        "tp": 65,
+        "precision": 0.1406926406926407,
+        "recall": 0.8227848101265823,
+        "f1": 0.2402957486136784,
+        "n": 2377,
+        "attack_events": 79
+      },
+      "baseline_flag_everything": {
+        "tn": 0,
+        "fp": 2298,
+        "fn": 0,
+        "tp": 79,
+        "precision": 0.03323517038283551,
+        "recall": 1.0,
+        "f1": 0.06433224755700326,
+        "n": 2377,
+        "attack_events": 79
+      },
+      "baseline_flag_nothing": {
+        "tn": 2298,
+        "fp": 0,
+        "fn": 79,
+        "tp": 0,
+        "precision": null,
+        "recall": 0.0,
+        "f1": null,
+        "n": 2377,
+        "attack_events": 79
+      }
+    },
+    "val": {
+      "isolation_forest": {
+        "tn": 564,
+        "fp": 3,
+        "fn": 38,
+        "tp": 4,
+        "precision": 0.5714285714285714,
+        "recall": 0.09523809523809523,
+        "f1": 0.16326530612244897,
+        "n": 609,
+        "attack_events": 42,
+        "roc_auc": 0.6441169060216679,
+        "average_precision": 0.22840803129565113
+      },
+      "classifier": {
+        "tn": 459,
+        "fp": 108,
+        "fn": 23,
+        "tp": 19,
+        "precision": 0.14960629921259844,
+        "recall": 0.4523809523809524,
+        "f1": 0.22485207100591717,
+        "n": 609,
+        "attack_events": 42,
+        "roc_auc": 0.6358654572940289,
+        "average_precision": 0.2167127028501534
+      },
+      "combined_either": {
+        "tn": 456,
+        "fp": 111,
+        "fn": 23,
+        "tp": 19,
+        "precision": 0.14615384615384616,
+        "recall": 0.4523809523809524,
+        "f1": 0.22093023255813954,
+        "n": 609,
+        "attack_events": 42
+      },
+      "baseline_flag_everything": {
+        "tn": 0,
+        "fp": 567,
+        "fn": 0,
+        "tp": 42,
+        "precision": 0.06896551724137931,
+        "recall": 1.0,
+        "f1": 0.12903225806451613,
+        "n": 609,
+        "attack_events": 42
+      },
+      "baseline_flag_nothing": {
+        "tn": 567,
+        "fp": 0,
+        "fn": 42,
+        "tp": 0,
+        "precision": null,
+        "recall": 0.0,
+        "f1": null,
+        "n": 609,
+        "attack_events": 42
+      }
+    },
+    "test": {
+      "isolation_forest": {
+        "tn": 649,
+        "fp": 1,
+        "fn": 29,
+        "tp": 1,
+        "precision": 0.5,
+        "recall": 0.03333333333333333,
+        "f1": 0.0625,
+        "n": 680,
+        "attack_events": 30,
+        "roc_auc": 0.5688974358974359,
+        "average_precision": 0.08377038558545957
+      },
+      "classifier": {
+        "tn": 517,
+        "fp": 133,
+        "fn": 19,
+        "tp": 11,
+        "precision": 0.0763888888888889,
+        "recall": 0.36666666666666664,
+        "f1": 0.12643678160919541,
+        "n": 680,
+        "attack_events": 30,
+        "roc_auc": 0.6307435897435898,
+        "average_precision": 0.09513796542268797
+      },
+      "combined_either": {
+        "tn": 517,
+        "fp": 133,
+        "fn": 18,
+        "tp": 12,
+        "precision": 0.08275862068965517,
+        "recall": 0.4,
+        "f1": 0.13714285714285715,
+        "n": 680,
+        "attack_events": 30
+      },
+      "baseline_flag_everything": {
+        "tn": 0,
+        "fp": 650,
+        "fn": 0,
+        "tp": 30,
+        "precision": 0.04411764705882353,
+        "recall": 1.0,
+        "f1": 0.08450704225352113,
+        "n": 680,
+        "attack_events": 30
+      },
+      "baseline_flag_nothing": {
+        "tn": 650,
+        "fp": 0,
+        "fn": 30,
+        "tp": 0,
+        "precision": null,
+        "recall": 0.0,
+        "f1": null,
+        "n": 680,
+        "attack_events": 30
+      }
+    }
+  },
+  "segments": {
+    "val": [
+      {
+        "segment": 18,
+        "start": "2015-12-30 01:42:34",
+        "rows": 697,
+        "events": 4,
+        "flagged": 3,
+        "detected": true,
+        "has_events": true
+      },
+      {
+        "segment": 19,
+        "start": "2015-12-30 09:51:08",
+        "rows": 321,
+        "events": 5,
+        "flagged": 1,
+        "detected": true,
+        "has_events": true
+      },
+      {
+        "segment": 20,
+        "start": "2015-12-30 10:01:50",
+        "rows": 612,
+        "events": 2,
+        "flagged": 1,
+        "detected": true,
+        "has_events": true
+      },
+      {
+        "segment": 21,
+        "start": "2015-12-30 17:04:56",
+        "rows": 1445,
+        "events": 8,
+        "flagged": 2,
+        "detected": true,
+        "has_events": true
+      },
+      {
+        "segment": 22,
+        "start": "2015-12-31 01:17:08",
+        "rows": 35900,
+        "events": 16,
+        "flagged": 11,
+        "detected": true,
+        "has_events": true
+      },
+      {
+        "segment": 23,
+        "start": "2015-12-31 15:32:00",
+        "rows": 121,
+        "events": 0,
+        "flagged": 0,
+        "detected": false,
+        "has_events": false
+      },
+      {
+        "segment": 24,
+        "start": "2015-12-31 15:47:40",
+        "rows": 1171,
+        "events": 4,
+        "flagged": 1,
+        "detected": true,
+        "has_events": true
+      },
+      {
+        "segment": 25,
+        "start": "2015-12-31 22:05:34",
+        "rows": 367,
+        "events": 3,
+        "flagged": 0,
+        "detected": false,
+        "has_events": true
+      }
+    ],
+    "test": [
+      {
+        "segment": 26,
+        "start": "2016-01-01 10:36:00",
+        "rows": 601,
+        "events": 3,
+        "flagged": 0,
+        "detected": false,
+        "has_events": true
+      },
+      {
+        "segment": 27,
+        "start": "2016-01-01 14:21:12",
+        "rows": 444,
+        "events": 5,
+        "flagged": 3,
+        "detected": true,
+        "has_events": true
+      },
+      {
+        "segment": 28,
+        "start": "2016-01-01 17:12:40",
+        "rows": 101,
+        "events": 1,
+        "flagged": 0,
+        "detected": false,
+        "has_events": true
+      },
+      {
+        "segment": 29,
+        "start": "2016-01-01 17:18:56",
+        "rows": 481,
+        "events": 5,
+        "flagged": 1,
+        "detected": true,
+        "has_events": true
+      },
+      {
+        "segment": 30,
+        "start": "2016-01-01 22:16:01",
+        "rows": 540,
+        "events": 1,
+        "flagged": 1,
+        "detected": true,
+        "has_events": true
+      },
+      {
+        "segment": 31,
+        "start": "2016-01-02 11:17:02",
+        "rows": 469,
+        "events": 8,
+        "flagged": 4,
+        "detected": true,
+        "has_events": true
+      },
+      {
+        "segment": 32,
+        "start": "2016-01-02 11:31:38",
+        "rows": 281,
+        "events": 2,
+        "flagged": 0,
+        "detected": false,
+        "has_events": true
+      },
+      {
+        "segment": 33,
+        "start": "2016-01-02 11:43:48",
+        "rows": 401,
+        "events": 1,
+        "flagged": 0,
+        "detected": false,
+        "has_events": true
+      },
+      {
+        "segment": 34,
+        "start": "2016-01-02 11:51:42",
+        "rows": 297,
+        "events": 2,
+        "flagged": 1,
+        "detected": true,
+        "has_events": true
+      },
+      {
+        "segment": 35,
+        "start": "2016-01-02 13:13:02",
+        "rows": 1690,
+        "events": 2,
+        "flagged": 2,
+        "detected": true,
+        "has_events": true
+      }
+    ]
+  },
+  "test_false_alarms": {
+    "normal_events_flagged": 133,
+    "normal_hours": 37.53,
+    "per_normal_hour": 3.544
+  },
+  "provenance": [
+    {
+      "feature": "turns_on",
+      "source": "actuator state column: 1->2 (on/open) vs 2->1 (off/closed)",
+      "status": "derived"
+    },
+    {
+      "feature": "stage",
+      "source": "tag digit of the actuator column (P1..P5)",
+      "status": "derived"
+    },
+    {
+      "feature": "is_valve",
+      "source": "tag prefix MV",
+      "status": "derived"
+    },
+    {
+      "feature": "log_dt_same_ms",
+      "source": "Timestamp deltas between changes of the same actuator column (1 s resolution)",
+      "status": "derived"
+    },
+    {
+      "feature": "log_dt_any_ms",
+      "source": "Timestamp deltas between changes of any twin actuator column",
+      "status": "derived"
+    },
+    {
+      "feature": "events_1s",
+      "source": "count of actuator changes in the preceding 1 s",
+      "status": "derived"
+    },
+    {
+      "feature": "events_10s",
+      "source": "count of actuator changes in the preceding 10 s",
+      "status": "derived"
+    },
+    {
+      "feature": "same_reg_60s",
+      "source": "count of changes of the same actuator in the preceding 60 s",
+      "status": "derived"
+    }
+  ],
+  "dropped": [
+    {
+      "feature": "fc_write_single / fc_write_multiple / fc_other",
+      "reason": "no Modbus function codes in SWaT (no network data)",
+      "status": "dropped"
+    },
+    {
+      "feature": "register_known",
+      "reason": "constant 1 by construction (only known actuators are events)",
+      "status": "dropped (no variance)"
+    },
+    {
+      "feature": "value_norm",
+      "reason": "replaced by turns_on: SWaT actuators are binary",
+      "status": "dropped (redundant)"
+    },
+    {
+      "feature": "out_of_range",
+      "reason": "constant 0: SWaT states are always in range",
+      "status": "dropped (no variance)"
+    },
+    {
+      "feature": "delta_norm",
+      "reason": "constant 1 after quantising to on/off",
+      "status": "dropped (no variance)"
+    },
+    {
+      "feature": "signature_present / signature_age",
+      "reason": "SWaT has no HMAC signatures - rule-based check only, NOT validated on SWaT",
+      "status": "dropped"
+    },
+    {
+      "feature": "requests_last_1s / 10s (per source)",
+      "reason": "SWaT has no source addresses; replaced by global event counts",
+      "status": "replaced"
+    },
+    {
+      "feature": "same_payload_recent",
+      "reason": "a repeated write with no state change is not an event in SWaT",
+      "status": "dropped (no variance)"
+    }
+  ],
+  "seeds": {
+    "model": 42
+  }
+}
