@@ -101,6 +101,7 @@ Reference files are listed by path below; none are auto-loaded.
 | `tests/test_swat_physical.py` | Phase 6 checks on the synthetic fixture (code paths, live==training scores) |
 | `docs/reports/cyber_training_report_swat.md/.json` | REAL SWaT held-out results of the cyber candidate (aggregate only): weak - test ROC-AUC 0.63, F1 0.137 |
 | `models/train_cyber_swat.py` | Phase 5 trainer (`--data-dir <archive> --candidate`, or `--fixture`); writes models/candidates/ + report + provenance |
+| `swat/fusion_scenarios.py`, `models/train_fusion_swat.py` | Phase 7 fusion: ground-truth-labelled scenario set (real SWaT physical rows + constructed cyber-rule failures), cross-fitted train-block physical outputs; `--candidate` trains HistGradientBoosting, threshold by false-alarm budget on val, test once; candidate only |
 | `models/promote_candidate.py` | copy an approved candidate into models/weights/ (refuses without `confirm.py retrain <model>`) |
 | `swat/loader.py`, `swat/cyber_events.py` | chronological de-duplicated SWaT stream + segments + calendar blocks / actuator events + THE feature implementation shared by training and live |
 | `tests/test_swat_cyber.py`, `tests/swat_fixture.py` | Phase 5 checks on a synthetic SWaT-SHAPED fixture (code paths only, never real metrics) |

@@ -12,7 +12,7 @@ import tempfile
 import numpy as np
 
 from models.physical_model import PhysicalModel
-from swat.fusion_scenarios import CLASSES, RULE_REASONS, and_gate, build_scenarios, four_branch, naive_lookup, sample_rows
+from swat.fusion_scenarios import cross_fit_observations, fold_ids, CLASSES, RULE_REASONS, and_gate, build_scenarios, four_branch, naive_lookup, sample_rows
 from swat.loader import load_stream
 from swat.physical_features import ACTUATORS, SENSORS
 from tests.swat_fixture import make_swat_archive
@@ -58,6 +58,23 @@ check("the AND-gate has no ALERT class", set(and_gate(df)) <= {"PASS", "DROP"})
 s = sample_rows(df, 20)
 check("the sample shows every kind of row (>= 5 kinds) and at most 20 rows", s.kind.nunique() >= 5 and len(s) <= 20, f"{len(s)} rows, {s.kind.nunique()} kinds")
 check("no raw SWaT sensor columns leak into the scenario rows", not any(c in df.columns for c in SENSORS))
+
+print("\nCROSS-FITTING (fixture)")
+from swat.physical_features import build_windows
+Xw, mw = build_windows(stream, model.norm, stride=5)
+fo = fold_ids(mw.reset_index(drop=True), 4)
+lab = mw["label"].to_numpy().astype(bool)
+segs, hrs = mw["seg"].to_numpy(), (mw["epoch"].to_numpy() // 3600)
+check("every attack segment lies in exactly one fold",
+      all(len(set(fo[lab & (segs == s_)])) == 1 for s_ in set(segs[lab])))
+check("every benign hour lies in exactly one fold", all(len(set(fo[~lab & (hrs == h)])) == 1 for h in set(hrs[~lab])))
+oof = cross_fit_observations(Xw, mw.reset_index(drop=True), model, k=4, seed=7)
+trm = (mw["block"].to_numpy() == "train")
+check("non-train rows are left NaN (they keep promoted-model outputs)", bool(oof.loc[~trm, "phys_if_score"].isna().all()))
+check("train rows get out-of-fold outputs that differ from the in-sample promoted model",
+      bool(oof.loc[trm, "phys_p_attack"].notna().any()) and not np.allclose(oof.loc[trm, "phys_p_attack"].dropna(), model.attack_probability(Xw[trm])[oof.loc[trm, "phys_p_attack"].notna().to_numpy()]))
+dfc = build_scenarios(stream, model, seed=7, cross_fit=True)
+check("cross-fit scenario set keeps the same rows and labels", len(dfc) == len(df) and (dfc.decision.to_numpy() == df.decision.to_numpy()).all())
 
 print("\nALL PASS" if fails == 0 else f"\n{fails} CHECK(S) FAILED")
 raise SystemExit(1 if fails else 0)
