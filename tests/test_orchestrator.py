@@ -41,3 +41,17 @@ print("6. Upstream, physical fails:", orchestrator.decide(None, physical_bad6, t
 # 7. Check the log has all 6 entries
 print("7. Log length:", len(orchestrator.get_log()))
 # EXPECTED: 6
+
+# 7-10. Rule-based four-branch fusion with the advisory physical model
+adv_flag = {"threat_flag": True, "flagged_by": ["classifier"]}
+adv_ok = {"threat_flag": False, "flagged_by": []}
+c_ok, p_ok = make_verdict("tx7", True, "OK", "cyber"), make_verdict("tx7", True, "OK", "physical")
+d7 = orchestrator.decide(c_ok, p_ok, time.time(), physical_advisory=adv_flag)
+assert d7["verdict"] == "ALERT" and d7["reason"] == "PHYSICAL_MODEL:classifier", d7
+d8 = orchestrator.decide(c_ok, p_ok, time.time(), physical_advisory=adv_ok)
+assert d8["verdict"] == "PASS", d8
+d9 = orchestrator.decide(make_verdict("tx9", False, "HMAC_INVALID", "cyber"), p_ok, time.time(), physical_advisory=adv_flag)
+assert d9["verdict"] == "DROP" and d9["reason"] == "HMAC_INVALID", d9      # cyber fail wins over an advisory flag
+d10 = orchestrator.decide(c_ok, make_verdict("tx10", False, "PHYSICS_VIOLATION", "physical"), time.time(), physical_advisory=adv_flag)
+assert d10["verdict"] == "DROP" and d10["reason"] == "PHYSICS_VIOLATION", d10
+print("7-10. four-branch fusion (ALERT / PASS / DROP precedence): OK")

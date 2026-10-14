@@ -209,7 +209,7 @@ def make_decision(tx_id: str, verdict: str, reason: str, latency_ms: float,
                   direction: str) -> Dict[str, Any]:
     return {
         "tx_id": tx_id,
-        "verdict": verdict,      # "PASS" or "DROP"
+        "verdict": verdict,      # "PASS", "ALERT" (forwarded, advisory flag) or "DROP"
         "reason": reason,
         "latency_ms": latency_ms,
         "direction": direction,  # "downstream" or "upstream"

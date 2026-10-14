@@ -192,6 +192,8 @@ def add_scada_event(event: Dict[str, Any]) -> None:
         if verdict == "PASS":
             _metrics["pass"] += 1
 
+        elif verdict == "ALERT":
+            _metrics["pass"] += 1          # forwarded to the PLC (advisory flag); shown in the event table
         elif verdict == "DROP":
             _metrics["drop"] += 1
 
