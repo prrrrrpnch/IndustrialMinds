@@ -12,7 +12,7 @@ import tempfile
 
 os.environ.setdefault("IM_LOG_DIR", tempfile.mkdtemp(prefix="im-bench-"))
 
-from benchmark import latency, render, rules_accuracy, swat_accuracy  # noqa: E402
+from benchmark import latency, plots, render, rules_accuracy, swat_accuracy  # noqa: E402
 from benchmark.env import ROOT  # noqa: E402
 
 fails = 0
@@ -77,6 +77,11 @@ if os.path.exists(latest):
     report = open(os.path.join(ROOT, "docs", "reports", "benchmark_report.md")).read()
     check("README benchmark block equals the rendering of latest.json", render.render_readme_block(res) in readme)
     check("benchmark_report.md equals the rendering of latest.json", report == render.render_markdown(res))
+    figs = plots.figure_names(res)
+    check("every figure the documents embed exists as a non-empty PNG after run_all/--render-only",
+          all(os.path.getsize(os.path.join(ROOT, plots.FIG_DIR_REL, f)) > 5000 for f in figs), str(figs))
+    check("the report embeds each figure and shows the SWaT confusion counts as a table",
+          all(f"figures/{f}" in report for f in figs) and "(TN)" in report and f"{res['swat']['advisory_model_flag']['tp']:,}" in report)
     nr = dict(res, swat={"status": "NOT RUN: test"})
     check("a missing SWaT section is rendered as NOT RUN and quotes no SWaT number",
           "NOT RUN" in render.render_markdown(nr) and "ROC-AUC (attack probability)" not in render.render_markdown(nr))

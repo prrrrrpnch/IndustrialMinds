@@ -28,6 +28,8 @@ Measured on Linux-6.18.44-fc-v114-x86_64-with-glibc2.39, Python 3.13.16, 4 CPUs,
 | Both branches (concurrent, wall time) | 0.5118 | 0.2900 | 1.2814 | 1.6259 |
 | TOTAL per command | 0.5949 | 0.3711 | 1.3928 | 1.7987 |
 
+![Per-hop latency](figures/latency_per_hop.png)
+
 Spread of the total across repeats: mean 0.5899-0.6006 ms, p95 1.3793-1.4116 ms. The two branches overlap, so hops do not sum to the total.
 
 Live Modbus round trip of a signed write to a running middleware (300 writes): mean 3.9392 ms, p95 5.9084 ms, p99 7.4785 ms.
@@ -45,6 +47,16 @@ Test block: 28,075 windows (stride 5 s): 1,060 attack, 27,015 benign (37.521 ben
 | Advisory model flag (drives ALERT) | 0.366 | 0.263 | 0.306 | 0.018 | 1.786 |
 | Envelope rule alone (alert-only) | 0.273 | 0.216 | 0.241 | 0.022 | 0.853 |
 | Model flag or envelope | 0.274 | 0.271 | 0.272 | 0.028 | 1.999 |
+
+Confusion counts (windows; rows = true label, columns = prediction):
+
+| Decision rule | benign, no flag (TN) | benign, flagged (FP) | attack, no flag (FN) | attack, flagged (TP) |
+|---|---|---|---|---|
+| Advisory model flag | 26,532 | 483 | 781 | 279 |
+| Envelope rule alone | 26,406 | 609 | 831 | 229 |
+| Model flag or envelope | 26,254 | 761 | 773 | 287 |
+
+![Confusion matrices on the held-out SWaT test block](figures/swat_confusion_matrix.png)
 
 ROC-AUC (attack probability) **0.825**, ROC-AUC (Isolation Forest score) 0.634, average precision 0.311.
 Attack segments detected: **6/10**; median detection latency 50.0 s (first flagged attack window after the segment starts).
@@ -83,6 +95,8 @@ The per-segment table is not part of this record (it was taken from the printed 
 | physical | cross-register RO_PUMP_DEADHEAD | `CROSS_REGISTER_VIOLATION:RO_PUMP_DEADHEAD` | 200/200 (100.0%) |
 | physical | cross-register RO_FEED_STARVATION | `CROSS_REGISTER_VIOLATION:RO_FEED_STARVATION` | 200/200 (100.0%) |
 
+![Rule-based checks](figures/rule_checks.png)
+
 Legitimate-command false-positive rate: **0.0%**. Violating scenarios detected with the expected reason: **4400/4400**.
 
 **Randomised attacker plans through the rule agents** (Randomised ATTACKER PLANS through the RULE agents (constructed; swat-derived types follow SWaT behaviours, synthetic-extension types are network-layer constructions; physical ML model cold)). 100 runs per type, seed 11.
@@ -95,6 +109,8 @@ Legitimate-command false-positive rate: **0.0%**. Violating scenarios detected w
 | impossible-command | synthetic-extension | 100/100 (100.0%) | OUT_OF_BOUNDS 215 |
 | flood | synthetic-extension | 100/100 (100.0%) | RATE_LIMIT_EXCEEDED 2088, REPLAY_DETECTED 12, RATE_OF_CHANGE_EXCEEDED 9 |
 | replay | synthetic-extension | 100/100 (100.0%) | REPLAY_DETECTED 327 |
+
+![Attacker plans through the rules](figures/attacker_plans.png)
 
 The stealthy SWaT-derived behaviours (`freeze`, `ramp`) are mostly in-bounds and slow, so the rules alone do not stop them (a frozen value re-sent within 2 s is caught only by the duplicate-payload replay check). They are what the advisory physical model is for.
 
@@ -112,6 +128,8 @@ The stealthy SWaT-derived behaviours (`freeze`, `ramp`) are mostly in-bounds and
 | chlorine_breakthrough (NaOCl max, UV off) | 8 | 8 |
 | ro_deadhead (RO pump max, reject valve shut) | 1 | 1 |
 | uf_valve_shut (UF feed valve closes) | 4 | 16 |
+
+![Twin detection latency](figures/twin_detection_latency.png)
 
 This measures the demonstration plant only. It says nothing about SWaT detection performance.
 
