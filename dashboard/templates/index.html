@@ -1,0 +1,534 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+
+    <meta charset="UTF-8">
+
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+
+    <title>
+        Industrial Mind — Security Operations Dashboard
+    </title>
+
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+
+    <link
+        href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=JetBrains+Mono:wght@400;600&display=swap"
+        rel="stylesheet">
+
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+
+    <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js"></script>
+
+    <link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}">
+
+</head>
+
+
+<body>
+
+    <div class="app-container">
+
+
+        <!-- HEADER -->
+
+        <header class="app-header">
+
+            <div class="brand">
+
+                <span class="brand-title">
+                    INDUSTRIAL MIND
+                </span>
+
+                <span class="brand-sub">
+                    Industrial Cybersecurity & Physical Safety Monitoring System
+                </span>
+
+            </div>
+
+
+            <div class="header-actions">
+
+                <div class="status-indicator">
+
+                    <span class="status-dot"></span>
+
+                    <span>
+                        System Status:
+                        <strong>ONLINE</strong>
+                    </span>
+
+                </div>
+
+
+                <div class="action-buttons">
+
+                    <button id="btn-trigger-attack" class="btn btn-danger">
+                        <i class="fa-solid fa-triangle-exclamation"></i>
+                        Attacks
+                    </button>
+
+
+                    <button id="btn-reset-data" class="btn btn-secondary">
+                        <i class="fa-solid fa-rotate"></i>
+                        Reset
+                    </button>
+
+                </div>
+
+            </div>
+
+        </header>
+
+
+        <!-- ATTACK PANEL -->
+
+        <section id="attack-panel" class="card" style="display:none; margin-bottom:20px;">
+
+            <div class="card-header">
+
+                <h2>
+                    <i class="fa-solid fa-skull-crossbones title-icon"></i>
+                    Attack Simulation
+                </h2>
+
+            </div>
+
+
+            <div class="action-buttons">
+
+                <button class="btn btn-danger" onclick="triggerAttack('flood')">
+                    Flood
+                </button>
+
+                <button class="btn btn-danger" onclick="triggerAttack('impossible-command')">
+                    Impossible Command
+                </button>
+
+                <button class="btn btn-danger" onclick="triggerAttack('replay')">
+                    Replay
+                </button>
+
+                <button class="btn btn-danger" onclick="triggerAttack('false-injection')">
+                    False Injection
+                </button>
+
+                <button class="btn btn-danger" onclick="triggerAttack('cross-register')">
+                    Cross-Register
+                </button>
+
+                <button class="btn btn-danger" onclick="triggerAttack('hmac-missing')">
+                    HMAC Missing
+                </button>
+
+                <button class="btn btn-danger" onclick="triggerAttack('hmac-tamper')">
+                    HMAC Tamper
+                </button>
+
+                <button class="btn btn-danger" onclick="triggerAttack('hmac-forged')">
+                    HMAC Forged
+                </button>
+
+                <button class="btn btn-danger" onclick="triggerAttack('delayed-replay')">
+                    Delayed Replay
+                </button>
+
+                <input id="attack-source-ip" class="filter-input" type="text"
+                    placeholder="Attack from source IP (optional, e.g. 127.0.0.2)"
+                    title="Local address the attacker socket binds to. The middleware records the real connection address.">
+
+            </div>
+
+        </section>
+
+
+        <!-- KPI -->
+
+        <section class="summary-cards">
+
+            <div class="card summary-card">
+
+                <span class="card-label">
+                    TOTAL COMMANDS
+                </span>
+
+                <span class="card-value" id="kpi-total">
+                    0
+                </span>
+
+                <span class="card-sub">
+                    SCADA → PLC Traffic
+                </span>
+
+            </div>
+
+
+            <div class="card summary-card pass">
+
+                <span class="card-label">
+                    PASS
+                </span>
+
+                <span class="card-value pass-text" id="kpi-pass">
+                    0
+                </span>
+
+                <span class="card-sub">
+                    Approved & Verified
+                </span>
+
+            </div>
+
+
+            <div class="card summary-card drop">
+
+                <span class="card-label">
+                    DROP
+                </span>
+
+                <span class="card-value drop-text" id="kpi-drop">
+                    0
+                </span>
+
+                <span class="card-sub">
+                    Blocked / Threats Dropped
+                </span>
+
+            </div>
+
+        </section>
+
+
+        <!-- COMMUNICATION -->
+
+        <section class="activity-dual-grid">
+
+
+            <!-- SCADA → PLC -->
+
+            <div class="card activity-card">
+
+                <div class="card-header">
+
+                    <h2>
+                        <i class="fa-solid fa-arrow-right title-icon"></i>
+
+                        SCADA ➔ PLC SECURITY ACTIVITY
+                    </h2>
+
+                    <span class="badge-tag">
+                        Outbound Commands
+                    </span>
+
+                </div>
+
+
+                <div class="table-wrapper">
+
+                    <table class="data-table">
+
+                        <thead>
+
+                            <tr>
+
+                                <th>TIME</th>
+                                <th>TRANSACTION ID</th>
+                                <th>COMMAND</th>
+                                <th>VERDICT</th>
+                                <th>REASON / EXPLANATION</th>
+                                <th>LATENCY</th>
+
+                            </tr>
+
+                        </thead>
+
+
+                        <tbody id="tbody-scada-plc">
+
+                        </tbody>
+
+                    </table>
+
+                </div>
+
+            </div>
+
+
+
+            <!-- PLC → SCADA -->
+
+            <div class="card activity-card">
+
+                <div class="card-header">
+
+                    <h2>
+                        <i class="fa-solid fa-arrow-left title-icon"></i>
+
+                        PLC ➔ SCADA SECURITY ACTIVITY
+                    </h2>
+
+                    <span class="badge-tag">
+                        Actual Responses / Telemetry
+                    </span>
+
+                </div>
+
+
+                <div class="table-wrapper">
+
+                    <table class="data-table">
+
+                        <thead>
+
+                            <tr>
+
+                                <th>TIME</th>
+                                <th>TRANSACTION ID</th>
+                                <th>STATUS / RESPONSE</th>
+                                <th>VERDICT</th>
+                                <th>REASON / EXPLANATION</th>
+                                <th>LATENCY</th>
+
+                            </tr>
+
+                        </thead>
+
+
+                        <tbody id="tbody-plc-scada">
+
+                        </tbody>
+
+                    </table>
+
+                </div>
+
+            </div>
+
+        </section>
+
+
+
+        <!-- TELEMETRY -->
+
+        <div class="bottom-grid">
+
+
+            <section class="card telemetry-card">
+
+                <div class="card-header">
+
+                    <h2>
+                        Live PLC Telemetry
+                    </h2>
+
+                </div>
+
+
+                <div class="telemetry-list">
+
+                    {% for m in machines %}
+                    {% set u = '°' if m.unit == 'deg' else ('°C' if m.unit == 'C' else ' ' ~ m.unit) %}
+
+                    <div class="telemetry-item">
+
+                        <div class="telemetry-header">
+
+                            <span>
+                                {{ m.label }}
+                            </span>
+
+                            <span class="telemetry-val" id="val-{{ m.name }}">
+                                {{ m.initial }}{{ u }}
+                            </span>
+
+                        </div>
+
+
+                        <div class="progress-bar">
+
+                            <div class="progress-fill {{ m.bar_class }}" id="bar-{{ m.name }}" style="width:{{ (m.initial - m.min) / (m.max - m.min) * 100 }}%;"></div>
+
+                        </div>
+
+
+                        <span class="range-info">
+                            {{ m.machine }} · Safe range: {{ m.min }} – {{ m.max }}{{ u }}
+                        </span>
+
+                    </div>
+
+                    {% endfor %}
+
+                </div>
+
+            </section>
+
+
+
+            <!-- CPU -->
+
+            <section class="card cpu-card">
+
+                <div class="card-header">
+
+                    <h2>
+                        PLC CPU Load Over Time
+                    </h2>
+
+                    <span class="cpu-stat">
+
+                        Current Load:
+
+                        <strong id="val-cpu-load">
+                            0%
+                        </strong>
+
+                    </span>
+
+                </div>
+
+
+                <div class="chart-wrapper">
+
+                    <canvas id="cpuLoadChart"></canvas>
+
+                </div>
+
+            </section>
+
+        </div>
+
+
+        <!-- BLOCKED IPS / BLOCKED SOURCES (from logs/blocked_attacks.jsonl) -->
+
+        <section class="card blocked-card" id="blocked-section">
+
+            <div class="card-header">
+
+                <h2>
+                    <i class="fa-solid fa-ban title-icon"></i>
+                    Blocked IPs / Blocked Sources
+                </h2>
+
+                <span class="badge-tag" id="blocked-log-info">
+                    logs/blocked_attacks.jsonl
+                </span>
+
+            </div>
+
+
+            <div class="blocked-filters">
+
+                <select id="filter-attack-type" class="filter-input">
+                    <option value="">All Attack Types</option>
+                </select>
+
+                <input id="filter-ip" class="filter-input" type="text" placeholder="Search IP…" autocomplete="off">
+
+                <span class="blocked-count" id="blocked-count">0 sources · 0 blocked attacks</span>
+
+            </div>
+
+
+            <div class="table-wrapper">
+
+                <table class="data-table">
+
+                    <thead>
+
+                        <tr>
+
+                            <th>BLOCKED IP</th>
+                            <th>ATTACKS</th>
+                            <th>ATTACK TYPES</th>
+                            <th>LATEST ATTACK</th>
+                            <th>LATEST MACHINE</th>
+                            <th>LATEST REASON</th>
+                            <th>LAST SEEN</th>
+
+                        </tr>
+
+                    </thead>
+
+
+                    <tbody id="tbody-blocked-ips">
+
+                    </tbody>
+
+                </table>
+
+            </div>
+
+
+            <div class="blocked-detail" id="blocked-detail" style="display:none;">
+
+                <div class="card-header">
+
+                    <h2>
+                        <i class="fa-solid fa-magnifying-glass title-icon"></i>
+                        <span id="blocked-detail-title">Source details</span>
+                    </h2>
+
+                    <button class="btn btn-secondary" id="btn-close-detail">
+                        <i class="fa-solid fa-xmark"></i>
+                        Close
+                    </button>
+
+                </div>
+
+
+                <div class="table-wrapper">
+
+                    <table class="data-table">
+
+                        <thead>
+
+                            <tr>
+
+                                <th>TIME</th>
+                                <th>TRANSACTION ID</th>
+                                <th>ATTACK TYPE</th>
+                                <th>MACHINE / REGISTER</th>
+                                <th>REQUESTED</th>
+                                <th>CURRENT</th>
+                                <th>CYBER</th>
+                                <th>PHYSICAL</th>
+                                <th>DECISION</th>
+                                <th>LATENCY</th>
+
+                            </tr>
+
+                        </thead>
+
+
+                        <tbody id="tbody-blocked-detail">
+
+                        </tbody>
+
+                    </table>
+
+                </div>
+
+
+                <div class="attack-record" id="attack-record" style="display:none;"></div>
+
+            </div>
+
+        </section>
+
+
+    </div>
+
+
+    <script>
+        window.IM_MACHINES = {{ machines | tojson }};
+    </script>
+
+    <script src="{{ url_for('static', filename='script.js') }}"></script>
+
+</body>
+
+</html>

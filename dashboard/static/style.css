@@ -1,0 +1,554 @@
+/* ==========================================================================
+   INDUSTRIAL MIND — DUAL SIDE-BY-SIDE SCADA MONITORING SYSTEM STYLES
+   ========================================================================== */
+
+:root {
+    --bg-main: #0f172a;
+    --bg-card: #1e293b;
+    --bg-card-hover: #26354a;
+    --border-color: #334155;
+
+    --text-main: #f8fafc;
+    --text-sub: #94a3b8;
+    --text-muted: #64748b;
+
+    --color-pass: #10b981;
+    --color-pass-bg: rgba(16, 185, 129, 0.12);
+    --color-drop: #f43f5e;
+    --color-drop-bg: rgba(244, 63, 94, 0.14);
+    --color-primary: #0ea5e9;
+
+    --font-main: 'Inter', system-ui, -apple-system, sans-serif;
+    --font-mono: 'JetBrains Mono', monospace;
+}
+
+* {
+    margin: 0;
+    padding: 0;
+    box-sizing: border-box;
+}
+
+body {
+    background-color: var(--bg-main);
+    color: var(--text-main);
+    font-family: var(--font-main);
+    font-size: 13px;
+    line-height: 1.5;
+    min-height: 100vh;
+    padding: 20px;
+}
+
+/* App Container */
+.app-container {
+    max-width: 1600px;
+    margin: 0 auto;
+    display: flex;
+    flex-direction: column;
+    gap: 16px;
+}
+
+/* Minimal Header */
+.app-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding: 12px 20px;
+    background-color: var(--bg-card);
+    border: 1px solid var(--border-color);
+    border-radius: 8px;
+}
+
+.brand {
+    display: flex;
+    flex-direction: column;
+}
+
+.brand-title {
+    font-weight: 700;
+    font-size: 16px;
+    letter-spacing: 0.5px;
+    color: var(--text-main);
+}
+
+.brand-sub {
+    font-size: 12px;
+    color: var(--text-sub);
+}
+
+.header-actions {
+    display: flex;
+    align-items: center;
+    gap: 16px;
+}
+
+.status-indicator {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    font-size: 13px;
+    color: var(--text-sub);
+}
+
+.status-dot {
+    width: 8px;
+    height: 8px;
+    border-radius: 50%;
+    background-color: var(--color-pass);
+}
+
+/* Common Card */
+.card {
+    background-color: var(--bg-card);
+    border: 1px solid var(--border-color);
+    border-radius: 8px;
+    padding: 14px 18px;
+}
+
+.card-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 12px;
+    padding-bottom: 8px;
+    border-bottom: 1px solid var(--border-color);
+}
+
+.card-header h2 {
+    font-size: 13px;
+    font-weight: 600;
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+    color: var(--text-main);
+    display: flex;
+    align-items: center;
+    gap: 8px;
+}
+
+.title-icon {
+    color: var(--color-primary);
+}
+
+.badge-tag {
+    font-size: 11px;
+    font-weight: 500;
+    color: var(--text-sub);
+    background: rgba(0, 0, 0, 0.25);
+    padding: 2px 8px;
+    border-radius: 4px;
+    border: 1px solid var(--border-color);
+}
+
+/* Summary Cards (3 Cards) */
+.summary-cards {
+    display: grid;
+    grid-template-columns: repeat(3, 1fr);
+    gap: 16px;
+}
+
+.summary-card {
+    display: flex;
+    flex-direction: column;
+    gap: 4px;
+}
+
+.card-label {
+    font-size: 12px;
+    font-weight: 600;
+    color: var(--text-sub);
+    text-transform: uppercase;
+}
+
+.card-value {
+    font-family: var(--font-mono);
+    font-size: 28px;
+    font-weight: 700;
+    color: var(--text-main);
+}
+
+.pass-text {
+    color: var(--color-pass);
+}
+
+.drop-text {
+    color: var(--color-drop);
+}
+
+.card-sub {
+    font-size: 12px;
+    color: var(--text-muted);
+}
+
+/* SIDE BY SIDE DUAL ACTIVITY GRID (50/50) */
+.activity-dual-grid {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 16px;
+}
+
+.activity-card {
+    display: flex;
+    flex-direction: column;
+}
+
+/* Action Buttons */
+.action-buttons {
+    display: flex;
+    gap: 8px;
+}
+
+.btn {
+    padding: 5px 12px;
+    border-radius: 4px;
+    font-size: 12px;
+    font-weight: 600;
+    cursor: pointer;
+    border: 1px solid transparent;
+    display: flex;
+    align-items: center;
+    gap: 6px;
+}
+
+.btn-danger {
+    background: var(--color-drop-bg);
+    color: var(--color-drop);
+    border-color: rgba(244, 63, 94, 0.3);
+}
+
+.btn-danger:hover {
+    background: rgba(244, 63, 94, 0.25);
+}
+
+.btn-secondary {
+    background: rgba(255, 255, 255, 0.05);
+    color: var(--text-sub);
+    border-color: var(--border-color);
+}
+
+.btn-secondary:hover {
+    color: var(--text-main);
+    background: rgba(255, 255, 255, 0.1);
+}
+
+/* Activity Table */
+.table-wrapper {
+    max-height: 380px;
+    overflow-y: auto;
+}
+
+.table-wrapper::-webkit-scrollbar {
+    width: 5px;
+}
+
+.table-wrapper::-webkit-scrollbar-thumb {
+    background: var(--border-color);
+    border-radius: 3px;
+}
+
+.data-table {
+    width: 100%;
+    border-collapse: collapse;
+    text-align: left;
+}
+
+.data-table th {
+    position: sticky;
+    top: 0;
+    background-color: var(--bg-card);
+    font-size: 11px;
+    font-weight: 600;
+    color: var(--text-sub);
+    padding: 8px 10px;
+    border-bottom: 1px solid var(--border-color);
+}
+
+.data-table td {
+    padding: 8px 10px;
+    font-size: 12px;
+    border-bottom: 1px solid rgba(255, 255, 255, 0.04);
+}
+
+.data-table tbody tr:hover {
+    background-color: var(--bg-card-hover);
+}
+
+.tx-id {
+    font-family: var(--font-mono);
+    font-weight: 600;
+    color: var(--color-primary);
+}
+
+.cmd-name {
+    font-weight: 600;
+    color: var(--text-main);
+}
+
+/* Verdict Badges */
+.badge {
+    display: inline-block;
+    padding: 2px 6px;
+    border-radius: 4px;
+    font-size: 10px;
+    font-weight: 700;
+}
+
+.badge.PASS {
+    background-color: var(--color-pass-bg);
+    color: var(--color-pass);
+    border: 1px solid rgba(16, 185, 129, 0.3);
+}
+
+.badge.DROP {
+    background-color: var(--color-drop-bg);
+    color: var(--color-drop);
+    border: 1px solid rgba(244, 63, 94, 0.3);
+}
+
+.reason-text {
+    color: var(--text-sub);
+}
+
+.reason-text.drop-reason {
+    color: var(--color-drop);
+}
+
+.latency {
+    font-family: var(--font-mono);
+    color: var(--text-muted);
+}
+
+/* Bottom Grid (2 Columns) */
+.bottom-grid {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 16px;
+}
+
+.telemetry-list {
+    display: flex;
+    flex-direction: column;
+    gap: 10px;
+}
+
+.telemetry-item {
+    display: flex;
+    flex-direction: column;
+    gap: 4px;
+}
+
+.telemetry-header {
+    display: flex;
+    justify-content: space-between;
+    font-size: 12px;
+    font-weight: 500;
+    color: var(--text-main);
+}
+
+.telemetry-val {
+    font-family: var(--font-mono);
+    font-weight: 600;
+    color: var(--text-main);
+}
+
+.progress-bar {
+    width: 100%;
+    height: 6px;
+    background: rgba(255, 255, 255, 0.08);
+    border-radius: 3px;
+    overflow: hidden;
+}
+
+.progress-fill {
+    height: 100%;
+    background-color: var(--color-pass);
+    border-radius: 3px;
+    transition: width 0.4s ease;
+}
+
+.progress-fill.warning {
+    background-color: #f59e0b;
+}
+
+.progress-fill.info {
+    background-color: var(--color-primary);
+}
+
+.range-info {
+    font-size: 10px;
+    color: var(--text-muted);
+}
+
+.cpu-stat {
+    font-size: 12px;
+    color: var(--text-sub);
+}
+
+.cpu-stat strong {
+    color: var(--color-primary);
+    font-family: var(--font-mono);
+}
+
+.chart-wrapper {
+    position: relative;
+    width: 100%;
+    height: 170px;
+}
+
+/* Responsive Breakpoints */
+@media (max-width: 1100px) {
+    .activity-dual-grid {
+        grid-template-columns: 1fr;
+    }
+
+    .bottom-grid {
+        grid-template-columns: 1fr;
+    }
+
+    .summary-cards {
+        grid-template-columns: 1fr;
+    }
+}
+
+/* =========================================================
+   VERDICT BOXES
+   ========================================================= */
+
+.verdict {
+    display: inline-block;
+    min-width: 58px;
+    padding: 4px 10px;
+    border-radius: 5px;
+    font-size: 12px;
+    font-weight: 700;
+    text-align: center;
+    letter-spacing: 0.5px;
+}
+
+.verdict.pass {
+    background: rgba(34, 197, 94, 0.15);
+    color: #22c55e;
+    border: 1px solid rgba(34, 197, 94, 0.4);
+}
+
+.verdict.drop {
+    background: rgba(239, 68, 68, 0.15);
+    color: #ef4444;
+    border: 1px solid rgba(239, 68, 68, 0.4);
+}
+
+.verdict.unknown {
+    background: rgba(148, 163, 184, 0.15);
+    color: #94a3b8;
+    border: 1px solid rgba(148, 163, 184, 0.4);
+}
+
+.transaction-id {
+    font-family: "JetBrains Mono", monospace;
+    font-weight: 600;
+    white-space: nowrap;
+}
+
+/* =========================================================
+   BLOCKED IPS / BLOCKED SOURCES (bottom section)
+   Reuses the existing card / table / verdict styles.
+   ========================================================= */
+
+.blocked-filters {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    flex-wrap: wrap;
+    margin-bottom: 10px;
+}
+
+.filter-input {
+    background: rgba(0, 0, 0, 0.25);
+    color: var(--text-main);
+    border: 1px solid var(--border-color);
+    border-radius: 4px;
+    padding: 5px 10px;
+    font-family: var(--font-main);
+    font-size: 12px;
+    min-width: 220px;
+}
+
+.filter-input:focus {
+    outline: none;
+    border-color: var(--color-primary);
+}
+
+.blocked-count {
+    margin-left: auto;
+    font-size: 12px;
+    color: var(--text-sub);
+}
+
+.clickable-row {
+    cursor: pointer;
+}
+
+.selected-row,
+.data-table tbody tr.selected-row:hover {
+    background-color: rgba(14, 165, 233, 0.12);
+}
+
+.ip-link {
+    color: var(--color-primary);
+}
+
+.reason-cell {
+    color: var(--text-sub);
+    max-width: 380px;
+    word-break: break-word;
+}
+
+.empty-row {
+    color: var(--text-muted);
+    text-align: center;
+    padding: 18px 10px !important;
+}
+
+.muted {
+    color: var(--text-muted);
+    font-size: 11px;
+}
+
+.blocked-detail {
+    margin-top: 14px;
+    padding-top: 12px;
+    border-top: 1px solid var(--border-color);
+}
+
+.attack-record {
+    margin-top: 12px;
+    padding: 12px 14px;
+    background: rgba(0, 0, 0, 0.22);
+    border: 1px solid var(--border-color);
+    border-radius: 6px;
+}
+
+.attack-record-grid {
+    display: grid;
+    grid-template-columns: 180px 1fr;
+    gap: 6px 14px;
+    font-size: 12px;
+}
+
+.attack-record-key {
+    color: var(--text-sub);
+    font-weight: 600;
+}
+
+.attack-record-val {
+    font-family: var(--font-mono);
+    word-break: break-word;
+}
+
+#attack-panel .action-buttons {
+    flex-wrap: wrap;
+}
+
+@media (max-width: 700px) {
+    .attack-record-grid {
+        grid-template-columns: 1fr;
+    }
+}
