@@ -7,7 +7,7 @@ Per command, two branches run concurrently on a small thread pool:
     cyber branch     Cyber Agent rules (HMAC, whitelist, rate, replay)   -> hard gate
                      + CyberModel anomaly score                         -> advisory*
     physical branch  Physical Agent rules (bounds, rate, cross-register) -> hard gate
-                     + PhysicalModel machine health / RUL               -> advisory
+                     + PhysicalModel (SWaT window anomaly + attack prob.) -> advisory
 
 The Orchestrator then fuses the two rule verdicts into PASS/DROP exactly as
 before, and the pipeline returns one unified diagnostic report.
@@ -102,7 +102,8 @@ class MultiModelPipeline:
             cyber_rule = make_verdict(tx_id, False, "AGENT_ERROR:pipeline", "cyber")
             phys_rule = make_verdict(tx_id, False, "AGENT_ERROR:pipeline", "physical")
             cyber_ml = {"model": "CyberModel", "status": "ERROR", "threat_flag": False, "anomaly_score": None}
-            phys_ml = {"model": "PhysicalModel", "status": "ERROR", "machines": {}, "min_health_index": None}
+            phys_ml = {"model": "PhysicalModel", "status": "ERROR", "plant_state": "ERROR", "anomaly_score": None,
+                       "attack_probability": None, "threat_flag": False, "flagged_by": [], "bounds_violations": []}
         t_branches = time.perf_counter()
 
         gate_cyber = cyber_rule
@@ -142,7 +143,7 @@ class MultiModelPipeline:
             "physical": {
                 "rule_verdict": phys_rule,
                 "model": phys_ml,
-                "health_state": _health_state(phys_ml.get("min_health_index")),
+                "plant_state": phys_ml.get("plant_state", phys_ml.get("status", "UNKNOWN")),
             },
             "mode": "ENFORCE" if self.enforce_cyber_model else "MONITOR",
             "timings_ms": {
@@ -154,29 +155,21 @@ class MultiModelPipeline:
         }
 
     # ----------------------------------------------------------- telemetry
-    def ingest_telemetry(self, registers: Mapping[Union[int, str], float]) -> None:
-        """Feed one PLC telemetry sample into the PhysicalModel window. Never raises."""
+    def ingest_telemetry(self, registers: Mapping[Union[int, str], float],
+                         timestamp: Optional[float] = None) -> None:
+        """Feed one PLC telemetry sample into the PhysicalModel window (decimated to 1 Hz). Never raises."""
         try:
             with self._telemetry_lock:
-                self.physical_model.update(registers)
+                self.physical_model.update(registers, timestamp)
         except Exception:
             log.exception("PhysicalModel.update failed - sample skipped")
 
     def health_report(self) -> Report:
+        """Current PhysicalModel assessment (plant_state, scores, bounds violations)."""
         return self.physical_model.assess()
 
     def shutdown(self) -> None:
         self._executor.shutdown(wait=False)
-
-
-def _health_state(min_hi: Optional[float]) -> str:
-    if min_hi is None:
-        return "UNKNOWN"
-    if min_hi >= 0.6:
-        return "HEALTHY"
-    if min_hi >= 0.3:
-        return "DEGRADING"
-    return "CRITICAL"
 
 
 _default: Optional[MultiModelPipeline] = None
