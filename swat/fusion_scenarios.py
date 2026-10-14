@@ -62,11 +62,55 @@ def physical_observations(model: Any, X: np.ndarray) -> pd.DataFrame:
     })
 
 
+def fold_ids(meta: pd.DataFrame, k: int) -> np.ndarray:
+    """Cross-fitting folds: attack windows by SEGMENT, benign windows by HOUR (no segment or hour is split)."""
+    ep = meta["epoch"].to_numpy()
+    lab = meta["label"].to_numpy().astype(bool)
+    seg = meta["seg"].to_numpy()
+    return np.where(lab, seg % k, (ep // 3600).astype(np.int64) % k)
+
+
+def cross_fit_observations(X: np.ndarray, meta: pd.DataFrame, model: Any, k: int = 4, seed: int = 7) -> pd.DataFrame:
+    """
+    OUT-OF-FOLD physical observations for the TRAIN block. The promoted PhysicalModel was trained on these windows, so its
+    outputs there are in-sample (optimistic). Each train window is instead scored by a physical model of the SAME recipe
+    (variant, classifier hyper-parameters, Isolation-Forest threshold rule) trained WITHOUT its fold. The classifier
+    threshold is the promoted model's (fold probabilities are on a comparable scale). Non-train rows are left NaN.
+    """
+    from models.physical_model import PhysicalModel
+    blk = meta["block"].to_numpy()
+    y = meta["label"].to_numpy().astype(int)
+    tr = np.flatnonzero(blk == "train")
+    folds = fold_ids(meta, k)
+    rng = np.random.default_rng(seed)
+    params = dict(model.metadata.get("classifier_params", {"n_estimators": 150, "max_depth": 8, "min_samples_leaf": 20}))
+    out = pd.DataFrame(np.nan, index=np.arange(len(X)), columns=["phys_if_score", "phys_p_attack", "physical_pass", "env_violations",
+                                                                  "env_max_excess", "act_toggles", "flow_balance"])
+    for f in range(k):
+        hold = tr[folds[tr] == f]
+        fit = tr[folds[tr] != f]
+        if hold.size == 0 or y[fit].sum() < 5:
+            continue                                   # not enough attack windows to fit this fold: keep promoted-model outputs
+        normals = fit[y[fit] == 0]
+        normals = rng.choice(normals, size=min(60000, normals.size), replace=False)
+        m = PhysicalModel(random_state=seed).set_variant(model.variant).fit(X[normals], model.bounds)
+        n1, n0 = max(1, int(y[fit].sum())), max(1, int((y[fit] == 0).sum()))
+        w = np.where(y[fit] == 1, len(fit) / (2.0 * n1), len(fit) / (2.0 * n0))
+        m.fit_classifier(X[fit], y[fit], w, **params)
+        m.clf_threshold = model.clf_threshold
+        out.loc[hold, :] = physical_observations(m, X[hold]).to_numpy()
+    return out
+
+
 def build_scenarios(stream: pd.DataFrame, model: Any, seed: int = 7, stride: int = 5,
-                    constructed_fraction: float = 0.25) -> pd.DataFrame:
+                    constructed_fraction: float = 0.25, cross_fit: bool = False, k: int = 4) -> pd.DataFrame:
     """Real rows (every SWaT window) + constructed rows (cyber failures paired with real windows)."""
     X, meta = build_windows(stream, model.norm, stride=stride)
     obs = physical_observations(model, X)
+    if cross_fit:
+        oof = cross_fit_observations(X, meta, model, k=k, seed=seed)
+        have = oof["phys_if_score"].notna().to_numpy()
+        obs.loc[have, :] = oof.loc[have, :].to_numpy()
     base = pd.concat([meta.reset_index(drop=True), obs], axis=1)
     rng = np.random.default_rng(seed)
 
