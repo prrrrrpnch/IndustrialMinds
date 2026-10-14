@@ -1,0 +1,11 @@
+venv/
+.venv/
+__pycache__/
+*.pyc
+.DS_Store
+__MACOSX/
+logs/
+.claude/state/
+data/swat/raw/
+config/hmac_secret.key
+models/candidates/
