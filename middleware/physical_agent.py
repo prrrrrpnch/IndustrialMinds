@@ -71,6 +71,30 @@ _RATE_LIMIT_PER_SEC = {
 # protects against two commands arriving in the same millisecond).
 _MIN_DT = 0.05   # seconds
 
+# ── Upstream sensor envelope (RULE) ───────────────────────────────────────────
+# Measured on real SWaT normal-operation data (docs/swat_bounds.json: train-block p0.1..p99.9 widened by
+# 10 %). Falls back to the register's configured physical range if the file is missing. This is a RULE
+# validated on SWaT held-out blocks (see the physical training report), not a model.
+def _load_envelope() -> Dict[int, Tuple[float, float, str]]:
+    import json
+    import os
+    env: Dict[int, Tuple[float, float, str]] = {
+        m["register"]: (float(m["min"]), float(m["max"]), "configured range") for m in MACHINES if m["kind"] == "sensor"}
+    path = os.path.join(os.path.dirname(os.path.abspath(__file__)), "..", "docs", "swat_bounds.json")
+    try:
+        with open(path) as fh:
+            doc = json.load(fh)
+        for m in MACHINES:
+            b = doc["sensors"].get(m["name"]) if m["kind"] == "sensor" else None
+            if b:
+                env[m["register"]] = (float(b["envelope_lo"]), float(b["envelope_hi"]), "SWaT measured envelope")
+    except Exception:
+        pass
+    return env
+
+
+SENSOR_ENVELOPE = _load_envelope()
+
 # ── Feedback tolerance ──────────────────────────────────────────────────────
 # On the upstream path, the PLC is still ramping toward its target, so some
 # lag is expected. We allow up to 20 % of the full safe range as normal lag.
@@ -323,6 +347,28 @@ def check_command(command: dict, current_state: dict) -> dict:
         return verdict
 
     return make_verdict(tx_id, True, "OK", "physical")
+
+
+def check_telemetry(registers: Dict[Any, float]) -> dict:
+    """
+    Upstream sensor-envelope RULE: every sensor reading must lie inside its MEASURED SWaT normal envelope.
+
+    registers: {register number or tag name: value}. Returns a verdict dict (agent="physical"); on failure
+    the reason is SENSOR_ENVELOPE_VIOLATION:<tag>=<value>[lo,hi] (all offenders, comma separated) and the
+    verdict carries a `violations` list. tx_id is "" (the caller assigns it).
+    """
+    bad = []
+    for reg, (lo, hi, _src) in SENSOR_ENVELOPE.items():
+        name = REGISTER_MAP[reg]["name"]
+        v = registers.get(reg, registers.get(name))
+        if v is not None and not (lo <= float(v) <= hi):
+            bad.append({"tag": name, "value": round(float(v), 3), "lo": round(lo, 3), "hi": round(hi, 3)})
+    if bad:
+        verdict = make_verdict("", False, "SENSOR_ENVELOPE_VIOLATION:" + ",".join(
+            f"{b['tag']}={b['value']}[{b['lo']},{b['hi']}]" for b in bad), "physical")
+        verdict["violations"] = bad
+        return verdict
+    return make_verdict("", True, "OK", "physical")
 
 
 def check_feedback(commanded_value: float, reported_value: float, register: int) -> dict:
