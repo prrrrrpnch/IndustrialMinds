@@ -75,6 +75,7 @@ from docs.interfaces import (
     SCALE,
 )
 from docs import hmac_auth, attack_log, netconfig
+from middleware import trace as tracer
 
 from middleware import (
     cyber_agent,
@@ -411,7 +412,7 @@ def _handle_downstream_write(
 
     if decision["verdict"] == "DROP":
 
-        _log_blocked(
+        logged = _log_blocked(
             command,
             cyber_verdict,
             physical_verdict,
@@ -419,6 +420,10 @@ def _handle_downstream_write(
             current_state["registers"].get(register),
             report,
         )
+
+        _publish_trace(report, forwarded=False,
+                       logged_to=attack_log.LOG_FILE if logged else None,
+                       note="dropped before the PLC; no response will come back")
 
         return
 
@@ -445,6 +450,9 @@ def _handle_downstream_write(
         value
     )
 
+    _publish_trace(report, forwarded=success, logged_to=None,
+                   note="forwarded with an advisory ALERT" if decision["verdict"] == "ALERT" else "")
+
     # If forwarding failed, remove pending command.
     if not success:
 
@@ -467,7 +475,7 @@ def _log_blocked(
     decision: dict,
     current_value: Optional[float],
     report: dict | None = None,
-) -> None:
+) -> bool:
     """
     Append a DROPped command to logs/blocked_attacks.jsonl.
     Never includes the HMAC secret or tag.
@@ -530,8 +538,22 @@ def _log_blocked(
 
     try:
         attack_log.log_blocked_attack(record)
+        return True
     except Exception as e:
         log.error(f"[MIDDLEWARE] ERROR writing attack log: {e}")
+        return False
+
+
+def _publish_trace(report: dict, forwarded: bool, logged_to: Optional[str], note: str = "") -> None:
+    """Add the final outcome hop to this command's packet-trace and hand it to the dashboard (never blocks)."""
+    hop_trace = report.get("trace")
+    if not hop_trace:
+        return
+    try:
+        tracer.add_outcome(hop_trace, forwarded, logged_to, note)
+        orchestrator.forward_trace_to_dashboard(hop_trace)
+    except Exception as e:
+        log.error(f"[MIDDLEWARE] trace publish failed (decision unaffected): {e}")
 
 
 # =========================================================

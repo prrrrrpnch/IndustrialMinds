@@ -32,20 +32,21 @@ _decision_log = []
 # Decisions are forwarded to the dashboard by ONE long-lived worker thread that is
 # drained at interpreter exit. (A daemon thread per decision was still inside urllib
 # when CPython 3.13 finalised and segfaulted the process, e.g. at the end of unit tests.)
-_forward_queue: "queue.Queue[Optional[dict]]" = queue.Queue(maxsize=1000)
+_forward_queue: "queue.Queue[Optional[tuple]]" = queue.Queue(maxsize=1000)
 _forward_worker: Optional[threading.Thread] = None
 _forward_lock = threading.Lock()
 
 
 def _forward_loop() -> None:
     while True:
-        payload = _forward_queue.get()
-        if payload is None:
+        item = _forward_queue.get()
+        if item is None:
             return
+        path, payload = item
         try:
             data = json.dumps(payload).encode("utf-8")
             req = urllib.request.Request(
-                f"{netconfig.DASHBOARD_URL}/api/security-event",
+                f"{netconfig.DASHBOARD_URL}{path}",
                 data=data,
                 headers={"Content-Type": "application/json"},
             )
@@ -65,13 +66,22 @@ def _shutdown_forwarder() -> None:
 
 
 def _forward_decision_to_dashboard(payload: dict) -> None:
+    _enqueue("/api/security-event", payload)
+
+
+def forward_trace_to_dashboard(trace: dict) -> None:
+    """Phase 9 packet-tracer: hand one per-tx hop-by-hop trace to the dashboard (same non-blocking worker)."""
+    _enqueue("/api/trace", trace)
+
+
+def _enqueue(path: str, payload: dict) -> None:
     global _forward_worker
     with _forward_lock:
         if _forward_worker is None or not _forward_worker.is_alive():
             _forward_worker = threading.Thread(target=_forward_loop, name="dashboard-forwarder", daemon=True)
             _forward_worker.start()
     try:
-        _forward_queue.put_nowait(payload)
+        _forward_queue.put_nowait((path, payload))
     except queue.Full:
         pass  # dashboard unreachable/slow: drop the notification, never block the middleware
 
@@ -104,6 +114,16 @@ def decide(cyber_verdict: dict | None, physical_verdict: dict, start_time: float
     latency_ms = round((time.time() - start_time) * 1000, 3) if start_time else 0.0
 
     decision = make_decision(tx_id, verdict, reason, latency_ms, direction)
+    adv_flag = bool(physical_advisory and physical_advisory.get("threat_flag"))
+    cyber_ok = None if cyber_verdict is None else bool(cyber_verdict["pass"])
+    decision["fusion"] = {          # Phase 9: what the fusion saw and which branch of the table fired
+        "inputs": {"cyber_rules_pass": cyber_ok, "cyber_reason": None if cyber_verdict is None else cyber_verdict["reason"],
+                   "physical_rules_pass": bool(physical_verdict["pass"]), "physical_reason": physical_verdict["reason"],
+                   "physical_model_flag": adv_flag,
+                   "physical_model_flagged_by": list((physical_advisory or {}).get("flagged_by") or [])},
+        "branch": {"DROP": ("cyber_rules_failed" if cyber_ok is False else "physical_rules_failed"),
+                   "ALERT": "rules_passed_physical_model_flagged", "PASS": "all_clear"}[verdict],
+    }
     _decision_log.append(decision)
 
     payload = {

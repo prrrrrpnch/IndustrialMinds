@@ -700,3 +700,37 @@ body {
 @media (prefers-reduced-motion: reduce) {
     .flow-arrow span { animation: none; }
 }
+
+
+/* ---------- Packet tracer (Phase 9) ---------- */
+.tracer-grid { display: grid; grid-template-columns: 260px 1fr; gap: 16px; }
+.tracer-list { list-style: none; margin: 0; padding: 0; max-height: 640px; overflow-y: auto; }
+.tr-item { display: flex; gap: 8px; align-items: center; padding: 6px 8px; border-radius: 6px; cursor: pointer; font-size: 13px; }
+.tr-item:hover, .tr-item.sel { background: var(--bg-card-hover); }
+.tr-id { font-weight: 600; min-width: 58px; }
+.tr-cmd { color: var(--text-sub); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.tracer-detail { min-width: 0; }
+.tracer-empty { color: var(--text-sub); }
+.tracer-head { margin-bottom: 10px; display: flex; gap: 10px; flex-wrap: wrap; align-items: center; }
+.tracer-reason { color: var(--text-sub); }
+.tracer-id { color: var(--text-muted); font-size: 11px; }
+.hop { border: 1px solid var(--border-color); border-left: 4px solid var(--text-muted); border-radius: 8px; padding: 10px 12px; }
+.hop-pass { border-left-color: var(--color-pass); }
+.hop-fail, .hop-drop { border-left-color: var(--color-drop); }
+.hop-alert { border-left-color: #eab308; }
+.hop-title { font-weight: 600; display: flex; gap: 10px; align-items: center; }
+.hop-outcome { font-size: 11px; padding: 1px 8px; border-radius: 10px; background: rgba(148, 163, 184, 0.15); }
+.hop-ms { margin-left: auto; color: var(--text-sub); font-size: 12px; }
+.hop-arrow { text-align: center; color: var(--text-muted); line-height: 1.2; }
+.chk-list { list-style: none; padding: 0; margin: 8px 0 4px; }
+.chk { display: grid; grid-template-columns: 150px 70px 1fr; gap: 8px; font-size: 12px; padding: 2px 0; }
+.chk-pass .chk-res { color: var(--color-pass); }
+.chk-fail .chk-res { color: var(--color-drop); }
+.chk-not_run { opacity: 0.5; }
+.chk-detail { color: var(--text-sub); overflow-wrap: anywhere; }
+.kvs { display: grid; grid-template-columns: repeat(auto-fill, minmax(260px, 1fr)); gap: 2px 16px; margin-top: 6px; }
+.kv { display: flex; gap: 8px; font-size: 12px; }
+.kv .k { color: var(--text-muted); min-width: 120px; }
+.kv .v { overflow-wrap: anywhere; }
+.tracer-timings { margin-top: 10px; color: var(--text-sub); font-size: 12px; }
+@media (max-width: 900px) { .tracer-grid { grid-template-columns: 1fr; } .chk { grid-template-columns: 1fr; } }

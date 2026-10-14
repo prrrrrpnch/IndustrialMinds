@@ -553,6 +553,20 @@
     </div>
 
 
+    <!-- PACKET TRACER (Phase 9) -->
+    <section class="card tracer-card" id="tracer-section" style="margin:20px;">
+        <div class="card-header">
+            <h2><i class="fa-solid fa-route title-icon"></i> PACKET TRACER</h2>
+            <span class="badge-tag" id="tracer-follow">following latest</span>
+        </div>
+        <div class="tracer-grid">
+            <ul class="tracer-list" id="tracer-list"></ul>
+            <div class="tracer-detail" id="tracer-detail">
+                <p class="tracer-empty">Send a command (SCADA or an attack) - every hop it meets appears here with the values the backend computed.</p>
+            </div>
+        </div>
+    </section>
+
     <script>
         window.IM_MACHINES = {{ machines | tojson }};
     </script>

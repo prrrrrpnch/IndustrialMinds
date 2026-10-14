@@ -64,6 +64,53 @@ The dashboard Attacks panel has the same buttons plus an optional source-IP box.
 Every blocked command is appended to `logs/blocked_attacks.jsonl` and shown in the
 Blocked IPs / Blocked Sources section at the bottom of the dashboard.
 
+### Randomised attacks
+
+    python attacker/attacker.py random --type ramp                # new parameters every run
+    python attacker/attacker.py random --type flood --seed 42     # reproducible
+    python attacker/attacker.py random --dry-run --count 5        # print the plans, send nothing
+
+Types `freeze`, `ramp`, `cross-register` follow behaviours seen in SWaT's labelled attack windows; `impossible-command`,
+`flood`, `replay` are **synthetic extensions** (SWaT has no network-layer attacks). The fixed, scripted attacks above stay for
+live demos (the three demo attacks are `flood`, `impossible-command`, `cross-register`).
+
+## Packet tracer (dashboard, bottom panel)
+
+Click any command in the list to see every hop it met, with the values the backend actually computed: arrival (peer, function
+code, register, value, signature present?), the six Cyber Agent checks, the cyber model (rules-only: `NO_MODEL`), the four
+Physical Agent checks, the physical model scores against their thresholds, the orchestrator's inputs and the branch it took,
+and the outcome (forwarded to the PLC, or dropped and which log file recorded it). Checks after the first failure show
+`NOT_RUN`. API: `GET /api/traces`, `GET /api/trace/<tx_id or TX-007>`.
+
+Decisions are `PASS`, `DROP` (a rule layer failed) or `ALERT` (both rule layers passed but the advisory physical model flagged
+an attack: the command is forwarded and highlighted; the model never blocks).
+
+## How the HMAC signature works (plain-language narration)
+
+*"Every command SCADA sends is stamped with a seal that only SCADA and the middleware can make."*
+
+1. **A shared secret.** SCADA and the middleware both hold the same long secret key (`IM_HMAC_SECRET`, or an auto-generated
+   `config/hmac_secret.key`). The key is never sent over the wire, never logged, never shown on the dashboard.
+2. **What gets sealed.** For each command SCADA takes the exact facts that decide what the plant will do: which register, which
+   value, a one-time random number (the *nonce*) and the current time. It packs them into a fixed-width binary block, so there is
+   only one possible encoding of a command, with no formatting tricks.
+3. **The seal.** SCADA runs those bytes plus the secret through HMAC-SHA256 and gets a 32-byte tag. Change one bit of the
+   command and you get a completely different tag, and nobody can produce the right tag without the secret.
+4. **On the wire.** The frame carries the command, the nonce, the timestamp and the tag. The tag proves *who* sent it and that
+   it was not changed.
+5. **Verification.** The middleware rebuilds the same block from what it received, computes its own tag with its own copy of
+   the secret and compares the two in constant time. Mismatch means `HMAC_INVALID` and the command is dropped (a changed value
+   in transit, or a forger without the key). No tag at all means `HMAC_MISSING`.
+6. **Freshness.** The timestamp must be within +/-30 s of the middleware's clock, otherwise `HMAC_EXPIRED` (a captured frame
+   replayed too late). This is the *delayed replay* attack.
+7. **No reuse.** Every nonce is remembered; a second frame with the same nonce is `REPLAY_DETECTED`, even though its tag is
+   perfectly valid. This is the *replay* attack.
+
+**What HMAC does not do.** It proves the sender holds the key, not that the command is *sensible*. A compromised engineering
+workstation that owns the key can sign a valid but dangerous command; that is why the rate limit, the replay checks and the
+Physical Agent (bounds, rate of change, cross-register rules, and the advisory SWaT-trained model) sit behind it. The packet
+tracer shows exactly where each demo attack is stopped.
+
 ## Tests
 
     python -m tests.test_cyber_agent
