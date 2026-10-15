@@ -219,6 +219,14 @@ _last_poll_error_log = 0.0
 POLL_ERROR_LOG_INTERVAL = 5.0
 
 
+def _dashboard_headers() -> Dict[str, str]:
+    """Headers for posts to the dashboard: adds the shared token when configured
+    (IM_DASHBOARD_TOKEN), so a network-exposed dashboard only accepts the
+    middleware's posts. Empty when no token is set (loopback demo, unchanged)."""
+    token = os.environ.get("IM_DASHBOARD_TOKEN", "").strip()
+    return {"X-IM-Token": token} if token else {}
+
+
 # =========================================================
 # RAW / REAL VALUE CONVERSION
 # =========================================================
@@ -691,6 +699,7 @@ def _report_plc_response(
         response = requests.post(
             f"{DASHBOARD_URL}/api/security-event",
             json=payload,
+            headers=_dashboard_headers(),
             timeout=1
         )
 
@@ -746,6 +755,7 @@ def _report_telemetry() -> None:
         requests.post(
             f"{DASHBOARD_URL}/api/telemetry",
             json=payload,
+            headers=_dashboard_headers(),
             timeout=1
         )
 
