@@ -20,8 +20,8 @@ layer computed for any single command. Wireshark/tshark on the same traffic is t
 
 **Status in one paragraph (read this before quoting anything).** The rule layers are deterministic and tested. The only learned
 component in use is the **physical model**, trained on real SWaT data, **advisory** (it raises `ALERT`, it never blocks). On the
-held-out SWaT test block it ranks attacks reasonably (ROC-AUC about 0.82) but detects only a minority of attack windows at its operating
-point and raises more false alarms than its target (see [Benchmarks](#benchmarks) and [Known limitations](#known-limitations)).
+held-out SWaT test block it ranks attacks well (ROC-AUC 0.84) but still detects only about half of the attack windows at its operating
+point (precision 0.46, recall 0.51, F1 0.49) and raises more false alarms than its target (see [Benchmarks](#benchmarks) and [Known limitations](#known-limitations)).
 The cyber branch has **no learned model by design**: a SWaT-trained candidate was weak and was not promoted. A learned fusion model
 was also tried and **rejected**. Nothing here claims real-data performance for the cyber rules: SWaT contains no network traffic.
 
@@ -60,7 +60,7 @@ No secret needs setting on one machine: the first process that needs it creates 
 **What you should see**
 * Terminal 4 (SCADA) prints a line like `[SCADA] WRITE SENT tx=0f4bfc74 reg=MV302 value=98.00` every 2 s (it cycles through the actuators, each near its nominal); terminal 3 (middleware) prints `[MIDDLEWARE] PASS src=127.0.0.1 MV302=98.00 reason=OK ...` for each.
 * Dashboard (`http://127.0.0.1:5050`): the *SCADA -> PLC* table fills with green `PASS` rows, the telemetry panel shows all 20 points (10 sensors and 10 actuators).
-* For the first ~30 s the physical model reports `WARMING_UP` (it needs a 30-second window of telemetry). The middleware terminal prints a status line every 5 s containing `plant=WARMING_UP window=11/30`; it becomes `plant=NORMAL` once the window is full. After that, an occasional yellow `ALERT`
+* For the first ~2 minutes the physical model reports `WARMING_UP` (it needs a 120-second window of telemetry). The middleware terminal prints a status line every 5 s containing `plant=WARMING_UP window=11/120`; it becomes `plant=NORMAL` once the window is full. After that, an occasional yellow `ALERT`
   row on a healthy plant is normal: the model is advisory and has a false-alarm rate (see Limitations).
 * In a fifth terminal (on a real demo: the **attacker laptop**) run `python -m attacker.attacker hmac-tamper`: the **Live Network Flow** panel shows a red dot from an untrusted host stopping at the Cyber Agent, a red `DROP` row appears with reason `HMAC_INVALID`, and the bottom
   **Packet Tracer** panel shows the `hmac` check in red and everything after it `NOT_RUN`. Attacks are never started from the dashboard. Full roles/order/recovery: `docs/demo_workflow.md`.
@@ -102,10 +102,10 @@ Checks *whether the command makes physical sense for the plant*:
 Upstream (PLC to SCADA telemetry) the agent also applies a **sensor-envelope rule**: every sensor must stay inside the envelope **measured** on SWaT normal data
 (`docs/swat_bounds.json`). This rule is **alert-only** (a log line and a dashboard event, never a block).
 
-**The advisory MODEL** (`models/physical_model.py`, weights `models/weights/physical_model.joblib`): a 30-second sliding window of the 10 sensors and 8 actuators at 1 Hz
-becomes 87 features; an Isolation Forest (unsupervised, trained on normal windows) and a supervised random-forest head (trained on SWaT's labelled attacks) each give a score. If either
-exceeds its threshold the model raises `threat_flag`. The shipped operating point targets 0.5 false-alarm episodes per hour on validation data. It is **advisory**: it can
-turn a pass into an `ALERT` but never into a `DROP`.
+**The advisory MODEL** (`models/physical_model_v2.py`, weights `models/weights/physical_model_v2.joblib`; the previous v1 model `models/physical_model.py` stays selectable with `IM_PHYSICAL_MODEL=v1`): a 120-second sliding window of the 10 sensors and 8 actuators at 1 Hz
+becomes 117 features (the last 30 s as 67 drift-robust window statistics, 120 s long-context slopes/changes/toggles, and cross-sensor consistency residuals from ridge regressions fitted on normal data); a gradient-boosted classifier trained on SWaT train + validation windows gives an attack probability.
+Above 0.788 the model raises `threat_flag` (operating point: 0.5 false-alarm episodes per benign hour on out-of-fold development data; measured on the held-out block: 1.17/h). It is **advisory**: it can
+turn a pass into an `ALERT` but never into a `DROP`. Inference is packed (`PackedHistGB`, identical to sklearn to 1e-15) so an assessment costs about 0.6 ms.
 
 ### Orchestrator: RULE-BASED fusion (`middleware/orchestrator.py`)
 
@@ -157,7 +157,7 @@ attack windows. Everything SWaT cannot supply is either **derived from SWaT colu
 MV302 splits it between the UF tank and a return to the raw tank; S3 outflow fills S4; the S4 pump feeds the RO pump, which starves below ~5 m3/h; dosing pumps act on pH and chlorine, removed by the UV lamp).
 UF fouling raises DPIT301 and triggers an automatic backwash. `python -m tests.test_twin_propagation` perturbs stage 1 and asserts stages 2 to 5 respond in order
 (about 1.4 s, 5 s, 25 s, 100 s). **Honest caveats:** MV503 has **no SWaT counterpart** (twin-only, labelled synthetic); the twin is a demonstration plant, not a SWaT
-replica; the wire format is value x 10 (0.1 resolution, max 6553.5), so pH and permeate flow are coarse. Optional: `IM_TWIN_NOISE=1` adds sensor noise, `IM_TWIN_TIME_SCALE=N` speeds it up.
+replica; the wire format is value x 10 (0.1 resolution, max 6553.5), so pH and permeate flow are coarse. Sensor noise is on by default (`IM_TWIN_NOISE=0` turns it off; a noiseless flat plant looks abnormal to the model and keeps it in ALERT), `IM_TWIN_TIME_SCALE=N` speeds it up.
 
 ---
 
@@ -228,10 +228,10 @@ no longer a pristine blind hold-out. Both runs are in `docs/reports/physical_tra
 `models/candidates/physical_model.joblib` over `models/weights/physical_model.joblib` and keep the scikit-learn version identical to the pin in `requirements.txt` (the file is a pickle). The shipped file's
 classifier threshold (0.601) is the 0.5 false-alarm-per-hour operating point chosen from the validation operating curve and recorded in its metadata.
 
-**Physical model v2 experiment (research track, not used by the middleware).** An attempt to raise recall and F1: fit on train + validation, add 120 s long-context features and
+**Physical model v2 (PROMOTED, now the live model).** The experiment that raised recall and F1 (held-out test: F1 0.31 -> 0.49, 6 -> 8 of 10 segments), promoted after review with the user's approval as `models/weights/physical_model_v2.joblib` via `python -m models.package_physical_v2` (v1 weights untouched, kept as the fallback). What it does: fit on train + validation, add 120 s long-context features and
 cross-sensor consistency residuals, choose by segment-grouped cross-validation, and alarm on "k of the last m windows" with a false-alarm-budget threshold. It writes only to
 `models/candidates/physical_v2/` and needs the SWaT archive: `python -m models.train_physical_v2 --data-dir "<SWaT archive>" --candidate` (about 30-90 minutes). The report compares a refit
-baseline with the selected configuration on the held-out test block (used for exactly two looks, disclosed). Nothing is promoted unless it beats the shipped model and is approved.
+baseline with the selected configuration on the held-out test block (used for exactly two looks, disclosed). Persistence (`k of m`) was measured and made F1 worse, so the live flag is the single-window threshold. Report: `docs/reports/physical_training_report_v2_swat.md`.
 
 **Cyber model: not trained, by design.** A SWaT-based candidate exists (`models/train_cyber_swat.py --data-dir ... --candidate`) and is documented as a negative result: test ROC-AUC 0.63, F1 0.14
 (`docs/reports/cyber_training_report_swat.md`). SWaT has no network traffic, so it could only model actuator state-change events, and it was not promoted. The cyber branch is rules-only.
@@ -318,7 +318,7 @@ Goal: a presenter who has never seen the project runs the whole demo and can che
 2. **Clocks:** automatic time on every laptop.
 3. **Secret:** the same `IM_HMAC_SECRET` (32+ characters) on SCADA, middleware, attacker. Single laptop: leave it unset.
 4. **Multi-laptop only:** run `python -m tools.check_topology --role <role> --multi` on each laptop; every line should be `OK` and the secret fingerprints must be equal. Choose the attack mode (below).
-5. **Start in order:** PLC, dashboard, middleware, SCADA (commands in the Quick start). **Wait about 40 seconds** for the physical model's window to fill.
+5. **Start in order:** PLC, dashboard, middleware, SCADA (commands in the Quick start). **Wait about 2 minutes** for the physical model's 120 s window to fill.
 6. **Healthy baseline:** the dashboard shows `PASS` rows every 2 s, telemetry values near their nominals (e.g. LIT101 about 526 mm), no recent red rows. An occasional yellow `ALERT` is the advisory model's false-alarm rate: say so out loud, it is part of the honest story.
 
 ### The script
@@ -369,19 +369,19 @@ One command regenerates everything quoted below and the full report (`docs/repor
 
 <!-- BENCHMARK:START (generated by python -m benchmark.run_all; do not edit by hand) -->
 
-_Regenerate: `python -m benchmark.run_all [--data-dir <SWaT archive>]`. Full tables: `docs/reports/benchmark_report.md`. These numbers: Linux-6.18.44-fc-v114-x86_64-with-glibc2.39, Python 3.13.16, commit `4dffbcb`._
+_Regenerate: `python -m benchmark.run_all [--data-dir <SWaT archive>]`. Full tables: `docs/reports/benchmark_report.md`. These numbers: Linux-6.18.44-fc-v114-x86_64-with-glibc2.39, Python 3.13.16, commit `f0031de`._
 
-* **Decision latency** (real pipeline, in-process, 3000 commands x 3): mean **0.518 ms**, p95 **1.266 ms**, p99 **1.488 ms** per command (not network latency). Live Modbus round trip of a signed write to a running middleware (client side, 300 writes): mean 4.1684 ms, p95 4.764 ms.
-* **Held-out SWaT test block** (real data, physical model only, advisory): ROC-AUC **0.82**, precision 0.37, recall 0.26, F1 0.31, 1.786 false-alarm episodes per hour, 6/10 attack segments detected.
+* **Decision latency** (real pipeline, in-process, 3000 commands x 3): mean **0.809 ms**, p95 **1.902 ms**, p99 **2.841 ms** per command (not network latency).
+* **Held-out SWaT test block** (real data, physical model only, advisory): ROC-AUC **0.84**, precision 0.46, recall 0.51, F1 0.49, 1.173 false-alarm episodes per hour, 8/10 attack segments detected.
 * **Rule-based checks** (constructed scenarios, not SWaT): 4400/4400 violating scenarios dropped with the expected reason, legitimate false-positive rate 0.0%. Deterministic rules: a regression check, not a detection claim.
-* **Twin** (synthetic plant, not SWaT): 0.25 model alarm episodes per hour on the healthy twin.
+* **Twin** (synthetic plant, not SWaT): 0.0 model alarm episodes per hour on the healthy twin.
 
 
 **Whole middleware at a glance** (details and the 3-class matrix in the report):
 
 | What is scored | Evidence | n | Accuracy | Precision | Recall | F1 | False-positive rate | TN / FP / FN / TP |
 |---|---|---|---|---|---|---|---|---|
-| Physical model flag -> ALERT | REAL SWaT held-out windows | 28075 | 0.955 | 0.366 | 0.263 | 0.306 | 0.018 | 26,532 / 483 / 781 / 279 |
+| Physical model flag -> ALERT | REAL SWaT held-out windows | 28080 | 0.959 | 0.461 | 0.513 | 0.485 | 0.024 | 26,382 / 637 / 517 / 544 |
 | Rule layers, all violations vs legitimate commands | constructed commands | 4600 | 1.000 | 1.000 | 1.000 | 1.000 | 0.000 | 200 / 0 / 0 / 4,400 |
 |   cyber layer only | constructed commands | 2000 | 1.000 | 1.000 | 1.000 | 1.000 | 0.000 | 200 / 0 / 0 / 1,800 |
 |   physical layer only | constructed commands | 2800 | 1.000 | 1.000 | 1.000 | 1.000 | 0.000 | 200 / 0 / 0 / 2,600 |
@@ -440,7 +440,7 @@ number of individual `[PASS]`/`[FAIL]` checks, last line; plus environment and c
 | `IM_LOG_DIR` | where `blocked_attacks.jsonl` is written (`logs`) |
 | `IM_LOG_LEVEL`, `IM_TELEMETRY_LOG_SECONDS` | middleware log verbosity; how often the telemetry line is logged (5) |
 | `IM_ENVELOPE_ALERTS`, `IM_ENVELOPE_ALERT_SECONDS` | sensor-envelope alerts on/off (on); minimum seconds between alerts per sensor (30) |
-| `IM_TWIN_NOISE`, `IM_TWIN_TIME_SCALE` | twin sensor noise (off); speed-up factor (1) |
+| `IM_TWIN_NOISE`, `IM_TWIN_TIME_SCALE` | twin sensor noise (on; 0 = off); speed-up factor (1) |
 | `IM_CYBER_MODEL_ENFORCE` | only meaningful if a cyber model is ever promoted (none ships): let it DROP (off) |
 
 Entry points also accept flags that override the variables: `plc.plc --host --port`, `middleware.middleware_server --listen-host --listen-port --plc-host --plc-port --dashboard-url`,
@@ -460,8 +460,8 @@ Stated plainly. None of these is hidden elsewhere.
 1. **Single-dataset dependence.** The only real data is SWaT (one testbed, a few days, 51 tags). Every learned result and every measured bound comes from it. Behaviour on another plant is unknown.
 2. **SWaT has no HMAC, replay or network data.** The cyber rules cannot be evaluated on real traffic: they are tested with constructed scenarios, and the benchmark says so. 100 % on those scenarios is a regression check, not a detection rate.
 3. **The cyber branch is rules-only.** The SWaT-trained cyber candidate was weak (test ROC-AUC 0.63, F1 0.14) and was dropped by decision; it could only see actuator state changes.
-4. **The physical model is weak and advisory.** Held-out SWaT test block (see Benchmarks): the model ranks attacks (ROC-AUC about 0.82) but flags only about a quarter of attack windows at its operating point, detects 6 of 10 attack segments, and raises about 1.8 false-alarm
-   episodes per hour against the 0.5 it was tuned for on validation (calendar drift: later days look different). It is advisory by design for this reason.
+4. **The physical model is moderate and advisory.** Held-out SWaT test block (see Benchmarks): ROC-AUC 0.84, it flags about half of the attack windows (precision 0.46, recall 0.51, F1 0.49), detects 8 of 10 attack segments (two never), and raises about 1.2 false-alarm
+   episodes per hour against the 0.5 it was tuned for out-of-fold (calendar drift: later days look different). Slow in-bounds attacks (`ramp`, `freeze`) are often below its threshold. It needs 120 s of telemetry before it speaks, and a noiseless plant looks abnormal to it (the twin's sensor noise is on by default). It is advisory by design.
 5. **The test block is not a pristine blind test.** A disclosed protocol revision after the first physical run means the test block informed the final protocol (run 1 vs run 2 reports).
 6. **Constructed disagreement cases in the fusion set.** The fusion experiment's DROP class was built from deterministic cyber rules paired with real SWaT windows (SWaT cannot supply cyber failures), so only its PASS-versus-ALERT part is real-data evidence. The learned fusion lost to the physical model alone and is **not used**.
 7. **Synthetic-extension attacks.** `flood`, `replay` and `impossible-command` (and every network-layer attack) are constructions: SWaT contains no such attacks. `freeze`, `ramp` and `cross-register` follow SWaT *behaviours*, but their
@@ -493,7 +493,8 @@ Stated plainly. None of these is hidden elsewhere.
 | Every command is `DROP` `HMAC_INVALID` | different `IM_HMAC_SECRET` on SCADA and middleware (compare `check_topology` fingerprints), or one side has a stale `config/hmac_secret.key` |
 | Every command is `DROP` `HMAC_EXPIRED` | clocks differ by more than 30 s: enable automatic time |
 | `Failed to connect` / timeouts across laptops | firewall, wrong `IM_*_HOST`, or Wi-Fi client isolation (use a phone hotspot or a switch); run `check_topology` |
-| Physical model shows `WARMING_UP` | normal for the first ~30 s after start; it needs a full 30 s window |
+| Physical model shows `WARMING_UP` | normal for the first ~2 minutes after start; it needs a full 120 s window |
+| `plant=ALERT` constantly on a healthy plant, `p_attack` high and flat | the PLC runs with `IM_TWIN_NOISE=0` (a perfectly flat plant is out-of-distribution for a model trained on noisy SWaT sensors): remove that variable |
 | `InconsistentVersionWarning` / model status `NO_MODEL` | scikit-learn is not the pinned version: `pip install scikit-learn==1.9.1` |
 | Wireshark shows no Modbus | the Modbus/TCP port preference is not set to 5021/5020 (do not use Decode As) |
 | Yellow `ALERT` rows keep appearing after an attack (e.g. Cross-Register) and do not stop | expected: the attack's first steps (such as closing the inlet valve MV101 from 55 % to about 15-20 %) were allowed and moved the plant off its normal state (the raw tank drains), so the advisory physical model keeps flagging every command. SCADA's own writes only nudge it back about 2 points per cycle (many minutes). **Fix: Ctrl-C the PLC window and run `python -m plc.plc` again** (the dashboard Reset does not reset the plant); ALERTs stop about 30-40 s later, when the model's window has refilled. |

@@ -129,3 +129,53 @@ class PackedForestRegressor:
 
     def predict(self, X: np.ndarray) -> np.ndarray:
         return self.packed.leaf_values(X).mean(axis=1)
+
+
+class PackedHistGB:
+    """Single-row (or small batch) inference for a fitted sklearn HistGradientBoostingClassifier (binary, numerical features).
+
+    sklearn's predict_proba has milliseconds of fixed overhead per call; this walks all trees at once with numpy and returns the same
+    probabilities (checked against sklearn in tests/test_physical_v2_live.py). Falls back to the caller (raises ValueError) for models it does not support."""
+
+    def __init__(self, gb) -> None:
+        preds = gb._predictors
+        if len(gb.classes_) != 2 or any(len(p) != 1 for p in preds):
+            raise ValueError("PackedHistGB supports binary classifiers only")
+        nodes = [p[0].nodes for p in preds]
+        if any(n["is_categorical"].any() for n in nodes):
+            raise ValueError("categorical splits are not supported")
+        T, M = len(nodes), max(len(n) for n in nodes)
+        self.feat = np.zeros((T, M), dtype=np.int64)
+        self.thr = np.zeros((T, M))
+        self.left = np.zeros((T, M), dtype=np.int64)
+        self.right = np.zeros((T, M), dtype=np.int64)
+        self.leaf = np.ones((T, M), dtype=bool)
+        self.val = np.zeros((T, M))
+        self.nan_left = np.zeros((T, M), dtype=bool)
+        for t, n in enumerate(nodes):
+            k = len(n)
+            self.feat[t, :k], self.thr[t, :k] = n["feature_idx"], n["num_threshold"]
+            self.left[t, :k], self.right[t, :k] = n["left"], n["right"]
+            self.leaf[t, :k], self.val[t, :k] = n["is_leaf"].astype(bool), n["value"]
+            self.nan_left[t, :k] = n["missing_go_to_left"].astype(bool)
+        self.depth = int(max(n["depth"].max() for n in nodes))
+        self.baseline = float(np.ravel(gb._baseline_prediction)[0])
+        self.T = T
+        self._rows = np.arange(T)
+
+    def predict_proba1(self, X: np.ndarray) -> np.ndarray:
+        """X [n, f] -> P(class 1) [n]."""
+        X = np.atleast_2d(X)
+        out = np.empty(X.shape[0])
+        for r, x in enumerate(X):
+            idx = np.zeros(self.T, dtype=np.int64)
+            t = self._rows
+            for _ in range(self.depth):
+                f = self.feat[t, idx]
+                v = x[f]
+                go_left = np.where(np.isnan(v), self.nan_left[t, idx], v <= self.thr[t, idx])
+                nxt = np.where(go_left, self.left[t, idx], self.right[t, idx])
+                idx = np.where(self.leaf[t, idx], idx, nxt)
+            raw = self.baseline + self.val[t, idx].sum()
+            out[r] = 1.0 / (1.0 + np.exp(-raw))
+        return out

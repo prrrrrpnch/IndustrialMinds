@@ -85,7 +85,16 @@ def confusion(res: Dict[str, Any], out_dir: str) -> str | None:
         return None
     fig, axes = plt.subplots(1, 2, figsize=(9, 4.2))
     _cm_axis(axes[0], s["advisory_model_flag"], "Advisory model flag (drives ALERT)")
-    _cm_axis(axes[1], s["envelope_rule_alone (alert-only)"], "Envelope rule alone (alert-only)")
+    if "envelope_rule_alone (alert-only)" in s:
+        _cm_axis(axes[1], s["envelope_rule_alone (alert-only)"], "Envelope rule alone (alert-only)")
+    else:                                   # compare with the previous (v1) model's record, if kept
+        import json
+        import os
+        v1 = os.path.join(os.path.dirname(os.path.dirname(os.path.abspath(__file__))), "benchmarks", "swat_accuracy_v1.json")
+        if not os.path.exists(v1):
+            axes[1].axis("off")
+        else:
+            _cm_axis(axes[1], json.load(open(v1))["advisory_model_flag"], "Previous model v1 (advisory flag), same block")
     fig.suptitle(f"HELD-OUT SWaT test block (real data), {s['windows']:,} windows ({s['attack_windows']:,} attack)", fontsize=10)
     return _save(fig, out_dir, NAMES["confusion"])
 

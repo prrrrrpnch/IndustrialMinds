@@ -25,7 +25,7 @@ names = run_all.discover()
 check("discovery finds the test scripts and excludes the runner and the fixture helper",
       "test_trace" in names and "test_benchmark" in names and "run_all" not in names and "swat_fixture" not in names, f"{len(names)} scripts")
 r = run_all.run_one("test_environment")
-check("running a script records status, exit code, duration and check counts", r["status"] == "PASS" and r["exit_code"] == 0 and r["checks_passed"] == 4 and r["seconds"] >= 0, str(r["checks_passed"]))
+check("running a script records status, exit code, duration and check counts", r["status"] == "PASS" and r["exit_code"] == 0 and r["checks_passed"] == 5 and r["seconds"] >= 0, str(r["checks_passed"]))
 check("services-needing scripts are SKIPPED with a reason unless asked for",
       all(n in run_all.NEEDS_SERVICES for n in ("pipeline_test", "test_middleware_efficiency")))
 

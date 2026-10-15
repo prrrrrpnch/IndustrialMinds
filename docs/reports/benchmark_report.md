@@ -1,6 +1,6 @@
 # IndustrialMind benchmark report
 
-_Generated 2026-10-14 21:33:44 UTC by `python -m benchmark.run_all` at commit `4dffbcb`. Every number below comes from `benchmarks/latest.json`; nothing is typed by hand._
+_Generated 2026-10-15 08:05:35 UTC by `python -m benchmark.run_all` at commit `f0031de`. Every number below comes from `benchmarks/latest.json`; nothing is typed by hand._
 
 Four sections, deliberately separate because they answer different questions and have different evidential weight:
 
@@ -15,7 +15,7 @@ Four sections, deliberately separate because they answer different questions and
 
 | What is scored | Evidence | n | Accuracy | Precision | Recall | F1 | False-positive rate | TN / FP / FN / TP |
 |---|---|---|---|---|---|---|---|---|
-| Physical model flag -> ALERT | REAL SWaT held-out windows | 28075 | 0.955 | 0.366 | 0.263 | 0.306 | 0.018 | 26,532 / 483 / 781 / 279 |
+| Physical model flag -> ALERT | REAL SWaT held-out windows | 28080 | 0.959 | 0.461 | 0.513 | 0.485 | 0.024 | 26,382 / 637 / 517 / 544 |
 | Rule layers, all violations vs legitimate commands | constructed commands | 4600 | 1.000 | 1.000 | 1.000 | 1.000 | 0.000 | 200 / 0 / 0 / 4,400 |
 |   cyber layer only | constructed commands | 2000 | 1.000 | 1.000 | 1.000 | 1.000 | 0.000 | 200 / 0 / 0 / 1,800 |
 |   physical layer only | constructed commands | 2800 | 1.000 | 1.000 | 1.000 | 1.000 | 0.000 | 200 / 0 / 0 / 2,600 |
@@ -36,38 +36,36 @@ Three-class decision matrix of the rule layers on constructed commands (rows = t
 
 **What this is.** In-process decision latency of the real pipeline on a constructed workload (no sockets). 3000 commands x 3 repeats after 300 warm-up, seed 7; 70% legitimate, 30% attacks (tamper, unsigned, replay, out-of-bounds, untrusted source, cross-register).
 
-Measured on Linux-6.18.44-fc-v114-x86_64-with-glibc2.39, Python 3.13.16, 4 CPUs, scikit-learn 1.9.1, commit `4dffbcb`. Latency depends on the machine: re-run `python -m benchmark.run_all` on yours.
+Measured on Linux-6.18.44-fc-v114-x86_64-with-glibc2.39, Python 3.13.16, 4 CPUs, scikit-learn 1.9.1, commit `f0031de`. Latency depends on the machine: re-run `python -m benchmark.run_all` on yours.
 
 | Hop | mean (ms) | p50 (ms) | p95 (ms) | p99 (ms) |
 |---|---|---|---|---|
-| Cyber Agent rules | 0.0406 | 0.0354 | 0.0706 | 0.0921 |
-| Cyber model (NO_MODEL stub) | 0.0086 | 0.0072 | 0.0139 | 0.0350 |
-| Physical Agent rules | 0.0270 | 0.0245 | 0.0416 | 0.0607 |
-| Physical model (assess; includes window refresh) | 0.2206 | 0.0051 | 0.9207 | 1.1063 |
-| Orchestrator fusion | 0.0112 | 0.0089 | 0.0226 | 0.0360 |
-| Packet-trace build | 0.0436 | 0.0365 | 0.0750 | 0.1084 |
-| Both branches (concurrent, wall time) | 0.4458 | 0.2444 | 1.1751 | 1.3795 |
-| TOTAL per command | 0.5180 | 0.3150 | 1.2659 | 1.4883 |
+| Cyber Agent rules | 0.0655 | 0.0611 | 0.1024 | 0.2082 |
+| Cyber model (NO_MODEL stub) | 0.0136 | 0.0122 | 0.0205 | 0.0513 |
+| Physical Agent rules | 0.0371 | 0.0334 | 0.0581 | 0.1086 |
+| Physical model (assess; includes window refresh) | 0.3283 | 0.0065 | 1.3771 | 1.9165 |
+| Orchestrator fusion | 0.0193 | 0.0160 | 0.0317 | 0.0602 |
+| Packet-trace build | 0.0630 | 0.0579 | 0.0988 | 0.1539 |
+| Both branches (concurrent, wall time) | 0.7022 | 0.3972 | 1.7721 | 2.5993 |
+| TOTAL per command | 0.8088 | 0.5042 | 1.9020 | 2.8407 |
 
 ![Per-hop latency](figures/latency_per_hop.png)
 
-Spread of the total across repeats: mean 0.509-0.5297 ms, p95 1.2435-1.3055 ms. The two branches overlap, so hops do not sum to the total.
+Spread of the total across repeats: mean 0.7339-0.9045 ms, p95 1.7691-2.0807 ms. The two branches overlap, so hops do not sum to the total.
 
-Live Modbus round trip of a signed write to a running middleware (300 writes): mean 4.1684 ms, p95 4.764 ms, p99 13.1886 ms.
+Live Modbus round trip: NOT RUN: no middleware reachable at the configured address.
 
 ## 2. Held-out SWaT (real data)
 
-**PROMOTED physical model on the HELD-OUT SWaT test block (real data, aggregate only).** test block was also seen in physical training run 2 (revised protocol): held-out, not a pristine blind test.
+**PROMOTED physical model (PhysicalModelV2) on the HELD-OUT SWaT test block (real data, aggregate only).** test block was used for exactly two refits in the v2 experiment (baseline and selected) and was also seen by the shipped model's revised protocol: held-out, not a pristine blind test. Windows need a 120 s history, so the window set differs slightly from the v1 record.
 
 _Source: reused from benchmarks/swat_accuracy.json (measured earlier on the machine that holds the archive)_
 
-Test block: 28,075 windows (stride 5 s): 1,060 attack, 27,015 benign (37.521 benign hours). Operating point: Isolation Forest threshold 0.6108, classifier threshold 0.601, variant `drift_robust`.
+Test block: 28,080 windows (stride 5 s): 1,061 attack, 27,019 benign (37.53 benign hours). Operating point: classifier threshold 0.788, variant `v2`.
 
 | Decision rule | precision | recall | F1 | false-positive rate | accuracy | balanced accuracy | alarm episodes / benign hour |
 |---|---|---|---|---|---|---|---|
-| Advisory model flag (drives ALERT) | 0.366 | 0.263 | 0.306 | 0.018 | 0.955 | 0.623 | 1.786 |
-| Envelope rule alone (alert-only) | 0.273 | 0.216 | 0.241 | 0.022 | 0.949 | 0.597 | 0.853 |
-| Model flag or envelope | 0.274 | 0.271 | 0.272 | 0.028 | 0.945 | 0.621 | 1.999 |
+| Advisory model flag (drives ALERT) | 0.461 | 0.513 | 0.485 | 0.024 | 0.959 | 0.745 | 1.173 |
 
 Plain accuracy is shown but is **not the headline**: attacks are only 3.8% of windows, so a system that never flags anything would score **0.962** accuracy (balanced accuracy 0.5). Judge the model by recall, precision, false alarms per hour and AUC.
 
@@ -75,18 +73,27 @@ Confusion counts (windows; rows = true label, columns = prediction):
 
 | Decision rule | benign, no flag (TN) | benign, flagged (FP) | attack, no flag (FN) | attack, flagged (TP) |
 |---|---|---|---|---|
-| Advisory model flag | 26,532 | 483 | 781 | 279 |
-| Envelope rule alone | 26,406 | 609 | 831 | 229 |
-| Model flag or envelope | 26,254 | 761 | 773 | 287 |
+| Advisory model flag | 26,382 | 637 | 517 | 544 |
 
 ![Confusion matrices on the held-out SWaT test block](figures/swat_confusion_matrix.png)
 
-ROC-AUC (attack probability) **0.825**, ROC-AUC (Isolation Forest score) 0.634, average precision 0.311.
-Attack segments detected: **6/10**; median detection latency 50.0 s (first flagged attack window after the segment starts).
+ROC-AUC (attack probability) **0.836**, average precision 0.363.
+Attack segments detected: **8/10**; median detection latency 57.5 s (first flagged attack window after the segment starts).
 
-Excluding the largest segment (35, 31.9% of attack windows): precision 0.366, recall 0.386, F1 0.376.
+![Per-segment detection](figures/swat_segments.png)
 
-The per-segment table is not part of this record (it was taken from the printed console summary); re-run `python -m benchmark.swat_accuracy ... --out benchmarks/swat_accuracy.json` to include it.
+| Segment | attack windows | duration (s) | flagged windows | detected | latency (s) |
+|---|---|---|---|---|---|
+| 26 | 120 | 600 | 112 | yes | 40 |
+| 27 | 89 | 445 | 77 | yes | 55 |
+| 28 | 20 | 100 | 1 | yes | 60 |
+| 29 | 96 | 480 | 0 | no | n/a |
+| 30 | 108 | 540 | 2 | yes | 75 |
+| 31 | 94 | 470 | 68 | yes | 130 |
+| 32 | 56 | 280 | 49 | yes | 35 |
+| 33 | 80 | 400 | 0 | no | n/a |
+| 34 | 60 | 300 | 50 | yes | 50 |
+| 35 | 338 | 1690 | 185 | yes | 85 |
 
 ## 3. Rule-based checks and constructed scenarios (NOT SWaT, NOT a learned model)
 
@@ -141,7 +148,7 @@ The stealthy SWaT-derived behaviours (`freeze`, `ramp`) are mostly in-bounds and
 
 **TWIN MEASUREMENT (synthetic plant calibrated to SWaT) - NOT SWaT detection performance.** Promoted physical model on the calibrated twin: 4.0 simulated hours of nominal operation with sensor noise.
 
-* learned-model alarm episodes on the HEALTHY twin: **0.25 per hour** (13 flagged seconds)
+* learned-model alarm episodes on the HEALTHY twin: **0.0 per hour** (0 flagged seconds)
 * measured-envelope rule alarm episodes: **0.0 per hour**
 
 | Synthetic actuator attack | first model flag (s after) | first envelope violation (s after) |
@@ -150,7 +157,7 @@ The stealthy SWaT-derived behaviours (`freeze`, `ramp`) are mostly in-bounds and
 | acid_overdose (HCl max, raw pump low) | 2 | 2 |
 | chlorine_breakthrough (NaOCl max, UV off) | 8 | 8 |
 | ro_deadhead (RO pump max, reject valve shut) | 1 | 1 |
-| uf_valve_shut (UF feed valve closes) | 4 | 16 |
+| uf_valve_shut (UF feed valve closes) | 5 | 16 |
 
 ![Twin detection latency](figures/twin_detection_latency.png)
 

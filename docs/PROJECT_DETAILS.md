@@ -70,7 +70,7 @@ Attacker --------same port-------------------> [ Cyber Agent  ||  Physical Agent
 | Middleware server | `middleware/middleware_server.py` | Modbus TCP server and client | ingress, state, polling, forwarding |
 | Cyber Agent | `middleware/cyber_agent.py` | **rules** | traffic and authentication checks |
 | Physical Agent | `middleware/physical_agent.py` | **rules** | plant-safety checks |
-| Physical model | `models/physical_model.py`, `swat/physical_features.py`, `models/tree_inference.py` | **ML (advisory)** | anomaly and attack scoring of telemetry windows |
+| Physical model (live: v2; v1 kept as fallback) | `models/physical_model_v2.py`, `swat/features_v2.py`, `swat/physical_features.py`, `models/tree_inference.py` (v1: `models/physical_model.py`) | **ML (advisory)** | attack probability of 120 s telemetry windows |
 | Cyber model | `models/cyber_model.py` | ML candidate, **not active** | negative result |
 | Orchestrator | `middleware/orchestrator.py` | **rules** | verdict fusion |
 | Pipeline | `pipeline/multi_model_pipeline.py` | glue | concurrent branches, failure policy, report |
@@ -290,7 +290,9 @@ Every sensor reading must lie inside the envelope **measured on SWaT train-block
 #### 7.4.5 Feedback check
 `check_feedback` (reported versus commanded, tolerance 20 % of range) is implemented and unit-tested; the live loop uses the settle-tolerance confirmation (7.2) and the envelope rule.
 
-### 7.5 Physical model: the only learned model in use (`models/physical_model.py`)
+### 7.5 Physical model: the only learned model in use
+**The live model is v2 (section 7.5.11).** Sections 7.5.1 to 7.5.10 describe the v1 model (`models/physical_model.py`), which shares the window, decimation and failure-handling machinery with v2, remains in the repository and is selectable with `IM_PHYSICAL_MODEL=v1`, and is the fallback if the v2 weights cannot be loaded.
+
 **Role:** an **advisory** plausibility check on plant telemetry. It can turn a pass into an `ALERT`; it can **never block**.
 
 #### 7.5.1 Inputs
@@ -345,6 +347,14 @@ See section 8.1 (confusion matrix and all scores) and `docs/reports/physical_tra
 #### 7.5.10 Failure handling
 Missing, stale (feature schema mismatch), corrupt or version-incompatible weights, a warming window, or any exception -> the model abstains (`NO_MODEL`, `WARMING_UP`, `ERROR`) and **never raises into the middleware**. The shipped weights are a pickle and require the pinned scikit-learn version (1.9.1), enforced by `tests/test_environment.py`.
 
+#### 7.5.11 Promoted model v2 (`models/physical_model_v2.py`, `swat/features_v2.py`, `models/train_physical_v2.py`)
+* **What changed versus v1:** (1) it is fitted on train **and** validation windows; (2) a **120 s** history (1 Hz) replaces the 30 s window; (3) two feature groups are added to the 67 drift-robust v1 statistics (computed over the last 30 s): **long-context features** over the full 120 s (per sensor: slope, standard deviation, net change; per actuator: number of toggles) and **cross-sensor consistency residuals**; (4) the two heads are replaced by **one gradient-boosted classifier** (`HistGradientBoostingClassifier`), so there is no Isolation Forest and `anomaly_score` is `None`; (5) the model and threshold are chosen by **segment-grouped 5-fold cross-validation** with segment-balanced average precision, so that one long attack segment cannot dominate the choice.
+* **Residual features:** for each sensor a ridge regression (alpha 10) predicts its 30 s trend (z-scored slope) from the other sensors' window means and the actuators' on-fractions. It is fitted on **normal windows only**; at run time the standardised prediction error of every sensor (plus the maximum and mean absolute error) is a feature. A physical relationship that breaks (a level that does not follow the flows) makes the residual grow. 117 features in total.
+* **Decision:** `threat_flag = attack_probability > 0.7880`. The threshold is the out-of-fold development threshold for a false-alarm budget of **0.5 episodes per benign hour**. A "k of the last m windows" persistence rule was evaluated and made F1 worse on the held-out block (0.416 against 0.485), so it is not used.
+* **Live inference:** the same feature functions the trainer calls build the 117 features from the live window (checked to 1e-9 against training in `tests/test_physical_v2_live.py`); `PackedHistGB` evaluates all 150 trees with numpy (identical to scikit-learn to 1e-15, about 0.05 ms against 1.6 ms), so one assessment costs about 0.6 ms including the features. Warm-up is 120 s. Failure handling is as in 7.5.10 (abstain, never raise).
+* **Why the twin must be noisy:** SWaT sensors are noisy; a perfectly flat, noiseless plant is out-of-distribution (constant standard deviations of zero) and made the model sit at p = 0.84 in ALERT. The PLC therefore runs the twin with sensor noise by default (`IM_TWIN_NOISE=0` turns it off); with noise the healthy twin shows `NORMAL`, probability about 0.03.
+* **Measured results (held-out test block, 0.5 budget):** section 8.1b.
+
 ### 7.6 Cyber model: a documented negative result (`models/cyber_model.py`, `swat/cyber_events.py`)
 **There is no cyber ML model in the running system.** A candidate was built and measured; it was weak and was not promoted, and the user then decided to drop cyber ML.
 * **Why it was hard:** SWaT has no network data, so a "command" can only be an **actuator state-change event** (on to off or closed to open). The candidate used **8 features**: `turns_on`, `stage`, `is_valve`, `log_dt_same_ms`, `log_dt_any_ms`, `events_1s`, `events_10s`, `same_reg_60s`; an Isolation Forest plus a supervised head; it abstained on any write that was not a flip.
@@ -398,7 +408,7 @@ A real Modbus client. **Fixed scripted attacks** are identical every run for dem
 
 Every result is labelled by the strength of its evidence. **Do not pool them.**
 
-### 8.1 Real data: held-out SWaT test block (physical model, advisory)
+### 8.1 Real data: held-out SWaT test block (physical model v1, advisory; superseded by v2, section 8.1b)
 Test block 1-2 Jan 2016: 28,075 windows (stride 5 s): 1,060 attack, 27,015 benign (37.5 benign hours). Operating point: Isolation Forest threshold 0.6108, classifier threshold 0.601, variant `drift_robust`. Measured on the user's machine from the promoted weights. **Protocol note:** the test block was also seen in the revised training protocol (7.5.8), so these are held-out numbers, not a blind test.
 
 **Confusion matrix of the advisory flag** (rows = truth, columns = prediction):
@@ -419,8 +429,26 @@ Test block 1-2 Jan 2016: 28,075 windows (stride 5 s): 1,060 attack, 27,015 benig
 * **Plain accuracy is not the headline.** Attacks are 3.8 % of windows, so a system that never flags anything scores accuracy **0.962** (balanced accuracy 0.5). Judge by recall, precision, false-alarm rate and AUC.
 * Excluding the largest test segment (segment 35, 32 % of attack windows): precision 0.366, recall 0.386, F1 0.376.
 * **Operating curve** (test block; threshold set on validation): at 0.25 per hour, recall 0.26 and 1.52 false-alarm episodes per hour; at 2 per hour, recall 0.50 and 3.36 per hour; at 4 per hour, recall 0.53 and 4.58 per hour. The validation budget is not reproduced on test (calendar drift).
-* **Honest reading:** the model **ranks** attacks reasonably (AUC 0.82), but at its conservative operating point it flags about a quarter of attack windows and produces more false alarms than its target. It is advisory for this reason.
+* **Honest reading (v1):** the model **ranks** attacks reasonably (AUC 0.82), but at its conservative operating point it flags about a quarter of attack windows and produces more false alarms than its target. It is advisory for this reason.
 * Other model results (run 2, test): classifier alone precision 0.267, recall 0.260, F1 0.264, ROC-AUC 0.826; Isolation Forest alone precision 0.107, recall 0.012, ROC-AUC 0.633 (mostly useful as a drift-independent second opinion); "flag everything" baseline precision 0.038, recall 1.0, F1 0.073.
+
+### 8.1b Real data: the promoted v2 model on the same held-out block
+Test block 1-2 Jan 2016: 28,080 windows (each with a full 120 s history), 1,061 attack, 37.53 benign hours. Source: `docs/reports/physical_training_report_v2_swat.md` (the user's local SWaT run of `models/train_physical_v2.py`). The test block was used for exactly two refits and looks (baseline and selected) and had been seen by v1's revised protocol: held-out, not blind.
+
+**Confusion matrix of the advisory flag (threshold 0.788):** TN 26,382, FP 637, FN 517, TP 544.
+
+| Variant (budget 0.5 per benign hour) | Precision | Recall | F1 | Accuracy | Balanced acc. | FP rate | Alarm episodes / h | Segments | ROC-AUC |
+|---|---|---|---|---|---|---|---|---|---|
+| v1 (shipped before; 1,060 attack windows) | 0.366 | 0.263 | 0.306 | 0.955 | 0.623 | 0.018 | 1.79 | 6/10 | 0.825 |
+| refit baseline (v1 features, random forest, train + validation) | 0.453 | 0.499 | 0.474 | 0.958 | 0.737 | 0.024 | 0.99 | 7/10 | 0.771 |
+| **v2 as promoted** (selected features, gradient boosting) | **0.461** | **0.513** | **0.485** | **0.959** | **0.745** | 0.024 | 1.17 | **8/10** | **0.836** |
+| v2 with persistence (not used) | 0.328 | 0.568 | 0.416 | 0.940 | 0.761 | 0.046 | 1.28 | 8/10 | 0.836 |
+
+* **Cross-validation on train + validation (out-of-fold, selected):** segment-balanced AP 0.499, AP 0.794, ROC-AUC 0.925.
+* **Where the gain comes from:** most of the F1 gain (0.31 to 0.47) comes from fitting on train + validation (the later calendar days resemble the test block more); the new features and the boosted classifier add a further 0.01 F1, +0.065 AUC and one more detected segment. Be precise about this in any publication.
+* **Not detected:** segments 29 and 33 (96 and 80 windows) are never flagged. Median detection latency 57.5 s.
+* **Plain accuracy is not the headline:** always-benign scores 0.962.
+* **On the healthy twin** (4 simulated hours, noise on; synthetic plant, not SWaT performance): 0 alarm episodes; synthetic actuator attacks flagged after 1 to 10 s (`docs/reports/twin_domain_gap_report.md` is v1's; the v2 twin numbers are in the generated benchmark report).
 
 ### 8.2 Constructed scenarios: the rule layers (not SWaT, not a learned model)
 23 case types x 200 randomised scenarios per case on a virtual clock; a scenario counts as detected only when the real pipeline returns `DROP` **with the expected reason**.

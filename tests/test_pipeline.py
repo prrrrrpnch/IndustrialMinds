@@ -97,7 +97,7 @@ check("physical section has rule verdict, model report and plant state",
       and {"status", "plant_state", "threat_flag", "bounds_violations"} <= set(rep["physical"]["model"]),
       f"state={rep['physical']['plant_state']} model={rep['physical']['model']['status']}")
 check("health_report() returns the physical model assessment",
-      pipe.health_report()["model"] == "PhysicalModel")
+      pipe.health_report()["model"] in ("PhysicalModel", "PhysicalModelV2"))
 check("legit command is forwarded (PASS, or ALERT when only the advisory physical model flags)",
       rep["decision"]["verdict"] in ("PASS", "ALERT"), rep["decision"]["verdict"])
 check("ALERT only ever comes from the advisory physical model",

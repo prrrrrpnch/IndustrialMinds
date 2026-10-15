@@ -38,7 +38,17 @@ with warnings.catch_warnings():
         ok, why = pm.status == "OK", pm.status
     except Exception as e:                                   # InconsistentVersionWarning is raised as an error here
         ok, why = False, type(e).__name__
-check("the promoted physical weights load with no version warning and report status OK", ok, why)
+check("the v1 physical weights load with no version warning and report status OK", ok, why)
+
+with warnings.catch_warnings():
+    warnings.simplefilter("error")
+    try:
+        from models.physical_model_v2 import PhysicalModelV2
+        pm2 = PhysicalModelV2.load()
+        ok, why = pm2.status == "OK", pm2.status
+    except Exception as e:
+        ok, why = False, type(e).__name__
+check("the promoted v2 physical weights load with no version warning and report status OK", ok, why)
 
 print("\nALL PASS" if fails == 0 else f"\n{fails} CHECK(S) FAILED")
 raise SystemExit(1 if fails else 0)
