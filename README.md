@@ -38,6 +38,8 @@ Contents: [Quick start](#quick-start-one-laptop-10-minutes) · [Architecture](#a
 
 ## Quick start (one laptop, 10 minutes)
 
+> **Running it on four laptops for the first time?** Follow **[`GETTING_STARTED.md`](GETTING_STARTED.md)** — install per laptop, the one-command launcher (`scripts/run.sh` / `scripts/run.ps1` reading `config/lab.env`), cross-subnet notes, and the demo. The single-laptop quick start below is for a rehearsal on one machine.
+
 Needs Python 3.13 or 3.14 and a terminal at the project root. Nothing else is required: the SWaT data is **not** needed to run the demo.
 
 ```bash

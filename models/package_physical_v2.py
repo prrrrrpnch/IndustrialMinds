@@ -41,8 +41,10 @@ def main() -> int:
     meta = {"feature_names": feature_names(b["feature_set"]), "window": LONG, "variant": "v2", "model_kind": b["model_kind"],
             "false_alarm_budget_per_hour": float(a.budget), "threshold_rule": "out-of-fold dev threshold at the budget, no persistence",
             "report": REPORT, "trained_on": "SWaT train+validation blocks (segment-grouped CV for selection)",
-            "test_block_result_at_0.5_budget": "precision 0.461, recall 0.513, F1 0.485, 8/10 segments, 1.17 false-alarm episodes/h, ROC-AUC 0.836",
-            "note": "advisory: flags become ALERT, never DROP"}
+            "note": "advisory: flags become ALERT, never DROP; see the report for the held-out test numbers at this budget"}
+    if str(a.budget) == "0.5":
+        meta["test_block_result_at_0.5_budget"] = ("precision 0.461, recall 0.513, F1 0.485, 8/10 segments, "
+                                                   "1.17 false-alarm episodes/h, ROC-AUC 0.836")
     import sklearn
     meta["sklearn"] = sklearn.__version__
     blob = {"schema": "physical_v2/1", "feature_set": b["feature_set"], "scorer": b["scorer"], "residual": b["residual"],

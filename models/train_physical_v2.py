@@ -44,7 +44,12 @@ log = logging.getLogger("industrialmind.train_physical_v2")
 HERE = os.path.dirname(os.path.abspath(__file__))
 WEIGHTS_DIR = os.path.realpath(os.path.join(HERE, "weights"))
 DEFAULT_OUT = os.path.join(HERE, "candidates", "physical_v2")
-BUDGETS = (0.5, 1.0)
+# False-alarm operating points swept in the report, in episodes per benign hour.
+# A wider sweep lets you pick recall vs. false-alarms for YOUR goal: the live
+# model ships at 0.5/h but you can run any point with IM_PHYSICAL_THRESHOLD, or
+# re-package with `models.package_physical_v2 --budget <b>`. This is reporting
+# breadth only; it does not change how the model is trained.
+BUDGETS = (0.25, 0.5, 1.0, 2.0, 4.0)
 
 
 # --------------------------------------------------------------------------- models

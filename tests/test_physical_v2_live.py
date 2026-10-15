@@ -115,5 +115,20 @@ for i in range(30):
     tt.append((time.perf_counter() - a) * 1000)
 check("assess() is fast enough for the decision path (mean < 3 ms)", float(np.mean(tt)) < 3.0, f"mean {np.mean(tt):.2f} ms, max {np.max(tt):.2f} ms")
 
+print("\nOPERATING-POINT OVERRIDE (IM_PHYSICAL_THRESHOLD)")
+shipped = PhysicalModelV2.load().clf_threshold
+os.environ["IM_PHYSICAL_THRESHOLD"] = "0.5"
+try:
+    ov = PhysicalModelV2.load()
+    check("a valid override in [0,1] replaces the threshold", abs(ov.clf_threshold - 0.5) < 1e-9
+          and ov.metadata.get("operating_point_override") == 0.5 and ov.status == "OK")
+    for bad in ("9", "-1", "abc", ""):
+        os.environ["IM_PHYSICAL_THRESHOLD"] = bad
+        m = PhysicalModelV2.load()
+        check(f"an invalid override ({bad!r}) is ignored, threshold stays shipped",
+              abs(m.clf_threshold - shipped) < 1e-9)
+finally:
+    os.environ.pop("IM_PHYSICAL_THRESHOLD", None)
+
 print("\nALL PASS" if fails == 0 else f"\n{fails} CHECK(S) FAILED")
 raise SystemExit(1 if fails else 0)

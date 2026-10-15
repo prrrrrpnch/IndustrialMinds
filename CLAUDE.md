@@ -55,6 +55,8 @@ Reference files are listed by path below; none are auto-loaded.
 - Pre-existing lab IPs remain only in synthetic-data files (telemetry_generator, train_models, evaluation, some tests); replaced when data is replaced in P5-P7/P11.
 - Plant = 5 stages x 4 points = 20 registers (10 actuators writable, 10 sensors read-only); register constants are SWaT tags (MV101, LIT101...). Old names (TANK_PRESSURE...) are gone.
 - Wire scale is x10 (0.1 resolution): pH/permeate flow are coarse; max representable 6553.5.
+- HARDENING: a PASSed command the PLC never settles to is expired after IM_PENDING_TIMEOUT_S (default 15) so its value stops being projected into the cross-register setpoints (middleware_server._expire_pending_if_stale; tests/test_pending_expiry.py). 'cannot reach the PLC' poll error is rate-limited to 1 line/5s.
+- IM_PHYSICAL_THRESHOLD (prob in [0,1]) overrides the v2 model's live operating point WITHOUT retraining (lower = more recall/more alerts; default ~0.788 = 0.5 FA/h). Invalid values ignored. Model stays advisory. train_physical_v2 BUDGETS sweep widened to (0.25,0.5,1,2,4) for the re-run report; package_physical_v2 --budget picks one.
 - LIVE PHYSICAL MODEL = v2 (user approved promotion): `models/weights/physical_model_v2.joblib` via `models/package_physical_v2.py`, class `models/physical_model_v2.py` (120 s window, 117 features, HGB prob > 0.7880, advisory, 120 s warm-up, packed inference). `load_physical_model()` selects it; `IM_PHYSICAL_MODEL=v1` or unusable v2 weights -> v1. Held-out test (budget 0.5/h): P .461 R .513 F1 .485 8/10 segs AUC .836 1.17 ep/h. PLC twin runs WITH sensor noise by default (noiseless plant = out-of-distribution -> constant ALERT). Tests: tests/test_physical_v2_live.py.
 - models/weights (v1 fallback): physical_model.joblib is the previous SWaT-trained model (advisory; operating point 0.5 false alarms/h, clf thr 0.601, variant drift_robust). The old synthetic cyber_model.joblib/training_report.json were deleted (user-confirmed); with no cyber weights the CyberModel reports NO_MODEL = cyber branch is rules-only.
 - SWaT archive facts (from tools/swat_inspect.py reports; data lives ONLY on the user's Windows machine, never in this container):
@@ -78,6 +80,7 @@ Reference files are listed by path below; none are auto-loaded.
 | Path | Open when |
 |---|---|
 | `README.md` | user-facing setup/usage; rewritten in Phase 12 |
+| `GETTING_STARTED.md`, `scripts/run.sh`, `scripts/run.ps1`, `config/lab.env.example` | first-time 4-laptop setup + one-command launcher per role (reads git-ignored `config/lab.env`; blank -> loopback). `run.sh/ps1 <plc|dashboard|middleware|scada|attacker|check> [args]` |
 | `docs/PROJECT_DETAILS.md` (+ `.docx`) | COMPLETE technical description of every component, algorithm, parameter, result (for PPT / report / IEEE paper); numbers copied from benchmarks/ and docs/reports/ - update when they change |
 | `MODELS_RATIONALE.md` | changing/justifying the cyber or physical model design |
 | `CHECKLIST_VERIFICATION.txt` | legacy self-verification claims (numbers must match repo benchmarks — PART 0 item) |
