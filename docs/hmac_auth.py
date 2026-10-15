@@ -100,11 +100,77 @@ def get_secret() -> bytes:
         return _secret_cache
 
 
+# ---------------------------------------------------------------------------
+# Per-device key registry (opt-in; closes the single-shared-key weakness)
+# ---------------------------------------------------------------------------
+# Default: no registry -> every source is verified with the one shared secret
+# (get_secret), exactly as before. When a registry is configured, each source
+# identity (its address) is verified with ITS OWN key, so a key stolen from one
+# device cannot be used from another address, and a device's key can be revoked
+# on its own. The verifier (middleware) holds the registry; each signer (SCADA)
+# holds only its own key as IM_HMAC_SECRET.
+#
+# Configure on the MIDDLEWARE with either:
+#   IM_HMAC_KEYS="<scada-addr>=<scada-key>,<hmi-addr>=<hmi-key>"   (addr=key, comma-separated)
+#   IM_HMAC_KEYS_FILE=/path/to/keys.json                          ({"<scada-addr>": "<scada-key>", ...})
+# Each key must be at least MIN_SECRET_LEN characters.
+
+_registry_cache: Optional[Dict[str, bytes]] = None
+
+
+def _load_key_registry_uncached() -> Dict[str, bytes]:
+    out: Dict[str, bytes] = {}
+    path = os.environ.get("IM_HMAC_KEYS_FILE")
+    if path:
+        import json
+        with open(path, "r", encoding="utf-8") as fh:
+            raw = json.load(fh)
+        for ident, key in raw.items():
+            out[str(ident).strip()] = _check_key(str(key), ident)
+    spec = os.environ.get("IM_HMAC_KEYS", "")
+    for item in spec.split(","):
+        item = item.strip()
+        if not item or "=" not in item:
+            continue
+        ident, key = item.split("=", 1)
+        out[ident.strip()] = _check_key(key.strip(), ident.strip())
+    return out
+
+
+def _check_key(key: str, ident: object) -> bytes:
+    if len(key) < MIN_SECRET_LEN:
+        raise SecretError(f"per-device key for {ident!r} is shorter than {MIN_SECRET_LEN} characters")
+    return key.encode("utf-8")
+
+
+def _registry() -> Dict[str, bytes]:
+    global _registry_cache
+    with _secret_lock:
+        if _registry_cache is None:
+            _registry_cache = _load_key_registry_uncached()
+        return _registry_cache
+
+
+def has_key_registry() -> bool:
+    """True when a per-device key registry is configured (per-device mode)."""
+    return bool(_registry())
+
+
+def key_for_source(identity: object) -> Optional[bytes]:
+    """The key registered for this source identity, or None if it is not registered.
+    When no registry is configured, returns the single shared secret (shared mode)."""
+    reg = _registry()
+    if not reg:
+        return get_secret()
+    return reg.get(str(identity))
+
+
 def reset_secret_cache() -> None:
-    """Tests only: force the secret to be re-read."""
-    global _secret_cache
+    """Tests only: force the secret and the key registry to be re-read."""
+    global _secret_cache, _registry_cache
     with _secret_lock:
         _secret_cache = None
+        _registry_cache = None
 
 
 # ---------------------------------------------------------------------------
@@ -195,13 +261,14 @@ def parse_frame(values: List[int]) -> Dict[str, Any]:
 # ---------------------------------------------------------------------------
 
 def verify(register: Optional[int], raw_value: Optional[int], auth: Optional[Dict[str, Any]],
-           now_ms: Optional[int] = None) -> Tuple[bool, str, str]:
+           now_ms: Optional[int] = None, key: Optional[bytes] = None) -> Tuple[bool, str, str]:
     """Verifies a parsed frame.
 
     Returns (ok, reason_code, detail). reason_code is one of
     HMAC_OK, HMAC_MISSING, HMAC_MALFORMED, HMAC_INVALID, HMAC_EXPIRED.
     The MAC is checked BEFORE the timestamp so freshness decisions are only
-    made on authenticated data.
+    made on authenticated data. `key` selects the verifying key (per-device
+    mode); None uses the single shared secret (shared mode).
     """
     if not auth:
         return False, "HMAC_MISSING", "command carried no HMAC signature"
@@ -213,6 +280,7 @@ def verify(register: Optional[int], raw_value: Optional[int], auth: Optional[Dic
         expected = compute_mac(
             auth["version"], int(register), int(raw_value),
             int(auth["nonce"]), int(auth["timestamp_ms"]),
+            key=key,
         )
     except (KeyError, TypeError, ValueError, struct.error):
         return False, "HMAC_MALFORMED", "frame fields out of range"

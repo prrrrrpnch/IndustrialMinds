@@ -157,9 +157,20 @@ def check(command: Dict[str, Any]) -> Dict[str, Any]:
     if raw_value is None and command.get("value") is not None:
         raw_value = to_raw(command["value"])
 
+    # Per-device key (opt-in). In registry mode, each source is verified with
+    # its own key; a source with no registered key is rejected before any MAC
+    # is computed. In shared mode (no registry) this returns the shared secret.
+    verify_key = hmac_auth.key_for_source(source_ip)
+    if verify_key is None:
+        return make_verdict(
+            tx_id, False,
+            f"UNKNOWN_DEVICE:{source_ip} has no key in the per-device registry",
+            "cyber",
+        )
+
     auth = command.get("auth")
     ok, code, detail = hmac_auth.verify(
-        command.get("register"), raw_value, auth, now_ms=int(now * 1000)
+        command.get("register"), raw_value, auth, now_ms=int(now * 1000), key=verify_key
     )
     if not ok:
         verdict = make_verdict(tx_id, False, f"{code}:{detail}", "cyber")

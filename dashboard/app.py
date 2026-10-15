@@ -52,6 +52,40 @@ MAX_EVENTS = 100
 
 _lock = threading.Lock()
 
+_START_TIME = time.time()
+
+# Optional shared-token auth for the state-changing POST endpoints. Default
+# unset -> no auth (loopback-only demo, unchanged). Set IM_DASHBOARD_TOKEN on
+# BOTH the dashboard and the middleware when the dashboard is bound to a network
+# (IM_DASHBOARD_BIND_HOST=0.0.0.0) so only the middleware can post to it.
+_DASHBOARD_TOKEN = os.environ.get("IM_DASHBOARD_TOKEN", "").strip()
+
+
+@app.before_request
+def _require_token_for_writes():
+    import hmac as _hmac
+    from flask import request as _req
+    if not _DASHBOARD_TOKEN:
+        return None                                  # no token configured -> open (current behaviour)
+    if _req.method == "POST" and _req.path.startswith("/api/"):
+        presented = _req.headers.get("X-IM-Token", "")
+        if not _hmac.compare_digest(presented, _DASHBOARD_TOKEN):
+            return jsonify({"success": False, "error": "unauthorized"}), 401
+    return None
+
+
+@app.route("/api/health")
+def health() -> Response:
+    """Unauthenticated liveness/readiness probe (GET)."""
+    with _lock:
+        n_traces = len(_traces)
+    return jsonify({
+        "status": "ok",
+        "uptime_seconds": round(time.time() - _START_TIME, 1),
+        "traces": n_traces,
+        "auth": "token" if _DASHBOARD_TOKEN else "open",
+    })
+
 _scada_to_plc = deque(maxlen=MAX_EVENTS)
 _plc_to_scada = deque(maxlen=MAX_EVENTS)
 

@@ -184,6 +184,33 @@ and `models/train_physical_v2.py`.
 
 ---
 
+## Hardening beyond the demo (optional)
+
+The defaults above are tuned for a clear single-key demo. Three opt-in settings
+move it toward a more realistic deployment; each is off by default, so turning
+none of them on leaves the demo exactly as described.
+
+- **Per-device keys** (instead of one shared secret). On the **middleware**, set
+  `IM_HMAC_KEYS="<scada-addr>=<scada-key>,<hmi-addr>=<hmi-key>"` (each key 32+
+  chars). Each signer then holds only *its own* key as `IM_HMAC_SECRET`. The
+  middleware verifies every command with the key bound to its source address, so
+  a key stolen from one device cannot be used from another address, and a source
+  with no registered key is rejected `UNKNOWN_DEVICE`. A JSON file works too:
+  `IM_HMAC_KEYS_FILE=/path/to/keys.json`.
+- **Dashboard token** (when the dashboard is on the network). If you set
+  `IM_DASHBOARD_BIND_HOST=0.0.0.0` so another laptop can view the dashboard, also
+  set the same `IM_DASHBOARD_TOKEN=<token>` on **both the dashboard and the
+  middleware**. The dashboard then rejects any POST to `/api/*` that doesn't carry
+  the token, so only the middleware can push data to it. `GET /api/health` stays
+  open as a liveness probe.
+- **Fail-closed decisions** are already the default: any internal error in a
+  rule agent or the orchestrator drops the command (`AGENT_ERROR`), never passes
+  it. Nothing to configure.
+
+Note on accuracy: improving the physical model's real-data detection is retrained
+on the machine that holds the SWaT archive (`models/train_physical_v2.py`); it
+can't be done from the demo laptops alone.
+
 ## Common failures
 
 | Symptom | Fix |

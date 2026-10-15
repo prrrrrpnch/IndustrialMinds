@@ -17,6 +17,7 @@ from __future__ import annotations
 
 import atexit
 import json
+import os
 import queue
 import threading
 import time
@@ -45,10 +46,14 @@ def _forward_loop() -> None:
         path, payload = item
         try:
             data = json.dumps(payload).encode("utf-8")
+            headers = {"Content-Type": "application/json"}
+            token = os.environ.get("IM_DASHBOARD_TOKEN", "").strip()
+            if token:
+                headers["X-IM-Token"] = token
             req = urllib.request.Request(
                 f"{netconfig.DASHBOARD_URL}{path}",
                 data=data,
-                headers={"Content-Type": "application/json"},
+                headers=headers,
             )
             urllib.request.urlopen(req, timeout=1.0)
         except Exception:
