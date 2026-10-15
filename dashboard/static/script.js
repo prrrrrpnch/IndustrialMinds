@@ -593,96 +593,6 @@ function safe(value) {
 
 
 // =========================================================
-// ATTACK PANEL
-// =========================================================
-
-function toggleAttackPanel() {
-
-    const panel =
-        document.getElementById(
-            "attack-panel"
-        );
-
-    if (!panel) {
-        return;
-    }
-
-    if (
-        panel.style.display === "none" ||
-        panel.style.display === ""
-    ) {
-
-        panel.style.display =
-            "block";
-
-    } else {
-
-        panel.style.display =
-            "none";
-    }
-}
-
-
-// =========================================================
-// TRIGGER ATTACK
-// =========================================================
-
-async function triggerAttack(attack) {
-
-    try {
-
-        const response =
-            await fetch(
-                "/api/trigger-attack",
-                {
-                    method: "POST",
-
-                    headers: {
-                        "Content-Type":
-                            "application/json"
-                    },
-
-                    body: JSON.stringify({
-                        attack: attack,
-                        source_ip:
-                            (document.getElementById("attack-source-ip")?.value || "").trim()
-                    })
-                }
-            );
-
-        const result =
-            await response.json();
-
-        console.log(
-            "Attack:",
-            result
-        );
-
-        if (!result.success) {
-
-            console.error(
-                "Attack rejected:",
-                result.error
-            );
-
-            return;
-        }
-
-        console.log(
-            `[DASHBOARD] ${attack} launched`
-        );
-
-    } catch (error) {
-
-        console.error(
-            "Attack failed:",
-            error
-        );
-    }
-}
-
-
-// =========================================================
 // RESET
 // =========================================================
 
@@ -738,23 +648,10 @@ async function resetDashboard() {
 
 function setupButtons() {
 
-    const attackButton =
-        document.getElementById(
-            "btn-trigger-attack"
-        );
-
     const resetButton =
         document.getElementById(
             "btn-reset-data"
         );
-
-    if (attackButton) {
-
-        attackButton.addEventListener(
-            "click",
-            toggleAttackPanel
-        );
-    }
 
     if (resetButton) {
 
