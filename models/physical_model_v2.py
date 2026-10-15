@@ -130,6 +130,27 @@ class PhysicalModelV2(PhysicalModel):
                 log.warning("packed inference unsupported for this scorer - using sklearn predict_proba")
             inst.norm = norm_from_stats(blob["norm_stats"])
             inst.clf_threshold = float(blob["clf_threshold"])
+            # Optional runtime operating-point override. The weights ship at the
+            # 0.5 false-alarm/hour point (threshold ~0.788). A demo may prefer
+            # higher recall (lower threshold, catches more, more alerts) or
+            # quieter operation (higher threshold). Set IM_PHYSICAL_THRESHOLD to
+            # a probability in [0,1] to override WITHOUT retraining. The model
+            # stays advisory either way (it raises ALERT, never DROP).
+            override = os.environ.get("IM_PHYSICAL_THRESHOLD", "").strip()
+            if override:
+                try:
+                    v = float(override)
+                    if 0.0 <= v <= 1.0:
+                        inst.clf_threshold = v
+                        meta = {**meta, "operating_point_override": v,
+                                "shipped_threshold": float(blob["clf_threshold"])}
+                        log.info("PhysicalModelV2 operating point overridden to "
+                                 "%.4f via IM_PHYSICAL_THRESHOLD (shipped %.4f)",
+                                 v, float(blob["clf_threshold"]))
+                    else:
+                        log.warning("IM_PHYSICAL_THRESHOLD=%s out of [0,1] - ignored", override)
+                except ValueError:
+                    log.warning("IM_PHYSICAL_THRESHOLD=%s is not a number - ignored", override)
             inst.window_size = int(meta.get("window", LONG))
             inst._buf = deque(maxlen=inst.window_size)
             inst.metadata, inst.status = meta, "OK"
