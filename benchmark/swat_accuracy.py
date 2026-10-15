@@ -27,6 +27,7 @@ import pandas as pd
 
 from benchmark.env import environment
 from models.physical_model import PhysicalModel
+from models.physical_model_v2 import load_physical_model
 from swat.fusion_scenarios import physical_observations
 from swat.loader import load_stream
 from swat.physical_features import ACTUATORS, SENSORS, build_windows
@@ -75,19 +76,44 @@ def confusion(y: np.ndarray, f: np.ndarray) -> Dict[str, Any]:
     return out
 
 
-def evaluate(model: PhysicalModel, stream: pd.DataFrame) -> Dict[str, Any]:
-    test = stream[stream["block"] == "test"].reset_index(drop=True)
+def _v1_observations(model: PhysicalModel, test: pd.DataFrame):
     X, meta = build_windows(test, model.norm, stride=STRIDE)
     if len(X) == 0:
-        return {"status": "NOT RUN: no test-block windows"}
+        return None
     obs = physical_observations(model, X)
+    model_flag = (obs["phys_if_score"].to_numpy() > model.threshold) | (obs["phys_p_attack"].to_numpy() > model.clf_threshold)
+    return {"n": len(X), "meta": meta, "p": obs["phys_p_attack"].to_numpy(), "if_score": obs["phys_if_score"].to_numpy(),
+            "model_flag": model_flag, "env_flag": obs["env_violations"].to_numpy() > 0, "rule_flag": obs["physical_pass"].to_numpy() == 0}
+
+
+def _v2_observations(model, test: pd.DataFrame):
+    """PhysicalModelV2 on the test block: the same feature code the live model calls, over windows with a full 120 s history."""
+    from swat.features_v2 import assemble, long_features
+    from swat.features_v2 import build_windows_v2
+    X87, XL, meta = build_windows_v2(test, model.norm, stride=STRIDE)
+    if len(X87) == 0:
+        return None
+    X = assemble(model.feature_set, X87, XL, model._resid)
+    p = model._scorer.predict_proba(X)[:, 1]
+    # envelope rule on the window's last sample: the 'last' z-score of each sensor is column <sensor>.last of the 87 features
+    from swat.physical_features import FEATURE_NAMES
+    cols = [FEATURE_NAMES.index(f"{t}.last") for t in SENSORS]
+    raw_last = X87[:, cols] * model.norm.sd + model.norm.mu
+    env = ((raw_last < model.norm.lo) | (raw_last > model.norm.hi)).any(axis=1)
+    flag = p > model.clf_threshold
+    return {"n": len(X87), "meta": meta, "p": p, "if_score": None, "model_flag": flag, "env_flag": env, "rule_flag": flag | env}
+
+
+def evaluate(model: PhysicalModel, stream: pd.DataFrame) -> Dict[str, Any]:
+    test = stream[stream["block"] == "test"].reset_index(drop=True)
+    o = (_v2_observations if getattr(model, "variant", "") == "v2" else _v1_observations)(model, test)
+    if o is None:
+        return {"status": "NOT RUN: no test-block windows"}
+    meta, model_flag, env_flag, flag = o["meta"], o["model_flag"], o["env_flag"], o["rule_flag"]
     y = meta["label"].to_numpy().astype(bool)
     ep = meta["epoch"].to_numpy()
     seg = meta["seg"].to_numpy()
-    flag = (obs["physical_pass"].to_numpy() == 0)
-    env_flag = obs["env_violations"].to_numpy() > 0
-    model_flag = (obs["phys_if_score"].to_numpy() > model.threshold) | (obs["phys_p_attack"].to_numpy() > model.clf_threshold)
-    out: Dict[str, Any] = {"status": "OK", "block": "test (held-out calendar block)", "windows": int(len(X)),
+    out: Dict[str, Any] = {"status": "OK", "block": "test (held-out calendar block)", "windows": int(o["n"]),
                            "attack_windows": int(y.sum()), "benign_windows": int((~y).sum()), "stride_s": STRIDE}
     hours = max((~y).sum() * STRIDE / 3600.0, 1e-9)
     out["benign_hours"] = round(float(hours), 3)
@@ -99,9 +125,10 @@ def evaluate(model: PhysicalModel, stream: pd.DataFrame) -> Dict[str, Any]:
     try:
         from sklearn.metrics import average_precision_score, roc_auc_score
         if 0 < y.sum() < len(y):
-            out["roc_auc_attack_probability"] = round(float(roc_auc_score(y, obs["phys_p_attack"])), 4)
-            out["roc_auc_isolation_forest_score"] = round(float(roc_auc_score(y, obs["phys_if_score"])), 4)
-            out["average_precision_attack_probability"] = round(float(average_precision_score(y, obs["phys_p_attack"])), 4)
+            out["roc_auc_attack_probability"] = round(float(roc_auc_score(y, o["p"])), 4)
+            if o["if_score"] is not None:
+                out["roc_auc_isolation_forest_score"] = round(float(roc_auc_score(y, o["if_score"])), 4)
+            out["average_precision_attack_probability"] = round(float(average_precision_score(y, o["p"])), 4)
     except Exception as exc:                       # pragma: no cover
         out["auc_error"] = str(exc)
     segs: List[Dict[str, Any]] = []
@@ -125,12 +152,18 @@ def evaluate(model: PhysicalModel, stream: pd.DataFrame) -> Dict[str, Any]:
 
 
 def run(data_dir: str, fixture: bool = False, weights: str | None = None) -> Dict[str, Any]:
-    model = PhysicalModel.load(weights) if weights else PhysicalModel.load()
+    if weights:
+        from models.physical_model_v2 import PhysicalModelV2
+        model = PhysicalModelV2.load(weights)
+        if model.status != "OK":
+            model = PhysicalModel.load(weights)
+    else:
+        model = load_physical_model()
     if model.status != "OK":
         return {"status": f"NOT RUN: physical model not usable ({model.status})"}
     stream, info = load_stream(data_dir, SENSORS + ACTUATORS)
     res = evaluate(model, stream)
-    res.update({"label": "PROMOTED physical model on the HELD-OUT SWaT test block (real data, aggregate only)" if not fixture
+    res.update({"label": f"PROMOTED physical model ({type(model).__name__}) on the HELD-OUT SWaT test block (real data, aggregate only)" if not fixture
                 else "SYNTHETIC SWaT-SHAPED FIXTURE: code path only, numbers are meaningless",
                 "fixture_not_real_results": bool(fixture),
                 "operating_point": {"isolation_forest_threshold": model.threshold, "classifier_threshold": model.clf_threshold, "variant": model.variant},

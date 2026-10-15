@@ -14,7 +14,7 @@ Attacks are launched **only from the attacker system**; the dashboard has no att
 | Attacker | Windows B | `python -m attacker.attacker <attack>` | middleware :5021 (and PLC :5020 for `false-injection` only) |
 | Observers | Mac A / Windows A | Wireshark or tshark (`docs/wireshark_setup.md`) | passive |
 
-Start order: PLC, dashboard, middleware, SCADA (wait about 40 s for the model window; with the v1 model 30 s). Set `IM_HOST_LABELS="<scada_ip>=SCADA operator,<attacker_ip>=Attacker laptop"` on the dashboard so hosts have names. Addresses come from env vars (`docs/netconfig.py`), never literals.
+Start order: PLC, dashboard, middleware, SCADA (the physical model needs 120 s of telemetry: `WARMING_UP` until then; the PLC runs the twin with sensor noise by default, keep it). Set `IM_HOST_LABELS="<scada_ip>=SCADA operator,<attacker_ip>=Attacker laptop"` on the dashboard so hosts have names. Addresses come from env vars (`docs/netconfig.py`), never literals.
 
 ## 2. Normal operation (what a healthy system looks like)
 1. SCADA signs one command every 2 s (FC16 frame with nonce, timestamp, HMAC) and sends it to the middleware.

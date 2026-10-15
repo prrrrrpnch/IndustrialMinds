@@ -5,7 +5,7 @@ benchmark/latency.py - reproducible per-hop latency of the REAL pipeline (in-pro
     python -m benchmark.latency --live            # also the Modbus round trip against a running middleware
 
 WHAT IS MEASURED. Each command goes through MultiModelPipeline.process_command (cyber and physical branches on worker threads,
-rule agents, the SWaT-trained physical model on a warm 30 s window fed from the twin, the orchestrator, the packet-trace
+rule agents, the SWaT-trained physical model on a warm window (120 s for v2) fed from the twin, the orchestrator, the packet-trace
 builder). Wrapper timers record, per command, the wall time of each hop with time.perf_counter(): cyber rules, cyber model,
 physical rules, physical model, orchestrator, trace build, and the total. The two branches overlap, so the per-hop times do not
 add up to the total (the `branches` row is their wall time).
@@ -143,7 +143,7 @@ def run_once(n: int, warmup: int, seed: int, raw_rows: List[Dict[str, Any]] | No
     pipe = mmp.MultiModelPipeline()
     twin = PlantTwin(noise=True, seed=seed)
     vt = W.T0 - 60.0
-    for _ in range(45):                       # warm the 30 s window with real twin telemetry, one sample per virtual second
+    for _ in range(pipe.physical_model.window_size + 15):   # warm the model window with real twin telemetry, one sample per virtual second
         for _ in range(10):
             twin.step(0.1)
         vt += 1.0

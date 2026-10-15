@@ -30,9 +30,10 @@ _state_lock = threading.Lock()
 
 # The plant is a staged, physically coupled water-treatment twin (plc/twin.py).
 # Actuator registers accept commands; sensor registers are computed by the physics.
-# IM_TWIN_TIME_SCALE > 1 speeds the process up; IM_TWIN_NOISE=1 adds sensor noise.
+# IM_TWIN_TIME_SCALE > 1 speeds the process up. Sensor noise is ON by default (IM_TWIN_NOISE=0 turns it off): the
+# physical model was trained on real, noisy SWaT sensors and treats a perfectly flat, noiseless plant as out-of-distribution.
 _twin = PlantTwin(
-    noise=os.environ.get("IM_TWIN_NOISE", "0") == "1",
+    noise=os.environ.get("IM_TWIN_NOISE", "1") == "1",
     time_scale=float(os.environ.get("IM_TWIN_TIME_SCALE", "1")),
 )
 _target_values = _twin.target   # actuator registers only (live view of the twin's commands)

@@ -21,7 +21,8 @@ OUT = os.path.join(ROOT, "benchmarks")
 SWAT_JSON = os.path.join(OUT, "swat_accuracy.json")
 REPORT = os.path.join(ROOT, "docs", "reports", "benchmark_report.md")
 README = os.path.join(ROOT, "README.md")
-WEIGHTS = os.path.join(ROOT, "models", "weights", "physical_model.joblib")
+from models.physical_model_v2 import live_weights_path
+WEIGHTS = live_weights_path()
 
 
 def twin_section(hours: float, seed: int) -> dict:

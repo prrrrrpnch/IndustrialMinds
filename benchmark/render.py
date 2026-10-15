@@ -125,10 +125,12 @@ def swat_md(res: Dict[str, Any]) -> List[str]:
     L = [f"**{s['label']}.** {s['protocol_note']}.", "",
          *([f"_Source: {s['provenance']}_", ""] if s.get("provenance") else []),
          f"Test block: {s['windows']:,} windows (stride {s['stride_s']} s): {s['attack_windows']:,} attack, {s['benign_windows']:,} benign ({s['benign_hours']} benign hours). "
-         f"Operating point: Isolation Forest threshold {_num(s['operating_point']['isolation_forest_threshold'], 4)}, classifier threshold {_num(s['operating_point']['classifier_threshold'], 3)}, variant `{s['operating_point']['variant']}`.", "",
+         f"Operating point: {'Isolation Forest threshold ' + _num(s['operating_point']['isolation_forest_threshold'], 4) + ', ' if s['operating_point']['isolation_forest_threshold'] is not None else ''}classifier threshold {_num(s['operating_point']['classifier_threshold'], 3)}, variant `{s['operating_point']['variant']}`.", "",
          "| Decision rule | precision | recall | F1 | false-positive rate | accuracy | balanced accuracy | alarm episodes / benign hour |", "|---|---|---|---|---|---|---|---|"]
     for key, label in (("advisory_model_flag", "Advisory model flag (drives ALERT)"), ("envelope_rule_alone (alert-only)", "Envelope rule alone (alert-only)"),
                        ("model_flag_or_envelope", "Model flag or envelope")):
+        if key not in s:
+            continue
         c = s[key]
         L.append(f"| {label} | {_num(c['precision'])} | {_num(c['recall'])} | {_num(c['f1'])} | {_num(c['false_positive_rate'])} | {_num(c.get('accuracy'))} | {_num(c.get('balanced_accuracy'))} | {c.get('alarm_episodes_per_benign_hour')} |")
     base = f["always_benign_baseline_accuracy"]
@@ -138,10 +140,12 @@ def swat_md(res: Dict[str, Any]) -> List[str]:
           "| Decision rule | benign, no flag (TN) | benign, flagged (FP) | attack, no flag (FN) | attack, flagged (TP) |", "|---|---|---|---|---|"]
     for key, label in (("advisory_model_flag", "Advisory model flag"), ("envelope_rule_alone (alert-only)", "Envelope rule alone"),
                        ("model_flag_or_envelope", "Model flag or envelope")):
+        if key not in s:
+            continue
         c = s[key]
         L.append(f"| {label} | {c['tn']:,} | {c['fp']:,} | {c['fn']:,} | {c['tp']:,} |")
     L += ["", f"![Confusion matrices on the held-out SWaT test block](figures/{NAMES['confusion']})"]
-    L += ["", f"ROC-AUC (attack probability) **{_num(s.get('roc_auc_attack_probability'))}**, ROC-AUC (Isolation Forest score) {_num(s.get('roc_auc_isolation_forest_score'))}, "
+    L += ["", f"ROC-AUC (attack probability) **{_num(s.get('roc_auc_attack_probability'))}**, {'ROC-AUC (Isolation Forest score) ' + _num(s['roc_auc_isolation_forest_score']) + ', ' if s.get('roc_auc_isolation_forest_score') is not None else ''}"
           f"average precision {_num(s.get('average_precision_attack_probability'))}.",
           f"Attack segments detected: **{seg['detected']}/{seg['total']}**; median detection latency {_num(seg['median_detection_latency_s'], 1)} s "
           "(first flagged attack window after the segment starts).", ""]

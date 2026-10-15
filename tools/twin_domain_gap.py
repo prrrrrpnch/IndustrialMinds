@@ -58,7 +58,8 @@ def run_nominal(model: PhysicalModel, hours: float, seed: int) -> Dict[str, Any]
         r = model.assess()
         states[r["plant_state"]] = states.get(r["plant_state"], 0) + 1
         if r["status"] == "OK":
-            scores.append(r["anomaly_score"])
+            if r["anomaly_score"] is not None:
+                scores.append(r["anomaly_score"])
             if r["threat_flag"]:
                 flags.append(float(t))
             if r["bounds_violations"]:
@@ -101,7 +102,10 @@ def run_scenario(model: PhysicalModel, changes: Dict[str, float], seed: int, set
 
 
 def run(weights: str, hours: float, seed: int) -> Dict[str, Any]:
-    model = PhysicalModel.load(weights)
+    from models.physical_model_v2 import PhysicalModelV2
+    model = PhysicalModelV2.load(weights)
+    if model.status != "OK":
+        model = PhysicalModel.load(weights)
     if model.status != "OK":
         raise SystemExit(f"weights not usable (status {model.status}): {weights}")
     return {"label": "TWIN MEASUREMENT (synthetic plant calibrated to SWaT) - NOT SWaT detection performance",
@@ -118,7 +122,7 @@ def render(rep: Dict[str, Any]) -> str:
          f"* plant_state seconds: {n['plant_state_seconds']}",
          f"* learned-model flag: {n['model_flag_seconds']} s ({n['model_flag_fraction']:.2%}), {n['model_alarm_episodes']} alarm episodes = **{n['model_alarm_episodes_per_hour']} per hour**",
          f"* measured-envelope rule: {n['envelope_violation_seconds']} violating seconds, **{n['envelope_alarm_episodes_per_hour']} episodes per hour**",
-         f"* Isolation Forest anomaly score p50/p95/p99/max: {n['anomaly_score_quantiles_p50_p95_p99_max']} against threshold {n['isolation_forest_threshold']:.4f}",
+         f"* Isolation Forest anomaly score p50/p95/p99/max: {n['anomaly_score_quantiles_p50_p95_p99_max']} against threshold {'n/a (v2 has no anomaly head)' if n['isolation_forest_threshold'] is None else format(n['isolation_forest_threshold'], '.4f')}",
          f"* UF backwashes: {n['backwashes']}", "",
          "## Synthetic actuator attacks (10 min settle, then the change, 15 min observed)", "",
          "| scenario | alarm s before attack | first model flag (s after) | first envelope violation (s after) |", "|---|---|---|---|"]

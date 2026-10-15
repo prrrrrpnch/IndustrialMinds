@@ -35,6 +35,7 @@ from docs.interfaces import make_verdict
 from middleware import cyber_agent, orchestrator, physical_agent, trace as tracer
 from models.cyber_model import CyberModel
 from models.physical_model import PhysicalModel
+from models.physical_model_v2 import load_physical_model
 
 log = logging.getLogger("industrialmind.pipeline")
 
@@ -51,7 +52,7 @@ class MultiModelPipeline:
                  enforce_cyber_model: Optional[bool] = None,
                  max_workers: int = 2) -> None:
         self.cyber_model = cyber_model if cyber_model is not None else CyberModel.load()
-        self.physical_model = physical_model if physical_model is not None else PhysicalModel.load()
+        self.physical_model = physical_model if physical_model is not None else load_physical_model()
         self.enforce_cyber_model = (_env_flag("IM_CYBER_MODEL_ENFORCE")
                                     if enforce_cyber_model is None else enforce_cyber_model)
         self._executor = ThreadPoolExecutor(max_workers=max_workers, thread_name_prefix="im-pipeline")

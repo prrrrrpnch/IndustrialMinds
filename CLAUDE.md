@@ -55,7 +55,8 @@ Reference files are listed by path below; none are auto-loaded.
 - Pre-existing lab IPs remain only in synthetic-data files (telemetry_generator, train_models, evaluation, some tests); replaced when data is replaced in P5-P7/P11.
 - Plant = 5 stages x 4 points = 20 registers (10 actuators writable, 10 sensors read-only); register constants are SWaT tags (MV101, LIT101...). Old names (TANK_PRESSURE...) are gone.
 - Wire scale is x10 (0.1 resolution): pH/permeate flow are coarse; max representable 6553.5.
-- models/weights: physical_model.joblib is the PROMOTED SWaT-trained model (advisory; operating point 0.5 false alarms/h, clf thr 0.601, variant drift_robust). The old synthetic cyber_model.joblib/training_report.json were deleted (user-confirmed); with no cyber weights the CyberModel reports NO_MODEL = cyber branch is rules-only.
+- LIVE PHYSICAL MODEL = v2 (user approved promotion): `models/weights/physical_model_v2.joblib` via `models/package_physical_v2.py`, class `models/physical_model_v2.py` (120 s window, 117 features, HGB prob > 0.7880, advisory, 120 s warm-up, packed inference). `load_physical_model()` selects it; `IM_PHYSICAL_MODEL=v1` or unusable v2 weights -> v1. Held-out test (budget 0.5/h): P .461 R .513 F1 .485 8/10 segs AUC .836 1.17 ep/h. PLC twin runs WITH sensor noise by default (noiseless plant = out-of-distribution -> constant ALERT). Tests: tests/test_physical_v2_live.py.
+- models/weights (v1 fallback): physical_model.joblib is the previous SWaT-trained model (advisory; operating point 0.5 false alarms/h, clf thr 0.601, variant drift_robust). The old synthetic cyber_model.joblib/training_report.json were deleted (user-confirmed); with no cyber weights the CyberModel reports NO_MODEL = cyber branch is rules-only.
 - SWaT archive facts (from tools/swat_inspect.py reports; data lives ONLY on the user's Windows machine, never in this container):
   attack.csv = 54,621 attack-only rows in 35 time-gap segments; normal.csv = 1,387,098 rows; merged.csv = their concatenation; 51 tags + Timestamp + `Normal/Attack`;
   timestamps `%d/%m/%Y %I:%M:%S %p`, 1 Hz, files NOT chronological. NO network fields, NO attack list, NO pcaps.
@@ -103,7 +104,8 @@ Reference files are listed by path below; none are auto-loaded.
 | `middleware/orchestrator.py` | RULE-BASED four-branch fusion: cyber/physical rule fail -> DROP; rules pass + advisory physical-model flag -> ALERT (forwarded); else PASS; + dashboard forwarding |
 | `pipeline/multi_model_pipeline.py` | concurrent cyber/physical branches (rules + models) |
 | `models/cyber_model.py` | SWaT-trained CyberModel: Isolation Forest + supervised head over 8 actuator-event features (abstains on non-flip commands) |
-| `models/physical_model.py` | SWaT-trained PhysicalModel: 30 s windows (1 Hz), 87 features, Isolation Forest + supervised head + measured envelope; abstains on NO_MODEL/WARMING_UP/ERROR; RUL removed |
+| `models/physical_model_v2.py`, `models/package_physical_v2.py` | LIVE physical model v2 (see gotchas), packager (needs `confirm.py retrain physical`), `PackedHistGB` in tree_inference |
+| `models/physical_model.py` | v1 (fallback) SWaT-trained PhysicalModel: 30 s windows (1 Hz), 87 features, Isolation Forest + supervised head + measured envelope; abstains on NO_MODEL/WARMING_UP/ERROR; RUL removed |
 | `swat/physical_features.py` | physical window features + measured-bounds computation = THE feature implementation shared by training and live |
 | `models/train_physical_swat.py` | Phase 6 trainer (`--data-dir <archive> --candidate` or `--fixture`): bounds + model + report; candidates only |
 | `tests/test_swat_physical.py` | Phase 6 checks on the synthetic fixture (code paths, live==training scores) |
