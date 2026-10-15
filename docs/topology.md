@@ -24,8 +24,7 @@ variables (`docs/netconfig.py` is the only place defaults live). Pick the placeh
 | **Windows B** | **Attacker** (CLI) | | A separate machine, so the middleware sees a real foreign source address. |
 
 Traffic: `SCADA/Attacker -> Middleware :5021 -> PLC :5020`. The middleware also polls the PLC, and posts events to the dashboard
-(`http://127.0.0.1:5050`, same laptop, no network). The dashboard's own Attack buttons run the attacker **on Mac A** (the dashboard
-host), so for a cross-laptop attack use the CLI on Windows B.
+(`http://127.0.0.1:5050`, same laptop, no network). The dashboard has no attack controls: every attack is launched by the CLI on the attacker laptop (Windows B), and shows up in the dashboard's Live Network Flow panel as traffic from that laptop's address.
 
 ## Ports
 
