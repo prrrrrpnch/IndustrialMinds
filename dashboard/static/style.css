@@ -549,10 +549,6 @@ body {
     word-break: break-word;
 }
 
-#attack-panel .action-buttons {
-    flex-wrap: wrap;
-}
-
 @media (max-width: 700px) {
     .attack-record-grid {
         grid-template-columns: 1fr;
@@ -734,3 +730,44 @@ body {
 .kv .v { overflow-wrap: anywhere; }
 .tracer-timings { margin-top: 10px; color: var(--text-sub); font-size: 12px; }
 @media (max-width: 900px) { .tracer-grid { grid-template-columns: 1fr; } .chk { grid-template-columns: 1fr; } }
+
+/* =========================================================
+   LIVE NETWORK FLOW (dashboard/static/flow.js)
+   ========================================================= */
+.flow-card { grid-column: 1 / -1; }
+.flow-hint { color: var(--text-sub); font-size: 0.85rem; margin: 0 0 10px; }
+#flow-svg { width: 100%; height: auto; display: block; background: rgba(15, 23, 42, 0.55); border: 1px solid var(--border-color); border-radius: 12px; }
+#flow-svg .flow-edge { stroke: var(--border-color); stroke-width: 2; stroke-dasharray: 5 5; }
+#flow-svg .flow-mw { fill: rgba(14, 165, 233, 0.06); stroke: var(--color-primary); stroke-width: 1.5; }
+#flow-svg .flow-layer { fill: var(--bg-card); stroke: var(--border-color); stroke-width: 1.5; transition: fill .2s, stroke .2s; }
+#flow-svg .flow-plc { fill: var(--bg-card); stroke: var(--color-pass); stroke-width: 1.5; transition: fill .2s; }
+#flow-svg .flow-src { fill: var(--bg-card); stroke: var(--border-color); stroke-width: 1.5; }
+#flow-svg .flow-src.trusted { stroke: var(--color-pass); }
+#flow-svg .flow-src.untrusted { stroke: var(--color-drop); stroke-width: 2.5; fill: var(--color-drop-bg); }
+#flow-svg .flow-title { fill: var(--text-main); font: 600 14px var(--font-main); }
+#flow-svg .flow-text { fill: var(--text-main); font: 500 13px var(--font-main); }
+#flow-svg .flow-sub { fill: var(--text-sub); font: 11px var(--font-mono); }
+#flow-svg .hit-pass { fill: var(--color-pass-bg); stroke: var(--color-pass); }
+#flow-svg .hit-alert { fill: rgba(234, 179, 8, 0.18); stroke: #eab308; }
+#flow-svg .hit-drop { fill: var(--color-drop-bg); stroke: var(--color-drop); stroke-width: 3; }
+#flow-svg .flow-dot { stroke: #0f172a; stroke-width: 1.5; }
+#flow-svg .dot-pass, .flow-legend .dot-pass { fill: var(--color-pass); background: var(--color-pass); }
+#flow-svg .dot-alert, .flow-legend .dot-alert { fill: #eab308; background: #eab308; }
+#flow-svg .dot-drop, .flow-legend .dot-drop { fill: var(--color-drop); background: var(--color-drop); }
+#flow-svg .dot-untrusted { fill: #a855f7; }
+.flow-legend .dot-untrusted { background: transparent; border: 2px solid var(--color-drop); }
+.flow-legend { display: flex; flex-wrap: wrap; gap: 14px; margin: 10px 0; font-size: 0.8rem; color: var(--text-sub); }
+.flow-legend span { display: inline-flex; align-items: center; gap: 6px; }
+.flow-legend .dot { display: inline-block; width: 11px; height: 11px; border-radius: 50%; }
+.flow-ticker { list-style: none; margin: 0; padding: 0; font-size: 0.8rem; }
+.flow-ticker .tick { display: grid; grid-template-columns: 70px minmax(90px, 160px) minmax(90px, 140px) 64px 1fr; gap: 8px; align-items: center;
+    padding: 5px 8px; border-left: 3px solid var(--color-pass); border-bottom: 1px solid var(--border-color); }
+.flow-ticker .tick-alert { border-left-color: #eab308; }
+.flow-ticker .tick-drop { border-left-color: var(--color-drop); }
+.flow-ticker .t-time, .flow-ticker .t-cmd { font-family: var(--font-mono); color: var(--text-sub); }
+.flow-ticker .t-src { color: var(--text-main); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.flow-ticker .t-why { color: var(--text-sub); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+@media (max-width: 700px) {
+    .flow-ticker .tick { grid-template-columns: 1fr 1fr; }
+    .flow-ticker .t-why { grid-column: 1 / -1; }
+}

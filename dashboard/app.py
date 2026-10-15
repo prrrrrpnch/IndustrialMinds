@@ -14,10 +14,8 @@ No simulated security events.
 
 from __future__ import annotations
 
-import ipaddress
 import os
 import sys
-import subprocess
 import threading
 import time
 from collections import OrderedDict, deque
@@ -62,6 +60,37 @@ _cpu_history = deque(maxlen=60)
 # Phase 9 packet-tracer: one hop-by-hop trace per command, newest first (full tx_id -> trace).
 MAX_TRACES = 300
 _traces: "OrderedDict[str, Dict[str, Any]]" = OrderedDict()
+_trace_seq = 0                 # increases with every trace received; the Network Flow view asks for "everything after seq N"
+
+
+def _host_labels() -> Dict[str, str]:
+    """Optional friendly names for source hosts, e.g. IM_HOST_LABELS="<scada-ip>=SCADA (Mac B),<attacker-ip>=Attacker (Windows B)".
+    Addresses come from the environment, never from code."""
+    out = {netconfig.LOOPBACK: "this machine"}
+    for item in os.environ.get("IM_HOST_LABELS", "").split(","):
+        if "=" in item:
+            ip, label = item.split("=", 1)
+            if ip.strip() and label.strip():
+                out[ip.strip()] = label.strip()
+    return out
+
+
+def _flow_summary(t: Dict[str, Any]) -> Dict[str, Any]:
+    """What the Network Flow view needs from one trace: who sent it, how far it got, and why it stopped."""
+    hop = {h["hop"]: h for h in t.get("hops", [])}
+    src = str((hop.get("arrival", {}).get("values") or {}).get("source") or "")
+    ip = src.rsplit(":", 1)[0] if ":" in src else src
+    checks = {c["check"]: c["result"] for c in (hop.get("cyber_rules", {}).get("checks") or [])}
+    stopped = None
+    if t.get("verdict") == "DROP":
+        stopped = "cyber" if hop.get("cyber_rules", {}).get("outcome") == "FAIL" else "physical"
+    out_vals = hop.get("outcome", {}).get("values") or {}
+    arr = hop.get("arrival", {}).get("values") or {}
+    return {"seq": t.get("seq"), "tx": t.get("short_id"), "time": _format_time(t.get("time")), "source_ip": ip,
+            "trusted": None if "source_whitelist" not in checks else checks["source_whitelist"] == "PASS",
+            "verdict": t.get("verdict"), "reason": t.get("reason"), "stopped_at": stopped,
+            "forwarded": bool(out_vals.get("forwarded_to_plc")), "command": arr.get("register"), "value": arr.get("requested_value"),
+            "model_flag": bool((hop.get("physical_model", {}).get("values") or {}).get("threat_flag"))}
 
 _metrics = {
     "total": 0,
@@ -372,7 +401,10 @@ def post_trace() -> Response:
     if not tx or not isinstance(data.get("hops"), list):
         return jsonify({"success": False}), 400
     data["short_id"] = _short_tx_id(tx)
+    global _trace_seq
     with _lock:
+        _trace_seq += 1
+        data["seq"] = _trace_seq
         _traces.pop(tx, None)
         _traces[tx] = data
         while len(_traces) > MAX_TRACES:
@@ -390,6 +422,20 @@ def list_traces() -> Response:
                      "command": next((h["values"].get("register") for h in t["hops"] if h["hop"] == "arrival"), None),
                      "value": next((h["values"].get("requested_value") for h in t["hops"] if h["hop"] == "arrival"), None)}
                     for t in items])
+
+
+@app.route("/api/flow")
+def flow() -> Response:
+    """Network Flow view: traces newer than ?since=<seq> in arrival order, plus host labels."""
+    try:
+        since = int(request.args.get("since", "0"))
+    except ValueError:
+        since = 0
+    with _lock:
+        items = [t for t in _traces.values() if (t.get("seq") or 0) > since]
+        last = _trace_seq
+    items.sort(key=lambda t: t.get("seq") or 0)
+    return jsonify({"last_seq": last, "labels": _host_labels(), "events": [_flow_summary(t) for t in items[-200:]]})
 
 
 @app.route("/api/trace/<tx>")
@@ -532,99 +578,6 @@ def blocked_ip_detail(ip: str) -> Response:
         "count": len(records),
         "attacks": records[:500],
     })
-
-
-# =========================================================
-# ATTACK TRIGGER
-# =========================================================
-
-@app.route(
-    "/api/trigger-attack",
-    methods=["POST"]
-)
-def trigger_attack() -> ResponseReturnValue:
-
-    data = (
-        request.get_json(
-            silent=True
-        )
-        or {}
-    )
-
-    attack = data.get(
-        "attack"
-    )
-
-    allowed = {
-        "flood",
-        "impossible-command",
-        "replay",
-        "false-injection",
-        "cross-register",
-        "hmac-missing",
-        "hmac-tamper",
-        "hmac-forged",
-        "delayed-replay",
-    }
-
-    # Optional local address(es) for the attacker socket to bind to.
-    # The middleware still records whatever address the connection
-    # actually comes from.
-    source_ip = str(data.get("source_ip") or "").strip()
-    for ip in filter(None, (x.strip() for x in source_ip.split(","))):
-        try:
-            ipaddress.ip_address(ip)
-        except ValueError:
-            return jsonify({
-                "success": False,
-                "error": f"Invalid source IP: {ip}"
-            }), 400
-
-    if attack not in allowed:
-
-        return jsonify({
-            "success": False,
-            "error": "Invalid attack type"
-        }), 400
-
-    try:
-
-        cmd = [
-            sys.executable,
-            "-m",
-            "attacker.attacker",
-            attack
-        ]
-
-        if source_ip:
-            cmd += ["--source-ip", source_ip]
-
-        subprocess.Popen(
-            cmd,
-            cwd=PROJECT_ROOT
-        )
-
-        print(
-            f"[DASHBOARD] "
-            f"Launching attack: {attack}"
-        )
-
-        return jsonify({
-            "success": True,
-            "attack": attack
-        })
-
-    except Exception as e:
-
-        print(
-            f"[DASHBOARD] "
-            f"Attack failed: {e}"
-        )
-
-        return jsonify({
-            "success": False,
-            "error": str(e)
-        }), 500
 
 
 # =========================================================

@@ -66,12 +66,6 @@
 
                 <div class="action-buttons">
 
-                    <button id="btn-trigger-attack" class="btn btn-danger">
-                        <i class="fa-solid fa-triangle-exclamation"></i>
-                        Attacks
-                    </button>
-
-
                     <button id="btn-reset-data" class="btn btn-secondary">
                         <i class="fa-solid fa-rotate"></i>
                         Reset
@@ -82,67 +76,6 @@
             </div>
 
         </header>
-
-
-        <!-- ATTACK PANEL -->
-
-        <section id="attack-panel" class="card" style="display:none; margin-bottom:20px;">
-
-            <div class="card-header">
-
-                <h2>
-                    <i class="fa-solid fa-skull-crossbones title-icon"></i>
-                    Attack Simulation
-                </h2>
-
-            </div>
-
-
-            <div class="action-buttons">
-
-                <button class="btn btn-danger" onclick="triggerAttack('flood')">
-                    Flood
-                </button>
-
-                <button class="btn btn-danger" onclick="triggerAttack('impossible-command')">
-                    Impossible Command
-                </button>
-
-                <button class="btn btn-danger" onclick="triggerAttack('replay')">
-                    Replay
-                </button>
-
-                <button class="btn btn-danger" onclick="triggerAttack('false-injection')">
-                    False Injection
-                </button>
-
-                <button class="btn btn-danger" onclick="triggerAttack('cross-register')">
-                    Cross-Register
-                </button>
-
-                <button class="btn btn-danger" onclick="triggerAttack('hmac-missing')">
-                    HMAC Missing
-                </button>
-
-                <button class="btn btn-danger" onclick="triggerAttack('hmac-tamper')">
-                    HMAC Tamper
-                </button>
-
-                <button class="btn btn-danger" onclick="triggerAttack('hmac-forged')">
-                    HMAC Forged
-                </button>
-
-                <button class="btn btn-danger" onclick="triggerAttack('delayed-replay')">
-                    Delayed Replay
-                </button>
-
-                <input id="attack-source-ip" class="filter-input" type="text"
-                    placeholder="Attack from source IP (optional, e.g. 127.0.0.2)"
-                    title="Local address the attacker socket binds to. The middleware records the real connection address.">
-
-            </div>
-
-        </section>
 
 
         <!-- KPI -->
@@ -199,6 +132,25 @@
 
             </div>
 
+        </section>
+
+
+        <!-- LIVE NETWORK FLOW -->
+
+        <section class="card flow-card" id="flow-section">
+            <div class="card-header">
+                <h2><i class="fa-solid fa-diagram-project title-icon"></i> LIVE NETWORK FLOW</h2>
+                <span class="badge-tag" id="flow-status">waiting for traffic</span>
+            </div>
+            <p class="flow-hint">Every command the middleware receives, from the host that really sent it (TCP source address). Green reaches the PLC, yellow reaches it with an advisory ALERT, red is stopped inside the middleware at the layer that caught it. Attacks are launched from the attacker system, never from this dashboard.</p>
+            <svg id="flow-svg" viewBox="0 0 1000 330" preserveAspectRatio="xMidYMid meet" role="img" aria-label="Live network flow"></svg>
+            <div class="flow-legend">
+                <span><i class="dot dot-pass"></i>PASS: forwarded</span>
+                <span><i class="dot dot-alert"></i>ALERT: forwarded, flagged</span>
+                <span><i class="dot dot-drop"></i>DROP: stopped in the middleware</span>
+                <span><i class="dot dot-untrusted"></i>untrusted source</span>
+            </div>
+            <ul class="flow-ticker" id="flow-ticker"></ul>
         </section>
 
 
@@ -572,6 +524,7 @@
     </script>
 
     <script src="{{ url_for('static', filename='script.js') }}"></script>
+    <script src="{{ url_for('static', filename='flow.js') }}"></script>
 
 </body>
 
