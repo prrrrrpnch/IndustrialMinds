@@ -58,7 +58,7 @@ class Scorer:
     def fit(self, X: np.ndarray, y: np.ndarray, w: np.ndarray) -> "Scorer":
         if self.kind == "hgb":
             from sklearn.ensemble import HistGradientBoostingClassifier
-            self.model = HistGradientBoostingClassifier(max_depth=3, max_iter=200, learning_rate=0.05, l2_regularization=10.0,
+            self.model = HistGradientBoostingClassifier(max_depth=3, max_iter=max(40, self.n_trees), learning_rate=0.05, l2_regularization=10.0,
                                                         min_samples_leaf=100, random_state=self.seed).fit(X, y, sample_weight=w)
         else:
             from sklearn.ensemble import RandomForestRegressor
@@ -94,9 +94,17 @@ def segment_balanced_weights(y: np.ndarray, seg: np.ndarray) -> np.ndarray:
     return w
 
 
+MAX_BENIGN_FIT = 50000       # benign windows per fit (all attack windows are always kept): bounds the cost on the full archive
+
+
 def fit_fold(fset: str, kind: str, X87: np.ndarray, XL: np.ndarray, y: np.ndarray, seg: np.ndarray, seed: int, n_trees: int
              ) -> Tuple[Scorer, Optional[ResidualModel]]:
-    resid = ResidualModel().fit(X87[y == 0]) if fset == "v1_long_resid" else None
+    resid = ResidualModel().fit(X87[y == 0]) if fset == "v1_long_resid" else None        # consistency model sees ALL normal windows
+    ben = np.flatnonzero(y == 0)
+    if ben.size > MAX_BENIGN_FIT:
+        keep = np.concatenate([np.flatnonzero(y == 1), np.random.default_rng(seed).choice(ben, MAX_BENIGN_FIT, replace=False)])
+        keep.sort()
+        X87, XL, y, seg = X87[keep], XL[keep], y[keep], seg[keep]
     X = assemble(fset, X87, XL, resid)
     return Scorer(kind, seed, n_trees).fit(X, y, training_weights(y, seg)), resid
 
@@ -146,7 +154,8 @@ def evaluate_alarm(score: np.ndarray, flag: np.ndarray, y: np.ndarray, seg: np.n
 
 
 # --------------------------------------------------------------------------- experiment
-def run(stream, seed: int, folds: int, quick: bool, budgets: Tuple[float, ...] = BUDGETS) -> Dict[str, Any]:
+def run(stream, seed: int, folds: int, quick: bool, budgets: Tuple[float, ...] = BUDGETS,
+        kinds: Optional[List[str]] = None, fsets: Optional[List[str]] = None) -> Dict[str, Any]:
     from sklearn.metrics import average_precision_score, roc_auc_score
     t_start = time.time()
     train_norm = stream[(stream["block"] == "train") & ~stream["label"]]
@@ -164,8 +173,8 @@ def run(stream, seed: int, folds: int, quick: bool, budgets: Tuple[float, ...] =
     Xd87, Xdl, yd, sd, ed = X87[dev], XL[dev], y[dev], seg[dev], ep[dev]
     esw = segment_balanced_weights(yd, sd)
 
-    fsets = ["v1_67", "v1_long", "v1_long_resid"]
-    kinds = ["rf6", "hgb"] if quick else ["rf6", "rf10", "hgb"]
+    fsets = fsets or ["v1_67", "v1_long", "v1_long_resid"]
+    kinds = kinds or ["rf6", "hgb"]                    # rf10 only on request: it doubles the cost for little gain
     cv: List[Dict[str, Any]] = []
     oof_by_cfg: Dict[str, np.ndarray] = {}
     for fs in fsets:
@@ -186,7 +195,9 @@ def run(stream, seed: int, folds: int, quick: bool, budgets: Tuple[float, ...] =
             oof_by_cfg[f"{fs}/{kind}"] = np.where(ok, oof, 0.0)
             log.info("CV %-14s %-5s segAP %.4f  AP %.4f  AUC %.4f", fs, kind, row["segment_balanced_average_precision"], row["average_precision"], row["roc_auc"])
     best = max(cv, key=lambda r: r["segment_balanced_average_precision"])
-    base_key, best_key = "v1_67/rf6", f"{best['feature_set']}/{best['model']}"
+    base_key, best_key = f"v1_67/{'rf6' if 'rf6' in kinds else kinds[0]}", f"{best['feature_set']}/{best['model']}"
+    if base_key not in oof_by_cfg:                    # a restricted feature-set list without the shipped one: compare against the first config
+        base_key = next(iter(oof_by_cfg))
 
     # alarm rules and thresholds chosen on out-of-fold dev scores only
     rules: Dict[str, Any] = {}
@@ -237,7 +248,7 @@ def render(res: Dict[str, Any], fixture: bool) -> str:
         for name in ("baseline", "selected_without_persistence", "selected"):
             r = d[name]
             if r and r.get("threshold") is not None:
-                L.append(f"| {b} | {name} | {r['k']} | {r['m']} | {r['threshold']:.4f} | {r.get('segment_balanced_recall', '')} |")
+                L.append(f"| {b} | {name} | {r['k']} | {r['m']} | {r['threshold']:.4f} | {('%.3f' % r['segment_balanced_recall']) if 'segment_balanced_recall' in r else 'n/a'} |")
     t = res["test"]
     L += ["", "## Held-out TEST block (1-2 Jan)", "", f"{t['windows']:,} windows, {t['attack_windows']:,} attack windows, {t['benign_hours']} benign hours.", ""]
     for b in res["alarm_rules"]:
