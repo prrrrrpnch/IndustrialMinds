@@ -228,6 +228,11 @@ no longer a pristine blind hold-out. Both runs are in `docs/reports/physical_tra
 `models/candidates/physical_model.joblib` over `models/weights/physical_model.joblib` and keep the scikit-learn version identical to the pin in `requirements.txt` (the file is a pickle). The shipped file's
 classifier threshold (0.601) is the 0.5 false-alarm-per-hour operating point chosen from the validation operating curve and recorded in its metadata.
 
+**Physical model v2 experiment (research track, not used by the middleware).** An attempt to raise recall and F1: fit on train + validation, add 120 s long-context features and
+cross-sensor consistency residuals, choose by segment-grouped cross-validation, and alarm on "k of the last m windows" with a false-alarm-budget threshold. It writes only to
+`models/candidates/physical_v2/` and needs the SWaT archive: `python -m models.train_physical_v2 --data-dir "<SWaT archive>" --candidate` (about 30-90 minutes). The report compares a refit
+baseline with the selected configuration on the held-out test block (used for exactly two looks, disclosed). Nothing is promoted unless it beats the shipped model and is approved.
+
 **Cyber model: not trained, by design.** A SWaT-based candidate exists (`models/train_cyber_swat.py --data-dir ... --candidate`) and is documented as a negative result: test ROC-AUC 0.63, F1 0.14
 (`docs/reports/cyber_training_report_swat.md`). SWaT has no network traffic, so it could only model actuator state-change events, and it was not promoted. The cyber branch is rules-only.
 
