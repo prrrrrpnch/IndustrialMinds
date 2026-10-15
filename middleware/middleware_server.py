@@ -121,6 +121,18 @@ UNKNOWN_SOURCE_IP = "unknown"
 
 FEEDBACK_SETTLED_TOLERANCE = 0.05
 
+# A PASSed command is "pending" until the PLC telemetry shows the register has
+# reached the commanded value. If it never settles (the plant is being dragged
+# elsewhere by an attack, the twin cannot physically reach the exact value, or
+# the PLC rebooted), the pending entry must not linger forever: it would keep
+# being projected into the cross-register `setpoints` snapshot and could skew
+# later checks. After this many seconds without settling, the command is
+# expired (logged once) and the projection falls back to live telemetry.
+# Env override: IM_PENDING_TIMEOUT_S.
+PENDING_COMMAND_TIMEOUT_S = float(
+    os.environ.get("IM_PENDING_TIMEOUT_S", "15")
+)
+
 
 _ALL_REGISTERS = ALL_REGISTERS
 
@@ -200,6 +212,11 @@ _register_settled_since = {
 _plc_client: ModbusTcpClient | None = None
 
 _last_telemetry_report = 0.0
+
+# Rate-limit the "cannot reach the PLC" error so a down PLC laptop does not
+# flood the middleware log at the 0.2 s poll rate.
+_last_poll_error_log = 0.0
+POLL_ERROR_LOG_INTERVAL = 5.0
 
 
 # =========================================================
@@ -803,6 +820,28 @@ def _check_upstream_envelope(registers: Dict[Any, float], now: float) -> None:
         log.exception("upstream envelope check failed - ignored (rules elsewhere still gate)")
 
 
+def _expire_pending_if_stale(reg: int, pending: dict, reported: float, now: float) -> bool:
+    """Drop a PASSed command that was forwarded but whose register never settled
+    to the commanded value within PENDING_COMMAND_TIMEOUT_S. Returns True if it
+    was expired. Keeps a never-settling command from being projected forever
+    into the cross-register setpoints snapshot. Safe to call under no lock; it
+    takes _state_lock for the mutation itself."""
+    if now - pending["time"] <= PENDING_COMMAND_TIMEOUT_S:
+        return False
+    with _state_lock:
+        _pending_commands.pop(reg, None)
+        _register_settled_since[reg] = now
+    log.warning(
+        f"[MIDDLEWARE] command tx={pending['tx_id']} "
+        f"reg={REGISTER_MAP[reg]['name']} value={pending['value']:.2f} was "
+        f"forwarded but the PLC never settled to it within "
+        f"{PENDING_COMMAND_TIMEOUT_S:.0f}s (last reported {reported:.2f}); "
+        f"expiring it. The plant may be displaced (attack/recovery) or the "
+        f"PLC may be unreachable."
+    )
+    return True
+
+
 def _poll_once(
     block: "MiddlewareDataBlock"
 ) -> None:
@@ -951,6 +990,11 @@ def _poll_once(
 
             if not feedback_ok:
 
+                # Expire a command that never settled, so its value stops
+                # being projected into the cross-register setpoints snapshot
+                # and the dashboard stops showing it as forever-pending.
+                _expire_pending_if_stale(reg, pending, reported, now)
+
                 continue
 
             # -------------------------------------------------
@@ -986,10 +1030,20 @@ def _poll_once(
 
     except Exception as e:
 
-        log.error(
-            f"[MIDDLEWARE] "
-            f"ERROR polling PLC: {e}"
-        )
+        # The poll runs every 0.2 s; if the PLC laptop is down or unreachable
+        # this would flood the log 5x/second. Rate-limit to one actionable
+        # line every POLL_ERROR_LOG_INTERVAL seconds, and say what to check.
+        global _last_poll_error_log
+        now_err = time.time()
+        if now_err - _last_poll_error_log >= POLL_ERROR_LOG_INTERVAL:
+            _last_poll_error_log = now_err
+            log.error(
+                f"[MIDDLEWARE] cannot reach the PLC at "
+                f"{PLC_HOST}:{PLC_PORT} ({e}). Retrying every "
+                f"{POLL_INTERVAL:.1f}s. Check: the PLC process is running, "
+                f"IM_PLC_HOST is correct, and the PLC laptop's firewall "
+                f"allows this host inbound on {PLC_PORT}."
+            )
 
 
 # =========================================================
