@@ -24,10 +24,11 @@ from typing import Any, Dict, List, Optional
 from docs import hmac_auth
 from docs.interfaces import CROSS_REGISTER_RULES, MACHINE_BY_REGISTER
 
-CYBER_ORDER = ["source_whitelist", "function_code", "register_allowlist", "rate_limit", "hmac", "replay"]
-_CYBER_BY_PREFIX = {"UNTRUSTED_SOURCE": "source_whitelist", "INVALID_FUNCTION_CODE": "function_code",
+CYBER_ORDER = ["source_whitelist", "quarantine", "function_code", "register_allowlist", "rate_limit", "hmac", "replay", "authorization"]
+_CYBER_BY_PREFIX = {"UNTRUSTED_SOURCE": "source_whitelist", "SOURCE_QUARANTINED": "quarantine", "INVALID_FUNCTION_CODE": "function_code",
                     "INVALID_REGISTER": "register_allowlist", "RATE_LIMIT_EXCEEDED": "rate_limit",
-                    "HMAC_": "hmac", "REPLAY_DETECTED": "replay"}
+                    "HMAC_": "hmac", "UNKNOWN_DEVICE": "hmac", "REPLAY_DETECTED": "replay",
+                    "UNAUTHORIZED_": "authorization", "POLICY_ERROR": "authorization"}
 PHYSICAL_ORDER = ["register_known", "actuator_only", "bounds", "rate_of_change", "cross_register"]
 _PHYS_BY_PREFIX = {"UNKNOWN_REGISTER": "register_known", "WRITE_TO_SENSOR_REGISTER": "actuator_only",
                    "OUT_OF_BOUNDS": "bounds", "RATE_OF_CHANGE_EXCEEDED": "rate_of_change",
@@ -57,17 +58,20 @@ def _sequence(order: List[str], verdict: Dict[str, Any], table: Dict[str, str], 
 
 
 def cyber_checks(command: Dict[str, Any], verdict: Dict[str, Any]) -> List[Dict[str, Any]]:
-    from middleware import cyber_agent
+    from middleware import cyber_agent, policy, quarantine
     auth = command.get("auth")
     ip = command.get("source_ip", "")
     recent = len(cyber_agent._request_timestamps.get(ip, ()))
     detail = {
         "source_whitelist": f"{ip} is in the trusted list",
+        "quarantine": "source is not quarantined" if quarantine.enabled() else "quarantine is off (IM_QUARANTINE not set)",
         "function_code": f"FC {command.get('function_code')} is allowed",
         "register_allowlist": f"register {command.get('register')} is a known machine",
         "rate_limit": f"{recent} request(s) from {ip} in the last {cyber_agent.RATE_WINDOW_SECONDS:g}s (limit {cyber_agent.RATE_LIMIT_PER_SEC})",
         "hmac": f"tag verified ({verdict.get('auth_status', 'HMAC_OK')})",
         "replay": "nonce unused and payload not duplicated",
+        "authorization": "no policy file: any authenticated source may write" if not policy.status()["active"]
+                         else f"policy allows {ip} to write this register and value",
     }
     return _sequence(CYBER_ORDER, verdict, _CYBER_BY_PREFIX, detail)
 

@@ -79,6 +79,11 @@ def forward_trace_to_dashboard(trace: dict) -> None:
     _enqueue("/api/trace", trace)
 
 
+def forward_incident_to_dashboard(incident: dict) -> None:
+    """Hand the current state of one correlated incident to the dashboard (same non-blocking worker)."""
+    _enqueue("/api/incident", incident)
+
+
 def _enqueue(path: str, payload: dict) -> None:
     global _forward_worker
     with _forward_lock:

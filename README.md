@@ -117,6 +117,14 @@ consistency/PCA features, per-stage heads and a stacker, and writes a held-out r
 per-segment detection and bootstrap CIs to `models/candidates/physical_v3/`. Until reviewed, v2 stays live; v3 is selected only
 with `IM_PHYSICAL_MODEL=v3` after packaging (`models/package_physical_v3.py`, needs explicit approval). See GETTING_STARTED.md.
 
+### Response layer: authorization, quarantine, incidents (rule-based)
+
+Beyond blocking single commands the middleware can restrict and respond. **Policy-as-code** (`config/policy.json`, see
+`config/policy.example.json`) limits which registers and value ranges each source may write, after its HMAC is verified.
+**Auto-quarantine** (`IM_QUARANTINE=1`) cuts off a source that keeps violating the rules for a growing hold time, then releases it.
+**Incident correlation** groups related blocked/alerted commands per source into one incident with severity and a timeline on the
+dashboard. All deterministic and covered by `tests/test_response_layer.py`; none of it uses a learned model.
+
 ### Orchestrator: RULE-BASED fusion (`middleware/orchestrator.py`)
 
 | Cyber rules | Physical rules | Physical model | Decision |

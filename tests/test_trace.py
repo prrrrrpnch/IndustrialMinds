@@ -109,7 +109,7 @@ check("tampered HMAC: orchestrator branch is cyber_rules_failed and the verdict 
       and cases["hmac_invalid"]["decision"]["verdict"] == "DROP")
 check("untrusted source fails the FIRST check and everything after is NOT_RUN",
       failing(cases["untrusted"], "cyber_rules") == ["source_whitelist"]
-      and [c["result"] for c in hop(cases["untrusted"]["trace"], "cyber_rules")["checks"]][1:] == ["NOT_RUN"] * 5)
+      and [c["result"] for c in hop(cases["untrusted"]["trace"], "cyber_rules")["checks"]][1:] == ["NOT_RUN"] * (len(tracer.CYBER_ORDER) - 1))
 check("out-of-bounds: physical 'bounds' check FAILS and its reason is the agent's own reason",
       failing(cases["out_of_bounds"], "physical_rules") == ["bounds"]
       and hop(cases["out_of_bounds"]["trace"], "physical_rules")["values"]["reason"] == cases["out_of_bounds"]["physical"]["rule_verdict"]["reason"])
