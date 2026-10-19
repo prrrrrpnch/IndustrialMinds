@@ -56,6 +56,8 @@ case "$ROLE" in
         export IM_PLC_HOST="$PLC_IP"
         export IM_TRUSTED_SOURCES="$SCADA_IP,$ATTACKER_IP"
         export IM_HOST_LABELS="$SCADA_IP=SCADA operator,$ATTACKER_IP=Attacker laptop"
+        # auto-quarantine: ON for a multi-laptop run, switched OFF by itself when every address is loopback (one-laptop demo)
+        export IM_QUARANTINE="${IM_QUARANTINE:-auto}"
         need_secret
         exec $PY -m middleware.middleware_server "$@"
         ;;

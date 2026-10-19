@@ -69,6 +69,8 @@ switch ($Role) {
         $env:IM_PLC_HOST = $PLC_IP
         $env:IM_TRUSTED_SOURCES = "$SCADA_IP,$ATTACKER_IP"
         $env:IM_HOST_LABELS = "$SCADA_IP=SCADA operator,$ATTACKER_IP=Attacker laptop"
+        # auto-quarantine: ON for a multi-laptop run, switched OFF by itself when every address is loopback (one-laptop demo)
+        if (-not $env:IM_QUARANTINE) { $env:IM_QUARANTINE = "auto" }
         Set-Secret
         & $py -m middleware.middleware_server @Rest
     }

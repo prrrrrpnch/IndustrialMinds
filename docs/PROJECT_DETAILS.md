@@ -606,7 +606,7 @@ Status: verified on the synthetic fixture only (code paths); NO real-data accura
   optional [min, max] limits; `default_role` allow/deny/role. Evaluated after HMAC, nonce and replay succeed (identity first, then
   permission). Reasons: UNAUTHORIZED_REGISTER / UNAUTHORIZED_VALUE / UNAUTHORIZED_SOURCE. Malformed file -> POLICY_ERROR on writes (fail closed);
   reads are never restricted; hot reload every `IM_POLICY_RELOAD_S` (2 s).
-- `middleware/quarantine.py` (opt-in `IM_QUARANTINE=1`): each blocked command adds severity-weighted strikes (forged tag 6, unsigned 4,
+- `middleware/quarantine.py` (opt-in `IM_QUARANTINE=1|auto|force`; `auto`/`1` switch themselves OFF when every trusted source is loopback, i.e. a one-laptop demo, `force` overrides; the launcher sets `auto`): each blocked command adds severity-weighted strikes (forged tag 6, unsigned 4,
   replay 4, unauthorised 6, bounds 2, cross-register 3, flood 1); limit 12 within 30 s -> quarantine 60 s, doubling per repeat up to 600 s,
   automatic release; quarantine-refused commands add no strikes; checked right after the whitelist (before any crypto).
 - `middleware/incidents.py`: non-PASS decisions grouped per source (gap 30 s) with attack types, registers, counts, timeline (40 events kept,

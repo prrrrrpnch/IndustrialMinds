@@ -6,7 +6,10 @@ reach the limit, the source is quarantined: its next commands are refused at the
 cryptography runs. The quarantine lifts BY ITSELF after a hold time, and repeat offenders are held longer (doubling, capped), so a
 legitimate device that misbehaves once is not locked out for good.
 
-OPT-IN: IM_QUARANTINE=1 (default off = unchanged demo). Settings (env):
+OPT-IN: IM_QUARANTINE=1 (or "auto"); default off = unchanged demo. It switches itself OFF on a single-laptop demo: when every trusted source
+(IM_TRUSTED_SOURCES, default loopback) is a loopback address, SCADA and the attacker share one address, so quarantining the attacker would
+lock SCADA out as well. IM_QUARANTINE=force overrides that (tests, deliberate use). The launcher sets IM_QUARANTINE=auto for the middleware,
+so multi-laptop runs get it and one-laptop rehearsals do not, with no manual step. Settings (env):
   IM_QUARANTINE_LIMIT     strikes in the window that trigger quarantine        (default 12)
   IM_QUARANTINE_WINDOW_S  sliding window in seconds                            (default 30)
   IM_QUARANTINE_HOLD_S    first hold in seconds                                (default 60)
@@ -51,8 +54,45 @@ def _env_float(name: str, default: float) -> float:
         return default
 
 
+def single_laptop() -> bool:
+    """True when every trusted source is a loopback address (a one-machine demo)."""
+    import ipaddress
+    from docs import netconfig
+    spec = os.environ.get("IM_TRUSTED_SOURCES", netconfig.TRUSTED_SOURCES)
+    nets = []
+    for item in str(spec).split(","):
+        item = item.strip()
+        if item:
+            try:
+                nets.append(ipaddress.ip_network(item, strict=False))
+            except ValueError:
+                return False                      # unparseable entry: do not guess, treat as multi-laptop
+    return all(n.is_loopback for n in nets)
+
+
+_noted = False
+
+
+def mode() -> str:
+    """'off' (not requested), 'auto-off-single-laptop' (requested but this is a one-laptop demo), or 'on'."""
+    global _noted
+    val = os.environ.get("IM_QUARANTINE", "").strip().lower()
+    if val == "force":
+        return "on"
+    if val not in ("1", "true", "yes", "on", "auto"):
+        return "off"
+    if single_laptop():
+        if not _noted:
+            _noted = True
+            import logging
+            logging.getLogger("industrialmind.quarantine").info(
+                "quarantine is OFF: every trusted source is loopback (single-laptop demo), a quarantine would also lock out SCADA")
+        return "auto-off-single-laptop"
+    return "on"
+
+
 def enabled() -> bool:
-    return os.environ.get("IM_QUARANTINE", "").strip().lower() in ("1", "true", "yes", "on")
+    return mode() == "on"
 
 
 def _exempt(source: str) -> bool:
@@ -124,7 +164,7 @@ def status(now: Optional[float] = None) -> Dict[str, Any]:
     now = time.time() if now is None else now
     with _lock:
         live = [dict(q, remaining_s=round(q["until"] - now, 1)) for q in _active.values() if q["until"] > now]
-    return {"enabled": enabled(), "quarantined": live,
+    return {"enabled": enabled(), "mode": mode(), "single_laptop": single_laptop(), "quarantined": live,
             "limit": _env_float("IM_QUARANTINE_LIMIT", 12.0), "window_s": _env_float("IM_QUARANTINE_WINDOW_S", 30.0),
             "hold_s": _env_float("IM_QUARANTINE_HOLD_S", 60.0)}
 

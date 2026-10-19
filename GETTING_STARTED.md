@@ -210,14 +210,17 @@ none of them on leaves the demo exactly as described.
   value limits; anything else is dropped `UNAUTHORIZED_*`. No file = no
   restriction. A broken file refuses all writes (`POLICY_ERROR`), so fix it
   before the demo. It reloads by itself within 2 s.
-- **Auto-quarantine** (response to repeated attacks). Set `IM_QUARANTINE=1` on
-  the middleware. A source that racks up violations (a forged command is worth 6
-  points, a flood request 1; the default limit is 12 within 30 s) is refused
-  immediately for 60 s, doubling on repeat offences up to 10 min, then released
-  automatically. Tune with `IM_QUARANTINE_LIMIT/WINDOW_S/HOLD_S/MAX_S`.
-  **Single-laptop rehearsal warning:** SCADA and the attacker share the loopback
-  address there, so a quarantine blocks SCADA too. Use it on the multi-laptop
-  setup, or exempt a source with `IM_QUARANTINE_EXEMPT=<address>`.
+- **Auto-quarantine** (response to repeated attacks). A source that racks up
+  violations (a forged command is worth 6 points, a flood request 1; the default
+  limit is 12 within 30 s) is refused immediately for 60 s, doubling on repeat
+  offences up to 10 min, then released automatically. Tune with
+  `IM_QUARANTINE_LIMIT/WINDOW_S/HOLD_S/MAX_S`. **It sets itself automatically:**
+  the launcher runs the middleware with `IM_QUARANTINE=auto`, which turns it ON
+  when SCADA and the attacker have their own addresses (multi-laptop) and OFF by
+  itself on a one-laptop demo, where both share the loopback address and a
+  quarantine would lock SCADA out too. Nothing to configure. Force it off with
+  `IM_QUARANTINE=0`, or on for testing with `IM_QUARANTINE=force`. Exempt one
+  address with `IM_QUARANTINE_EXEMPT=<address>`.
 - **Incidents panel** (always on): blocked and alerted commands from one source
   are grouped on the dashboard into a single incident with severity, timeline
   and whether the source was quarantined.
