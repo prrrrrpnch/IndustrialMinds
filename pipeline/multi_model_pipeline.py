@@ -32,7 +32,7 @@ from concurrent.futures import Future, ThreadPoolExecutor
 from typing import Any, Callable, Dict, Mapping, Optional, Tuple, Union
 
 from docs.interfaces import make_verdict
-from middleware import cyber_agent, orchestrator, physical_agent, trace as tracer
+from middleware import cyber_agent, incidents, orchestrator, physical_agent, quarantine, trace as tracer
 from models.cyber_model import CyberModel
 from models.physical_model import PhysicalModel
 from models.physical_model_v2 import load_physical_model
@@ -125,6 +125,8 @@ class MultiModelPipeline:
             decision = {"tx_id": tx_id, "verdict": "DROP", "reason": "AGENT_ERROR:orchestrator",
                         "latency_ms": round((time.time() - start_time) * 1000, 3), "direction": "downstream"}
 
+        incident = self._respond(command, decision)
+
         total_ms = (time.perf_counter() - t0) * 1000.0
         timings = {"branches": round((t_branches - t0) * 1000.0, 4), "cyber_model": cyber_ml.get("latency_ms"),
                    "physical_model": phys_ml.get("latency_ms"), "total": round(total_ms, 4)}
@@ -142,6 +144,7 @@ class MultiModelPipeline:
             "register": command.get("register"),
             "requested_value": command.get("value"),
             "decision": decision,
+            "incident": incident,
             "cyber": {
                 "rule_verdict": cyber_rule,
                 "gate_verdict": gate_cyber,
@@ -164,6 +167,33 @@ class MultiModelPipeline:
                 "total": round(total_ms, 4),
             },
         }
+
+    # ------------------------------------------------------------ response
+    _incident_sent: Dict[str, Tuple[float, str, bool]] = {}
+
+    def _respond(self, command: Dict[str, Any], decision: Dict[str, Any]) -> Optional[Dict[str, Any]]:
+        """Strikes for the quarantine, incident correlation, dashboard notification. Never raises, never changes the decision."""
+        try:
+            verdict = decision.get("verdict")
+            if verdict not in ("DROP", "ALERT"):
+                return None
+            started = None
+            if verdict == "DROP":
+                started = quarantine.record(str(command.get("source_ip")), decision.get("reason", ""), command.get("timestamp"))
+                if started:
+                    log.warning("QUARANTINE source=%s for %.0fs (offence %s, trigger %s)", started["source"], started["hold_s"],
+                                started["offence"], started["trigger"])
+            inc = incidents.record(command, decision, started)
+            if inc is not None:
+                last = self._incident_sent.get(inc["id"])
+                now = time.time()
+                if last is None or now - last[0] >= 0.5 or last[1] != inc["severity"] or last[2] != inc["quarantined"]:
+                    self._incident_sent[inc["id"]] = (now, inc["severity"], inc["quarantined"])
+                    orchestrator.forward_incident_to_dashboard(inc)
+                return {"id": inc["id"], "severity": inc["severity"], "quarantined": inc["quarantined"], "summary": inc["summary"]}
+        except Exception:
+            log.exception("incident/quarantine bookkeeping failed on tx=%s (decision unaffected)", command.get("tx_id"))
+        return None
 
     # ----------------------------------------------------------- telemetry
     def ingest_telemetry(self, registers: Mapping[Union[int, str], float],

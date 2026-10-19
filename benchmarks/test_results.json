@@ -1,8 +1,8 @@
 {
-  "started_utc": "2026-10-19 07:04:21",
-  "total_seconds": 246.3,
+  "started_utc": "2026-10-19 07:48:20",
+  "total_seconds": 247.8,
   "environment": {
-    "generated_utc": "2026-10-19 07:08:28",
+    "generated_utc": "2026-10-19 07:52:29",
     "python": "3.13.16",
     "platform": "Linux-6.18.44-fc-v139-x86_64-with-glibc2.39",
     "machine": "x86_64",
@@ -11,14 +11,14 @@
     "pandas": "3.0.6",
     "scikit_learn": "1.9.1",
     "joblib": "1.6.0",
-    "git_commit": "32aa799",
+    "git_commit": "55fcce2",
     "git_dirty": true
   },
   "summary": {
-    "PASS": 25,
+    "PASS": 26,
     "FAIL": 0,
     "SKIPPED": 2,
-    "check_lines_passed": 430,
+    "check_lines_passed": 495,
     "check_lines_failed": 0
   },
   "results": [
@@ -31,7 +31,7 @@
       "status": "PASS",
       "exit_code": 0,
       "script": "test_attacker_randomization",
-      "seconds": 1.9,
+      "seconds": 1.8,
       "checks_passed": 31,
       "checks_failed": 0,
       "last_line": "ALL PASS"
@@ -40,7 +40,7 @@
       "status": "PASS",
       "exit_code": 0,
       "script": "test_benchmark",
-      "seconds": 7.8,
+      "seconds": 7.6,
       "checks_passed": 23,
       "checks_failed": 0,
       "last_line": "ALL PASS"
@@ -49,7 +49,7 @@
       "status": "PASS",
       "exit_code": 0,
       "script": "test_bounds_alignment",
-      "seconds": 0.7,
+      "seconds": 0.6,
       "checks_passed": 34,
       "checks_failed": 0,
       "last_line": "ALL PASS"
@@ -76,7 +76,7 @@
       "status": "PASS",
       "exit_code": 0,
       "script": "test_dashboard_auth",
-      "seconds": 0.6,
+      "seconds": 0.2,
       "checks_passed": 9,
       "checks_failed": 0,
       "last_line": "ALL PASS"
@@ -94,7 +94,7 @@
       "status": "PASS",
       "exit_code": 0,
       "script": "test_fusion_scenarios",
-      "seconds": 19.3,
+      "seconds": 19.6,
       "checks_passed": 21,
       "checks_failed": 0,
       "last_line": "ALL PASS"
@@ -144,7 +144,7 @@
       "status": "PASS",
       "exit_code": 0,
       "script": "test_physical_agent",
-      "seconds": 0.0,
+      "seconds": 0.1,
       "checks_passed": null,
       "checks_failed": null,
       "last_line": "============================================================"
@@ -153,7 +153,7 @@
       "status": "PASS",
       "exit_code": 0,
       "script": "test_physical_v2",
-      "seconds": 112.7,
+      "seconds": 114.8,
       "checks_passed": 23,
       "checks_failed": 0,
       "last_line": "ALL PASS"
@@ -171,7 +171,7 @@
       "status": "PASS",
       "exit_code": 0,
       "script": "test_physical_v3",
-      "seconds": 23.1,
+      "seconds": 21.8,
       "checks_passed": 53,
       "checks_failed": 0,
       "last_line": "ALL PASS"
@@ -180,7 +180,7 @@
       "status": "PASS",
       "exit_code": 0,
       "script": "test_physical_v3_live",
-      "seconds": 22.1,
+      "seconds": 21.5,
       "checks_passed": 33,
       "checks_failed": 0,
       "last_line": "ALL PASS"
@@ -189,7 +189,7 @@
       "status": "PASS",
       "exit_code": 0,
       "script": "test_pipeline",
-      "seconds": 1.6,
+      "seconds": 1.7,
       "checks_passed": 24,
       "checks_failed": 0,
       "last_line": "All 24 pipeline checks passed"
@@ -197,8 +197,17 @@
     {
       "status": "PASS",
       "exit_code": 0,
+      "script": "test_response_layer",
+      "seconds": 1.8,
+      "checks_passed": 65,
+      "checks_failed": 0,
+      "last_line": "ALL PASS"
+    },
+    {
+      "status": "PASS",
+      "exit_code": 0,
       "script": "test_swat_cyber",
-      "seconds": 13.3,
+      "seconds": 12.7,
       "checks_passed": 30,
       "checks_failed": 0,
       "last_line": "ALL PASS"
@@ -207,7 +216,7 @@
       "status": "PASS",
       "exit_code": 0,
       "script": "test_swat_fixture",
-      "seconds": 12.0,
+      "seconds": 12.3,
       "checks_passed": 19,
       "checks_failed": 0,
       "last_line": "ALL PASSED"
@@ -234,7 +243,7 @@
       "status": "PASS",
       "exit_code": 0,
       "script": "test_trace",
-      "seconds": 1.4,
+      "seconds": 1.6,
       "checks_passed": 28,
       "checks_failed": 0,
       "last_line": "ALL PASS"

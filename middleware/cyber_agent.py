@@ -14,6 +14,8 @@ Check order (first failure wins):
   4. Per-source rate limit     RATE_LIMIT_EXCEEDED     (cheap DoS guard before crypto)
   5. HMAC-SHA256 verification  HMAC_MISSING / HMAC_MALFORMED / HMAC_INVALID / HMAC_EXPIRED
   6. Replay                    REPLAY_DETECTED         (nonce reuse or duplicate payload)
+  7. Authorization (policy)    UNAUTHORIZED_*          (opt-in config/policy.json: who may write which register, how far)
+Opt-in quarantine (IM_QUARANTINE=1) is checked right after the whitelist: SOURCE_QUARANTINED.
 
 A command is only trusted after step 5 succeeds.
 """
@@ -28,6 +30,7 @@ from collections import defaultdict, deque
 
 from docs.interfaces import make_verdict, ALL_REGISTERS, to_raw
 from docs import hmac_auth, netconfig
+from middleware import policy, quarantine
 
 # ---- Configuration ----
 RATE_LIMIT_PER_SEC = 5
@@ -143,6 +146,10 @@ def check(command: Dict[str, Any]) -> Dict[str, Any]:
     if not is_trusted_source(source_ip):
         return make_verdict(tx_id, False, "UNTRUSTED_SOURCE", "cyber")
 
+    held, remaining = quarantine.is_quarantined(source_ip, now)        # opt-in (IM_QUARANTINE=1); first, before any crypto
+    if held:
+        return make_verdict(tx_id, False, f"SOURCE_QUARANTINED:{remaining:.0f}s remaining", "cyber")
+
     if command.get("function_code") not in VALID_FUNCTION_CODES:
         return make_verdict(tx_id, False, "INVALID_FUNCTION_CODE", "cyber")
 
@@ -187,6 +194,13 @@ def check(command: Dict[str, Any]) -> Dict[str, Any]:
         verdict["auth_status"] = code
         return verdict
 
+    # Authenticated identity is established; now what is this source ALLOWED to do (policy-as-code, middleware/policy.py)?
+    allowed, why = policy.authorize(source_ip, command.get("function_code"), command.get("register"), command.get("value"))
+    if not allowed:
+        verdict = make_verdict(tx_id, False, why, "cyber")
+        verdict["auth_status"] = code
+        return verdict
+
     verdict = make_verdict(tx_id, True, "OK", "cyber")
     verdict["auth_status"] = code
     return verdict
@@ -198,5 +212,6 @@ def reset_state() -> None:
     _recent_payloads.clear()
     _seen_nonces.clear()
     _nonce_order.clear()
+    quarantine.reset()
     global _last_sweep
     _last_sweep = 0.0

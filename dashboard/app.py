@@ -94,6 +94,8 @@ _cpu_history = deque(maxlen=60)
 # Phase 9 packet-tracer: one hop-by-hop trace per command, newest first (full tx_id -> trace).
 MAX_TRACES = 300
 _traces: "OrderedDict[str, Dict[str, Any]]" = OrderedDict()
+_incidents: "OrderedDict[str, Dict[str, Any]]" = OrderedDict()   # correlated incidents from the middleware (id -> latest state)
+MAX_INCIDENTS = 100
 _trace_seq = 0                 # increases with every trace received; the Network Flow view asks for "everything after seq N"
 
 
@@ -446,6 +448,37 @@ def post_trace() -> Response:
     return jsonify({"success": True})
 
 
+@app.route("/api/incident", methods=["POST"])
+def post_incident() -> Response:
+    """Middleware -> dashboard: the latest state of one correlated incident (see middleware/incidents.py)."""
+    data = request.get_json(silent=True) or {}
+    iid = str(data.get("id") or "")
+    if not iid or not isinstance(data.get("timeline"), list):
+        return jsonify({"success": False}), 400
+    with _lock:
+        _incidents.pop(iid, None)
+        _incidents[iid] = data
+        while len(_incidents) > MAX_INCIDENTS:
+            _incidents.popitem(last=False)
+    return jsonify({"success": True})
+
+
+@app.route("/api/incidents")
+def list_incidents() -> Response:
+    """Newest-first incidents; an open incident whose last event is older than its gap is shown as closed."""
+    now = time.time()
+    with _lock:
+        items = list(_incidents.values())[::-1][:30]
+    out = []
+    for i in items:
+        i = dict(i)
+        if i.get("status") == "open" and now - float(i.get("last_seen") or 0) > 35:
+            i["status"] = "closed"
+        i["quarantine_remaining_s"] = max(0.0, round(float((i.get("quarantine") or {}).get("until") or 0) - now, 0))
+        out.append(i)
+    return jsonify(out)
+
+
 @app.route("/api/traces")
 def list_traces() -> Response:
     """Newest-first summaries for the packet-tracer list."""
@@ -644,6 +677,7 @@ def reset_dashboard() -> Response:
         _event_counter = 0
         _tx_id_map.clear()
         _traces.clear()
+        _incidents.clear()
 
     print(
         "[DASHBOARD] Reset"

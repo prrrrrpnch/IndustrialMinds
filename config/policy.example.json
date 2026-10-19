@@ -1,0 +1,10 @@
+{
+  "_comment": "Copy to config/policy.json (or set IM_POLICY_FILE). Keys are peer addresses; use your SCADA laptop's address instead of the loopback placeholder. No file = no restriction.",
+  "default_role": "deny",
+  "roles": {
+    "operator": {"write": ["MV101", "P101", "P203", "P205", "MV302", "P302", "P402", "UV401", "P501"], "limits": {"P101": [20, 90]}},
+    "engineer": {"write": "*"},
+    "observer": {"write": []}
+  },
+  "sources": {"127.0.0.1": "operator"}
+}

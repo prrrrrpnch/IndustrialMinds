@@ -599,3 +599,16 @@ selection; thresholds from a false-alarm budget on out-of-fold scores; the test 
 refit baseline and the selected v3); window and event metrics, bootstrap 95% CIs, confusion/PR/segment figures.
 Status: verified on the synthetic fixture only (code paths); NO real-data accuracy is claimed. v2 remains the live default
 (`IM_PHYSICAL_MODEL=v3` opts in once packaged). Update this section with the numbers from `physical_v3_report.md` after the run.
+
+## Response layer (rule-based): authorization policy, quarantine, incident correlation
+
+- `middleware/policy.py`: JSON policy (`IM_POLICY_FILE`, default `config/policy.json`): source address -> role -> writable registers and
+  optional [min, max] limits; `default_role` allow/deny/role. Evaluated after HMAC, nonce and replay succeed (identity first, then
+  permission). Reasons: UNAUTHORIZED_REGISTER / UNAUTHORIZED_VALUE / UNAUTHORIZED_SOURCE. Malformed file -> POLICY_ERROR on writes (fail closed);
+  reads are never restricted; hot reload every `IM_POLICY_RELOAD_S` (2 s).
+- `middleware/quarantine.py` (opt-in `IM_QUARANTINE=1`): each blocked command adds severity-weighted strikes (forged tag 6, unsigned 4,
+  replay 4, unauthorised 6, bounds 2, cross-register 3, flood 1); limit 12 within 30 s -> quarantine 60 s, doubling per repeat up to 600 s,
+  automatic release; quarantine-refused commands add no strikes; checked right after the whitelist (before any crypto).
+- `middleware/incidents.py`: non-PASS decisions grouped per source (gap 30 s) with attack types, registers, counts, timeline (40 events kept,
+  exact count), severity low/medium/high/critical (critical = quarantined or 3+ distinct types), forwarded to the dashboard panel.
+- Evidence: `tests/test_response_layer.py`; live check on the real stack: two forged-HMAC frames -> critical incident, source quarantined.
