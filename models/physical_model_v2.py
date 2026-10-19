@@ -44,6 +44,25 @@ def norm_from_stats(stats: Dict[str, Any]) -> Norm:
     return n
 
 
+def apply_threshold_override(default: float, meta: Dict[str, Any], name: str) -> "tuple[float, Dict[str, Any]]":
+    """Optional runtime operating-point override. The weights ship at their packaged false-alarm budget. A demo may prefer higher recall
+    (lower threshold: more alerts) or quieter operation (higher). Set IM_PHYSICAL_THRESHOLD to a probability in [0, 1] to override WITHOUT
+    retraining. The model stays advisory either way (it raises ALERT, never DROP). Invalid values are ignored. Returns (threshold, metadata)."""
+    override = os.environ.get("IM_PHYSICAL_THRESHOLD", "").strip()
+    if not override:
+        return default, meta
+    try:
+        v = float(override)
+    except ValueError:
+        log.warning("IM_PHYSICAL_THRESHOLD=%s is not a number - ignored", override)
+        return default, meta
+    if not 0.0 <= v <= 1.0:
+        log.warning("IM_PHYSICAL_THRESHOLD=%s out of [0,1] - ignored", override)
+        return default, meta
+    log.info("%s operating point overridden to %.4f via IM_PHYSICAL_THRESHOLD (shipped %.4f)", name, v, default)
+    return v, {**meta, "operating_point_override": v, "shipped_threshold": float(default)}
+
+
 class PhysicalModelV2(PhysicalModel):
     """120 s window, long-context + residual features, gradient-boosted attack probability."""
 
@@ -130,27 +149,7 @@ class PhysicalModelV2(PhysicalModel):
                 log.warning("packed inference unsupported for this scorer - using sklearn predict_proba")
             inst.norm = norm_from_stats(blob["norm_stats"])
             inst.clf_threshold = float(blob["clf_threshold"])
-            # Optional runtime operating-point override. The weights ship at the
-            # 0.5 false-alarm/hour point (threshold ~0.788). A demo may prefer
-            # higher recall (lower threshold, catches more, more alerts) or
-            # quieter operation (higher threshold). Set IM_PHYSICAL_THRESHOLD to
-            # a probability in [0,1] to override WITHOUT retraining. The model
-            # stays advisory either way (it raises ALERT, never DROP).
-            override = os.environ.get("IM_PHYSICAL_THRESHOLD", "").strip()
-            if override:
-                try:
-                    v = float(override)
-                    if 0.0 <= v <= 1.0:
-                        inst.clf_threshold = v
-                        meta = {**meta, "operating_point_override": v,
-                                "shipped_threshold": float(blob["clf_threshold"])}
-                        log.info("PhysicalModelV2 operating point overridden to "
-                                 "%.4f via IM_PHYSICAL_THRESHOLD (shipped %.4f)",
-                                 v, float(blob["clf_threshold"]))
-                    else:
-                        log.warning("IM_PHYSICAL_THRESHOLD=%s out of [0,1] - ignored", override)
-                except ValueError:
-                    log.warning("IM_PHYSICAL_THRESHOLD=%s is not a number - ignored", override)
+            inst.clf_threshold, meta = apply_threshold_override(inst.clf_threshold, meta, "PhysicalModelV2")
             inst.window_size = int(meta.get("window", LONG))
             inst._buf = deque(maxlen=inst.window_size)
             inst.metadata, inst.status = meta, "OK"
@@ -165,6 +164,12 @@ def load_physical_model(version: Optional[str] = None) -> PhysicalModel:
     version = (version or os.environ.get("IM_PHYSICAL_MODEL", "v2")).lower()
     if version == "v1":
         return PhysicalModel.load()
+    if version == "v3":                                   # opt-in only: v2 stays the default until v3 is promoted
+        from models.physical_model_v3 import PhysicalModelV3
+        m3 = PhysicalModelV3.load()
+        if m3.status == "OK":
+            return m3
+        log.warning("PhysicalModelV3 unavailable - falling back to v2")
     m = PhysicalModelV2.load()
     if m.status != "OK":
         log.warning("PhysicalModelV2 unavailable - falling back to the v1 model")
@@ -175,6 +180,10 @@ def load_physical_model(version: Optional[str] = None) -> PhysicalModel:
 def live_weights_path() -> str:
     """Weights file the live loader would use (v2 unless IM_PHYSICAL_MODEL=v1 or the v2 file is missing)."""
     from models.physical_model import DEFAULT_WEIGHTS as V1
+    if os.environ.get("IM_PHYSICAL_MODEL", "v2").lower() == "v3":
+        from models.physical_model_v3 import DEFAULT_WEIGHTS as V3
+        if os.path.exists(V3):
+            return V3
     if os.environ.get("IM_PHYSICAL_MODEL", "v2").lower() != "v1" and os.path.exists(DEFAULT_WEIGHTS):
         return DEFAULT_WEIGHTS
     return V1

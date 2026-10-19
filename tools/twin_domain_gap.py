@@ -103,7 +103,10 @@ def run_scenario(model: PhysicalModel, changes: Dict[str, float], seed: int, set
 
 def run(weights: str, hours: float, seed: int) -> Dict[str, Any]:
     from models.physical_model_v2 import PhysicalModelV2
-    model = PhysicalModelV2.load(weights)
+    from models.physical_model_v3 import PhysicalModelV3
+    model = PhysicalModelV3.load(weights)
+    if model.status != "OK":
+        model = PhysicalModelV2.load(weights)
     if model.status != "OK":
         model = PhysicalModel.load(weights)
     if model.status != "OK":
