@@ -612,3 +612,15 @@ Status: verified on the synthetic fixture only (code paths); NO real-data accura
 - `middleware/incidents.py`: non-PASS decisions grouped per source (gap 30 s) with attack types, registers, counts, timeline (40 events kept,
   exact count), severity low/medium/high/critical (critical = quarantined or 3+ distinct types), forwarded to the dashboard panel.
 - Evidence: `tests/test_response_layer.py`; live check on the real stack: two forged-HMAC frames -> critical incident, source quarantined.
+
+## Evidence pack (`benchmark/evidence_pack.py`)
+
+One command produces the panel proof set: (1) a LIVE campaign (real PLC twin, middleware, dashboard on free loopback ports; labelled legitimate
+traffic = 40 in-bounds signed writes, then each scripted attack; outcomes read from the dashboard's `/api/flow` traces and the blocked-attack log);
+(2) a deterministic response-layer demonstration (quarantine after 2 forged commands, policy cases); (3) recorded results (held-out REAL SWaT,
+rule regression on constructed scenarios). Commands are labelled by the phase that sent them, so multi-step attacks whose early steps are
+allowed by design (flood's first 5 frames, the original frame of a replay, the early ramp steps of cross-register) count as command-level misses;
+a note column explains each. First run: command-level TN 40 / FP 0 / FN 11 / TP 15 (precision 1.0, recall 0.577, F1 0.732); campaigns detected
+9/10, 9/9 of those passing through the middleware; `false-injection` bypasses the middleware (documented limit). The physical ML model is cold
+during the campaign (120 s warm-up), so it measures the rules. Outputs: docs/reports/evidence_pack.md, benchmarks/evidence_pack.json,
+docs/reports/figures/evidence_live_campaign.png, evidence_swat_heldout.png.
