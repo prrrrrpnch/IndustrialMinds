@@ -211,6 +211,29 @@ Note on accuracy: improving the physical model's real-data detection is retraine
 on the machine that holds the SWaT archive (`models/train_physical_v2.py`); it
 can't be done from the demo laptops alone.
 
+## Appendix: train and evaluate physical model v3 (on the SWaT machine)
+
+v3 is built and unit-tested, but its real-data accuracy is **not measured yet**
+(only the synthetic fixture was available). It is opt-in and not promoted. To measure
+it, on the machine that holds the SWaT archive (Windows example):
+
+```
+python -m models.train_physical_v3 --data-dir "G:\IM2\SWaT_dataset\archive" --candidate
+```
+
+Add `--quick` for a fast first pass. Nothing in `models/weights/` is touched. It writes
+to `models/candidates/physical_v3/`:
+
+- `physical_v3_report.md` / `.json` - held-out test metrics (precision, recall, F1,
+  accuracy, confusion matrix, false-alarm episodes/h, per-segment detection, 95% CIs),
+  compared against the v2 recipe refit on the same data, plus a promotion checklist
+- `physical_v3_confusion.png`, `physical_v3_pr_curve.png`, `physical_v3_segments.png`
+
+Send back the report and the three PNGs. If v3 beats v2 on the held-out block, we
+decide on promotion together; only then is it packaged
+(`python -m models.package_physical_v3 --budget <b> --report-json ...`, which needs
+your explicit approval) and used with `IM_PHYSICAL_MODEL=v3`.
+
 ## Common failures
 
 | Symptom | Fix |

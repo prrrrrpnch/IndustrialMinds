@@ -588,3 +588,14 @@ Under `docs/reports/figures/` (generated from `benchmarks/latest.json`): `middle
 | Attacker | `attacker/attacker.py`, `attacker/scenarios.py`, `tools/swat_attack_profile.py` |
 | Benchmarks and generated report | `benchmark/`, `benchmarks/latest.json`, `docs/reports/benchmark_report.md` |
 | Test records | `tests/`, `benchmarks/test_results.json` |
+
+## Physical model v3 (candidate; real-data results pending)
+
+Files: `swat/features_v3.py`, `models/train_physical_v3.py`, `models/physical_model_v3.py`, `models/package_physical_v3.py`.
+Design: 120 s windows with 30/60/120 s dynamics and time-since-last-toggle (no absolute levels); normal-only ridge consistency
+residuals and PCA (T2/SPE, total and per stage) fitted on normal rows and cross-fitted by hour-fold to avoid in-sample optimism;
+per-stage and global gradient-boosted heads combined by a logistic stacker; segment-grouped CV with segment-balanced AP for
+selection; thresholds from a false-alarm budget on out-of-fold scores; the test block is used for exactly two fits (v2-recipe
+refit baseline and the selected v3); window and event metrics, bootstrap 95% CIs, confusion/PR/segment figures.
+Status: verified on the synthetic fixture only (code paths); NO real-data accuracy is claimed. v2 remains the live default
+(`IM_PHYSICAL_MODEL=v3` opts in once packaged). Update this section with the numbers from `physical_v3_report.md` after the run.

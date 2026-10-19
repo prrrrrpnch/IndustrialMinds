@@ -109,6 +109,14 @@ becomes 117 features (the last 30 s as 67 drift-robust window statistics, 120 s 
 Above 0.788 the model raises `threat_flag` (operating point: 0.5 false-alarm episodes per benign hour on out-of-fold development data; measured on the held-out block: 1.17/h). It is **advisory**: it can
 turn a pass into an `ALERT` but never into a `DROP`. Inference is packed (`PackedHistGB`, identical to sklearn to 1e-15) so an assessment costs about 0.6 ms.
 
+### Physical model v3 (candidate, opt-in, not promoted)
+
+A stronger physical model is built and tested but **not yet measured on real SWaT** (run it where the archive is):
+`python -m models.train_physical_v3 --data-dir <archive> --candidate`. It adds multi-scale dynamics, normal-only
+consistency/PCA features, per-stage heads and a stacker, and writes a held-out report with confusion matrix, PR curve,
+per-segment detection and bootstrap CIs to `models/candidates/physical_v3/`. Until reviewed, v2 stays live; v3 is selected only
+with `IM_PHYSICAL_MODEL=v3` after packaging (`models/package_physical_v3.py`, needs explicit approval). See GETTING_STARTED.md.
+
 ### Orchestrator: RULE-BASED fusion (`middleware/orchestrator.py`)
 
 | Cyber rules | Physical rules | Physical model | Decision |
