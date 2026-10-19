@@ -1,0 +1,718 @@
+{
+  "environment": {
+    "generated_utc": "2026-10-19 08:18:33",
+    "python": "3.13.16",
+    "platform": "Linux-6.18.44-fc-v139-x86_64-with-glibc2.39",
+    "machine": "x86_64",
+    "cpu_count": 4,
+    "numpy": "2.5.4",
+    "pandas": "3.0.6",
+    "scikit_learn": "1.9.1",
+    "joblib": "1.6.0",
+    "git_commit": "bfc9745",
+    "git_dirty": true
+  },
+  "live": {
+    "label": "LIVE campaign: real PLC twin + middleware + dashboard on loopback, real Modbus/TCP; rule layer (physical ML model cold)",
+    "phases": [
+      {
+        "name": "legitimate operator traffic",
+        "kind": "benign",
+        "completed": true,
+        "seconds": 26.3
+      },
+      {
+        "name": "flood",
+        "kind": "attack",
+        "completed": true,
+        "seconds": 2.7
+      },
+      {
+        "name": "impossible-command",
+        "kind": "attack",
+        "completed": true,
+        "seconds": 2.2
+      },
+      {
+        "name": "sensor-write",
+        "kind": "attack",
+        "completed": true,
+        "seconds": 2.2
+      },
+      {
+        "name": "replay",
+        "kind": "attack",
+        "completed": true,
+        "seconds": 2.2
+      },
+      {
+        "name": "delayed-replay",
+        "kind": "attack",
+        "completed": true,
+        "seconds": 2.2
+      },
+      {
+        "name": "hmac-missing",
+        "kind": "attack",
+        "completed": true,
+        "seconds": 2.2
+      },
+      {
+        "name": "hmac-tamper",
+        "kind": "attack",
+        "completed": true,
+        "seconds": 2.2
+      },
+      {
+        "name": "hmac-forged",
+        "kind": "attack",
+        "completed": true,
+        "seconds": 2.2
+      },
+      {
+        "name": "cross-register",
+        "kind": "attack",
+        "completed": true,
+        "seconds": 40.8
+      },
+      {
+        "name": "false-injection",
+        "kind": "attack",
+        "completed": true,
+        "seconds": 2.5
+      }
+    ],
+    "ports": {
+      "plc": 49229,
+      "middleware": 52151,
+      "dashboard": 37209
+    },
+    "incidents": [
+      {
+        "alerts": 0,
+        "drops": 15,
+        "events": 15,
+        "first_seen": 1792397946.5001366,
+        "id": "INC-0001",
+        "last_seen": 1792398011.9447818,
+        "quarantine": null,
+        "quarantine_remaining_s": 0.0,
+        "quarantined": false,
+        "registers": [
+          "MV101",
+          "P101",
+          "LIT101"
+        ],
+        "severity": "critical",
+        "source": "127.0.0.1",
+        "status": "open",
+        "summary": "127.0.0.1: 15 event(s) in 65 s - Flood / Rate Limit, Impossible Command (Out of Bounds), Write To Sensor Register",
+        "timeline": [
+          {
+            "reason": "RATE_LIMIT_EXCEEDED",
+            "register": "MV101",
+            "t": 1792397946.5001366,
+            "tx_id": "777ebc2e-9f83-4e80-b3a4-5c2ed9095540",
+            "type": "Flood / Rate Limit",
+            "value": 55.6,
+            "verdict": "DROP"
+          },
+          {
+            "reason": "RATE_LIMIT_EXCEEDED",
+            "register": "MV101",
+            "t": 1792397946.5546489,
+            "tx_id": "a1d15dd8-0c19-4547-a84e-ca199daf9811",
+            "type": "Flood / Rate Limit",
+            "value": 55.7,
+            "verdict": "DROP"
+          },
+          {
+            "reason": "RATE_LIMIT_EXCEEDED",
+            "register": "MV101",
+            "t": 1792397946.6078467,
+            "tx_id": "74818d91-23e9-4494-967f-2ab5e522f4e5",
+            "type": "Flood / Rate Limit",
+            "value": 55.8,
+            "verdict": "DROP"
+          },
+          {
+            "reason": "RATE_LIMIT_EXCEEDED",
+            "register": "MV101",
+            "t": 1792397946.6612442,
+            "tx_id": "7d4bd6ef-62cc-419e-83ca-dc60e7a27df0",
+            "type": "Flood / Rate Limit",
+            "value": 55.9,
+            "verdict": "DROP"
+          },
+          {
+            "reason": "RATE_LIMIT_EXCEEDED",
+            "register": "MV101",
+            "t": 1792397946.7143137,
+            "tx_id": "1e5a12c0-c6a1-4434-8151-8c41389883d7",
+            "type": "Flood / Rate Limit",
+            "value": 56.0,
+            "verdict": "DROP"
+          },
+          {
+            "reason": "OUT_OF_BOUNDS",
+            "register": "P101",
+            "t": 1792397950.459087,
+            "tx_id": "48e6a5fa-0f90-4334-9297-ed5ebd00f6d4",
+            "type": "Impossible Command (Out of Bounds)",
+            "value": 999.0,
+            "verdict": "DROP"
+          },
+          {
+            "reason": "WRITE_TO_SENSOR_REGISTER",
+            "register": "LIT101",
+            "t": 1792397954.1557667,
+            "tx_id": "adf00408-b91d-4657-bea7-0fb6a37acd59",
+            "type": "Write To Sensor Register",
+            "value": 500.0,
+            "verdict": "DROP"
+          },
+          {
+            "reason": "REPLAY_DETECTED",
+            "register": "MV101",
+            "t": 1792397957.8916996,
+            "tx_id": "91562c34-0c5b-4e3a-9b40-2f2c72527c24",
+            "type": "Replay",
+            "value": 56.0,
+            "verdict": "DROP"
+          },
+          {
+            "reason": "HMAC_EXPIRED",
+            "register": "MV101",
+            "t": 1792397961.5986521,
+            "tx_id": "43ea93d7-de1a-41f0-b28b-7d2a0410a2c5",
+            "type": "Expired Signature (Delayed Replay)",
+            "value": 57.0,
+            "verdict": "DROP"
+          },
+          {
+            "reason": "HMAC_MISSING",
+            "register": "MV101",
+            "t": 1792397965.2621553,
+            "tx_id": "44d00db7-18a1-460e-abbe-12ee7db080e9",
+            "type": "Missing HMAC (Unsigned Command)",
+            "value": 57.0,
+            "verdict": "DROP"
+          },
+          {
+            "reason": "HMAC_INVALID",
+            "register": "P101",
+            "t": 1792397968.9384985,
+            "tx_id": "55093007-d008-49ce-b686-60efe907f95c",
+            "type": "Tampered / Forged HMAC",
+            "value": 95.0,
+            "verdict": "DROP"
+          },
+          {
+            "reason": "HMAC_INVALID",
+            "register": "MV101",
+            "t": 1792397972.622977,
+            "tx_id": "b22f6c7c-0ded-4d84-a939-525358ddb677",
+            "type": "Tampered / Forged HMAC",
+            "value": 57.0,
+            "verdict": "DROP"
+          },
+          {
+            "reason": "CROSS_REGISTER_VIOLATION",
+            "register": "MV101",
+            "t": 1792398000.9110744,
+            "tx_id": "a24db6d1-30cc-4964-acbf-6b40314466ad",
+            "type": "Cross-Register Correlation",
+            "value": 6.0,
+            "verdict": "DROP"
+          },
+          {
+            "reason": "CROSS_REGISTER_VIOLATION",
+            "register": "MV101",
+            "t": 1792398006.4283848,
+            "tx_id": "e21034d9-0011-48fa-8552-dc062c0d35f1",
+            "type": "Cross-Register Correlation",
+            "value": 6.0,
+            "verdict": "DROP"
+          },
+          {
+            "reason": "CROSS_REGISTER_VIOLATION",
+            "register": "MV101",
+            "t": 1792398011.9447818,
+            "tx_id": "be34e0c3-78ec-4714-852a-5a9a6d845f55",
+            "type": "Cross-Register Correlation",
+            "value": 6.0,
+            "verdict": "DROP"
+          }
+        ],
+        "types": [
+          {
+            "count": 5,
+            "type": "Flood / Rate Limit"
+          },
+          {
+            "count": 3,
+            "type": "Cross-Register Correlation"
+          },
+          {
+            "count": 2,
+            "type": "Tampered / Forged HMAC"
+          },
+          {
+            "count": 1,
+            "type": "Impossible Command (Out of Bounds)"
+          },
+          {
+            "count": 1,
+            "type": "Write To Sensor Register"
+          },
+          {
+            "count": 1,
+            "type": "Replay"
+          },
+          {
+            "count": 1,
+            "type": "Expired Signature (Delayed Replay)"
+          },
+          {
+            "count": 1,
+            "type": "Missing HMAC (Unsigned Command)"
+          }
+        ]
+      }
+    ],
+    "status": "OK",
+    "rows": [
+      {
+        "phase": "legitimate operator traffic",
+        "kind": "benign",
+        "commands": 40,
+        "dropped": 0,
+        "alerted": 0,
+        "passed": 40,
+        "upstream_drops": 0,
+        "first_flag_at_command": null,
+        "reasons": {},
+        "detected": false,
+        "completed": true,
+        "seconds": 26.3,
+        "traverses_middleware": true,
+        "note": "in-bounds signed writes at 1.7/s, below the rate limit"
+      },
+      {
+        "phase": "flood",
+        "kind": "attack",
+        "commands": 10,
+        "dropped": 5,
+        "alerted": 0,
+        "passed": 5,
+        "upstream_drops": 0,
+        "first_flag_at_command": 6,
+        "reasons": {
+          "RATE_LIMIT_EXCEEDED": 5
+        },
+        "detected": true,
+        "completed": true,
+        "seconds": 2.7,
+        "traverses_middleware": true,
+        "note": "the first 5 frames are within the 5/s limit by design; frames beyond it are dropped"
+      },
+      {
+        "phase": "impossible-command",
+        "kind": "attack",
+        "commands": 1,
+        "dropped": 1,
+        "alerted": 0,
+        "passed": 0,
+        "upstream_drops": 0,
+        "first_flag_at_command": 1,
+        "reasons": {
+          "OUT_OF_BOUNDS": 1
+        },
+        "detected": true,
+        "completed": true,
+        "seconds": 2.2,
+        "traverses_middleware": true,
+        "note": ""
+      },
+      {
+        "phase": "sensor-write",
+        "kind": "attack",
+        "commands": 1,
+        "dropped": 1,
+        "alerted": 0,
+        "passed": 0,
+        "upstream_drops": 0,
+        "first_flag_at_command": 1,
+        "reasons": {
+          "WRITE_TO_SENSOR_REGISTER": 1
+        },
+        "detected": true,
+        "completed": true,
+        "seconds": 2.2,
+        "traverses_middleware": true,
+        "note": ""
+      },
+      {
+        "phase": "replay",
+        "kind": "attack",
+        "commands": 2,
+        "dropped": 1,
+        "alerted": 0,
+        "passed": 1,
+        "upstream_drops": 0,
+        "first_flag_at_command": 2,
+        "reasons": {
+          "REPLAY_DETECTED": 1
+        },
+        "detected": true,
+        "completed": true,
+        "seconds": 2.2,
+        "traverses_middleware": true,
+        "note": "the original frame is legitimate; only the repeat is the attack"
+      },
+      {
+        "phase": "delayed-replay",
+        "kind": "attack",
+        "commands": 1,
+        "dropped": 1,
+        "alerted": 0,
+        "passed": 0,
+        "upstream_drops": 0,
+        "first_flag_at_command": 1,
+        "reasons": {
+          "HMAC_EXPIRED": 1
+        },
+        "detected": true,
+        "completed": true,
+        "seconds": 2.2,
+        "traverses_middleware": true,
+        "note": ""
+      },
+      {
+        "phase": "hmac-missing",
+        "kind": "attack",
+        "commands": 1,
+        "dropped": 1,
+        "alerted": 0,
+        "passed": 0,
+        "upstream_drops": 0,
+        "first_flag_at_command": 1,
+        "reasons": {
+          "HMAC_MISSING": 1
+        },
+        "detected": true,
+        "completed": true,
+        "seconds": 2.2,
+        "traverses_middleware": true,
+        "note": ""
+      },
+      {
+        "phase": "hmac-tamper",
+        "kind": "attack",
+        "commands": 1,
+        "dropped": 1,
+        "alerted": 0,
+        "passed": 0,
+        "upstream_drops": 0,
+        "first_flag_at_command": 1,
+        "reasons": {
+          "HMAC_INVALID": 1
+        },
+        "detected": true,
+        "completed": true,
+        "seconds": 2.2,
+        "traverses_middleware": true,
+        "note": ""
+      },
+      {
+        "phase": "hmac-forged",
+        "kind": "attack",
+        "commands": 1,
+        "dropped": 1,
+        "alerted": 0,
+        "passed": 0,
+        "upstream_drops": 0,
+        "first_flag_at_command": 1,
+        "reasons": {
+          "HMAC_INVALID": 1
+        },
+        "detected": true,
+        "completed": true,
+        "seconds": 2.2,
+        "traverses_middleware": true,
+        "note": ""
+      },
+      {
+        "phase": "cross-register",
+        "kind": "attack",
+        "commands": 7,
+        "dropped": 3,
+        "alerted": 0,
+        "passed": 4,
+        "upstream_drops": 0,
+        "first_flag_at_command": 5,
+        "reasons": {
+          "CROSS_REGISTER_VIOLATION": 3
+        },
+        "detected": true,
+        "completed": true,
+        "seconds": 40.8,
+        "traverses_middleware": true,
+        "note": "ramp: early steps are individually safe; the unsafe combined state is what is stopped"
+      },
+      {
+        "phase": "false-injection",
+        "kind": "attack",
+        "commands": 1,
+        "dropped": 0,
+        "alerted": 0,
+        "passed": 1,
+        "upstream_drops": 0,
+        "first_flag_at_command": null,
+        "reasons": {},
+        "detected": false,
+        "completed": true,
+        "seconds": 2.5,
+        "traverses_middleware": false,
+        "note": "BYPASSES the middleware (direct write to the PLC): cannot be stopped inline, only seen afterwards by the physical model/envelope (documented limit)"
+      }
+    ],
+    "command_confusion": {
+      "tp": 15,
+      "fp": 0,
+      "fn": 11,
+      "tn": 40,
+      "n": 66,
+      "accuracy": 0.8333,
+      "precision": 1.0,
+      "recall": 0.5769,
+      "specificity": 1.0,
+      "f1": 0.7317,
+      "false_positive_rate": 0.0,
+      "balanced_accuracy": 0.7885
+    },
+    "campaigns_detected": "9/10",
+    "campaigns_detected_through_middleware": "9/9"
+  },
+  "response": {
+    "label": "RESPONSE LAYER: deterministic in-process demonstration (constructed scenario, virtual clock)",
+    "quarantine": {
+      "forged_commands_sent": 40,
+      "quarantined_after_command": 2,
+      "refused_while_quarantined": 38,
+      "other_source_still_works": true,
+      "incident_severity": "critical",
+      "incident_summary": "127.0.0.2: 40 event(s) in 12 s - Blocked While Quarantined, Tampered / Forged HMAC - source quarantined"
+    },
+    "policy": [
+      {
+        "case": "listed register, in limit",
+        "result": "PASS",
+        "reason": "OK"
+      },
+      {
+        "case": "listed register, over its limit",
+        "result": "DROP",
+        "reason": "UNAUTHORIZED_VALUE"
+      },
+      {
+        "case": "unlisted register",
+        "result": "DROP",
+        "reason": "UNAUTHORIZED_REGISTER"
+      },
+      {
+        "case": "source with no role",
+        "result": "DROP",
+        "reason": "UNAUTHORIZED_SOURCE"
+      }
+    ]
+  },
+  "recorded": {
+    "swat": {
+      "status": "OK",
+      "block": "test (held-out calendar block)",
+      "windows": 28080,
+      "attack_windows": 1061,
+      "benign_windows": 27019,
+      "stride_s": 5,
+      "benign_hours": 37.53,
+      "advisory_model_flag": {
+        "tp": 544,
+        "fp": 637,
+        "fn": 517,
+        "tn": 26382,
+        "precision": 0.4606,
+        "recall": 0.5127,
+        "f1": 0.4853,
+        "false_positive_rate": 0.0236,
+        "accuracy": 0.9589,
+        "balanced_accuracy": 0.7446,
+        "always_benign_baseline_accuracy": 0.9622,
+        "alarm_episodes_per_benign_hour": 1.173
+      },
+      "roc_auc_attack_probability": 0.8362,
+      "average_precision_attack_probability": 0.3628,
+      "label": "PROMOTED physical model (PhysicalModelV2) on the HELD-OUT SWaT test block (real data, aggregate only)",
+      "fixture_not_real_results": false,
+      "operating_point": {
+        "isolation_forest_threshold": null,
+        "classifier_threshold": 0.788,
+        "variant": "v2"
+      },
+      "protocol_note": "test block was used for exactly two refits in the v2 experiment (baseline and selected) and was also seen by the shipped model's revised protocol: held-out, not a pristine blind test. Windows need a 120 s history, so the window set differs slightly from the v1 record",
+      "segments": {
+        "total": 10,
+        "detected": 8,
+        "median_detection_latency_s": 57.5,
+        "per_segment": [
+          {
+            "segment": 26,
+            "attack_windows": 120,
+            "duration_s": 600.0,
+            "flagged_windows": 112,
+            "detected": true,
+            "detection_latency_s": 40.0
+          },
+          {
+            "segment": 27,
+            "attack_windows": 89,
+            "duration_s": 445.0,
+            "flagged_windows": 77,
+            "detected": true,
+            "detection_latency_s": 55.0
+          },
+          {
+            "segment": 28,
+            "attack_windows": 20,
+            "duration_s": 100.0,
+            "flagged_windows": 1,
+            "detected": true,
+            "detection_latency_s": 60.0
+          },
+          {
+            "segment": 29,
+            "attack_windows": 96,
+            "duration_s": 480.0,
+            "flagged_windows": 0,
+            "detected": false,
+            "detection_latency_s": null
+          },
+          {
+            "segment": 30,
+            "attack_windows": 108,
+            "duration_s": 540.0,
+            "flagged_windows": 2,
+            "detected": true,
+            "detection_latency_s": 75.0
+          },
+          {
+            "segment": 31,
+            "attack_windows": 94,
+            "duration_s": 470.0,
+            "flagged_windows": 68,
+            "detected": true,
+            "detection_latency_s": 130.0
+          },
+          {
+            "segment": 32,
+            "attack_windows": 56,
+            "duration_s": 280.0,
+            "flagged_windows": 49,
+            "detected": true,
+            "detection_latency_s": 35.0
+          },
+          {
+            "segment": 33,
+            "attack_windows": 80,
+            "duration_s": 400.0,
+            "flagged_windows": 0,
+            "detected": false,
+            "detection_latency_s": null
+          },
+          {
+            "segment": 34,
+            "attack_windows": 60,
+            "duration_s": 300.0,
+            "flagged_windows": 50,
+            "detected": true,
+            "detection_latency_s": 50.0
+          },
+          {
+            "segment": 35,
+            "attack_windows": 338,
+            "duration_s": 1690.0,
+            "flagged_windows": 185,
+            "detected": true,
+            "detection_latency_s": 85.0
+          }
+        ]
+      },
+      "provenance": "recorded from docs/reports/physical_training_report_v2_swat.json (the user's local SWaT run of models/train_physical_v2.py); `python -m benchmark.run_all --data-dir <archive>` re-measures it with the live PhysicalModelV2 (previous v1 record: benchmarks/swat_accuracy_v1.json)"
+    },
+    "rules": {
+      "label": "RULE-BASED checks on CONSTRUCTED scenarios (deterministic rules; NOT SWaT, NOT a learned model)",
+      "confusion": {
+        "overall": {
+          "tp": 4400,
+          "fp": 0,
+          "fn": 0,
+          "tn": 200,
+          "n": 4600,
+          "accuracy": 1.0,
+          "precision": 1.0,
+          "recall": 1.0,
+          "specificity": 1.0,
+          "f1": 1.0,
+          "false_positive_rate": 0.0,
+          "balanced_accuracy": 1.0
+        },
+        "three_class": {
+          "truth_PASS (legitimate)": {
+            "PASS": 200,
+            "ALERT": 0,
+            "DROP": 0
+          },
+          "truth_DROP (violating)": {
+            "PASS": 0,
+            "ALERT": 0,
+            "DROP": 4400
+          }
+        },
+        "per_layer": {
+          "cyber": {
+            "tp": 1800,
+            "fp": 0,
+            "fn": 0,
+            "tn": 200,
+            "n": 2000,
+            "accuracy": 1.0,
+            "precision": 1.0,
+            "recall": 1.0,
+            "specificity": 1.0,
+            "f1": 1.0,
+            "false_positive_rate": 0.0,
+            "balanced_accuracy": 1.0
+          },
+          "physical": {
+            "tp": 2600,
+            "fp": 0,
+            "fn": 0,
+            "tn": 200,
+            "n": 2800,
+            "accuracy": 1.0,
+            "precision": 1.0,
+            "recall": 1.0,
+            "specificity": 1.0,
+            "f1": 1.0,
+            "false_positive_rate": 0.0,
+            "balanced_accuracy": 1.0
+          }
+        }
+      }
+    }
+  },
+  "figures": [
+    "evidence_live_campaign.png",
+    "evidence_swat_heldout.png"
+  ]
+}

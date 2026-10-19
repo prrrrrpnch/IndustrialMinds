@@ -117,6 +117,15 @@ consistency/PCA features, per-stage heads and a stacker, and writes a held-out r
 per-segment detection and bootstrap CIs to `models/candidates/physical_v3/`. Until reviewed, v2 stays live; v3 is selected only
 with `IM_PHYSICAL_MODEL=v3` after packaging (`models/package_physical_v3.py`, needs explicit approval). See GETTING_STARTED.md.
 
+### Evidence pack (proof for a panel)
+
+`python -m benchmark.evidence_pack` writes `docs/reports/evidence_pack.md` (+ JSON and confusion-matrix figures). It starts the real PLC twin,
+middleware and dashboard on loopback, sends labelled legitimate traffic and every scripted attack over real Modbus/TCP, and reports the
+command-level confusion matrix and a per-attack table (what was stopped, why, and which commands pass by design). It also demonstrates the
+response layer and quotes the held-out REAL SWaT results, **kept in separate sections** because they are different kinds of evidence.
+`--no-live` skips the live campaign. First recorded run: 15 of 26 attack-phase commands flagged, 0 of 40 legitimate commands flagged,
+9 of 9 attack campaigns that pass through the middleware detected (`false-injection` bypasses it by design).
+
 ### Response layer: authorization, quarantine, incidents (rule-based)
 
 Beyond blocking single commands the middleware can restrict and respond. **Policy-as-code** (`config/policy.json`, see
