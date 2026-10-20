@@ -1,5 +1,8 @@
 Flask>=3.0.0
 requests>=2.31.0
+# Optional, and only for the LLM investigator (middleware/investigator.py, IM_INVESTIGATOR=1).
+# The whole system runs without it: with no SDK and no API key the investigator falls back to its deterministic engine.
+# anthropic>=1.0.0
 pymodbus==3.6.9
 psutil>=5.9
 openpyxl>=3.1

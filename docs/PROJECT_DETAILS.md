@@ -661,3 +661,30 @@ middleware leg and absent from the PLC leg; every PASS and ALERT is present on b
 appears on the PLC leg only, confirming the documented limit of an inline control. Each DROP produces exactly one blocked-attack-log
 record and the events correlate into per-source incidents. A Modbus-level response is still returned to the sender on a DROP (the
 frame write itself is accepted by the datastore); what does not happen is the forward to the PLC, so no PLC response follows.
+
+## The investigation layer (opt-in LLM agent, out of band)
+
+Design principle: an LLM-powered agent still uses code and rules. Authentication, access control and the hard safety limits stay
+deterministic; what stops being a fixed chain of if/else statements is the investigation and decision workflow above them.
+
+`middleware/investigator.py` implements exactly that split. The pipeline's verdict is unchanged and unchangeable: the investigator
+is triggered from `_respond` AFTER the decision has been published, runs in a worker thread, and produces a report. Its evidence
+tools are read-only accessors over records this process already holds (incident, per-command traces, plant state and the physical
+model's explanation, the rule catalogue, live policy and quarantine settings, the model card, the blocked-attack log); the model
+chooses which to call and in what order, which is the part a fixed rule chain cannot do, and every call is recorded so a finding
+can be audited back to the evidence it rests on.
+
+Containment is in code, not in the prompt: recommendations are validated against a fixed allow-list (`ACTIONS`) and anything
+invented is dropped into `rejected_actions` rather than executed; every recommendation is marked `requires_human_approval` and
+`applied: false`, and the dashboard panel has no Apply control; turns, tool calls and tokens are capped; tool results are wrapped
+as `untrusted_evidence` because register values, source addresses and reason strings are attacker-influenced, and the system
+prompt states that instructions found inside evidence are themselves evidence of manipulation. If the SDK, the API key or the
+network is missing - or anything at all fails - `offline_finding()` writes the same finding shape deterministically and the system
+behaves exactly as it did before. The agent loop is written out rather than delegated to the SDK's tool runner so that the caps
+and the audit trail are explicit.
+
+Model: `claude-opus-5-5` with adaptive thinking and server-side refusal fallbacks (the evidence describes cyberattacks on a plant,
+which a safety classifier may decline). Opt in with `IM_INVESTIGATOR=1`; tune with `IM_INVESTIGATOR_MODEL`, `IM_INVESTIGATOR_EFFORT`
+and `IM_INVESTIGATOR_MIN_SEVERITY`. `anthropic` is an optional dependency. Run it by hand with
+`python -m tools.investigate --incident INC-0001 [--offline] [--publish]`. Tests: `tests/test_investigator.py`, whose stub client
+exercises the real loop, caps, validation and injection resistance without a network call.

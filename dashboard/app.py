@@ -94,6 +94,8 @@ _cpu_history = deque(maxlen=60)
 # Phase 9 packet-tracer: one hop-by-hop trace per command, newest first (full tx_id -> trace).
 MAX_TRACES = 300
 _traces: "OrderedDict[str, Dict[str, Any]]" = OrderedDict()
+_investigations: "OrderedDict[str, Dict[str, Any]]" = OrderedDict()   # investigator findings, newest last
+MAX_INVESTIGATIONS = 50
 _model_card: Dict[str, Any] = {}                                 # the live physical model's card, pushed by the middleware
 _incidents: "OrderedDict[str, Dict[str, Any]]" = OrderedDict()   # correlated incidents from the middleware (id -> latest state)
 MAX_INCIDENTS = 100
@@ -449,6 +451,27 @@ def post_trace() -> Response:
     return jsonify({"success": True})
 
 
+@app.route("/api/investigation", methods=["POST"])
+def post_investigation() -> Response:
+    """Middleware -> dashboard: one investigator finding. An analysis for a human; nothing here has been applied."""
+    data = request.get_json(silent=True) or {}
+    if not data.get("incident_id") or not data.get("headline"):
+        return jsonify({"success": False}), 400
+    with _lock:
+        _investigations.pop(data["incident_id"], None)
+        _investigations[data["incident_id"]] = data
+        while len(_investigations) > MAX_INVESTIGATIONS:
+            _investigations.popitem(last=False)
+    return jsonify({"success": True})
+
+
+@app.route("/api/investigations")
+def list_investigations() -> Response:
+    """Newest first."""
+    with _lock:
+        return jsonify(list(_investigations.values())[::-1])
+
+
 @app.route("/api/model", methods=["POST"])
 def post_model_card() -> Response:
     """Middleware -> dashboard: what the live physical model is, how it was measured, and what it cannot do."""
@@ -698,6 +721,7 @@ def reset_dashboard() -> Response:
         _tx_id_map.clear()
         _traces.clear()
         _incidents.clear()
+        _investigations.clear()
 
     print(
         "[DASHBOARD] Reset"

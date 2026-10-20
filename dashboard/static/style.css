@@ -790,3 +790,20 @@ body {
 .model-strip .m-limits { font-size: 12px; margin: 6px 0 0 16px; padding: 0; opacity: 0.85; }
 .model-strip .m-limits li { margin: 2px 0; }
 .model-strip .m-warn { color: #e6b800; font-weight: 700; }
+
+/* Investigator findings */
+.investigation-card .inv { border: 1px solid rgba(255,255,255,0.12); border-left-width: 5px; border-radius: 8px; padding: 10px 14px; margin: 8px 0; }
+.investigation-card .inv.sev-low { border-left-color: #6aa84f; }
+.investigation-card .inv.sev-medium { border-left-color: #e6b800; }
+.investigation-card .inv.sev-high { border-left-color: #e8761a; }
+.investigation-card .inv.sev-critical { border-left-color: #d62d2d; }
+.investigation-card .inv-head { display: flex; gap: 10px; align-items: center; flex-wrap: wrap; }
+.investigation-card .inv-engine { font-size: 11px; font-weight: 700; padding: 2px 8px; border-radius: 10px; background: rgba(255,255,255,0.12); text-transform: uppercase; }
+.investigation-card .inv-engine.rules { opacity: 0.65; }
+.investigation-card .inv-body { font-size: 13px; margin: 6px 0; }
+.investigation-card .inv-label { opacity: 0.7; display: inline-block; min-width: 110px; vertical-align: top; }
+.investigation-card .inv-actions { font-size: 12px; margin: 6px 0 0 16px; padding: 0; }
+.investigation-card .inv-actions li { margin: 3px 0; }
+.investigation-card .inv-act { font-family: monospace; color: #7fc4ff; }
+.investigation-card .inv-approve { font-size: 11px; opacity: 0.7; font-style: italic; }
+.investigation-card .inv-plc { color: #ff6b6b; font-weight: 700; }

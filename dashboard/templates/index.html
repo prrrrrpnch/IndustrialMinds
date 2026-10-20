@@ -505,6 +505,15 @@
     </div>
 
 
+    <!-- INVESTIGATIONS: the LLM investigator's analysis of an incident. Proposals only; nothing here was applied. -->
+    <section class="card investigation-card" id="investigation-section" style="margin:20px;">
+        <div class="card-header">
+            <h2><i class="fa-solid fa-magnifying-glass title-icon"></i> INVESTIGATIONS</h2>
+            <span class="badge-tag" id="investigation-engine">analysis only &middot; never applied</span>
+        </div>
+        <div id="investigation-list"><p class="tracer-empty">No investigations. When an incident reaches high severity the investigator writes up what happened and what it would do about it, for a person to approve.</p></div>
+    </section>
+
     <!-- LIVE PHYSICAL MODEL: what it is, how well it was measured, what it cannot do -->
     <section class="card model-strip" id="model-strip" style="margin:20px;">
         <div class="card-header">
@@ -545,6 +554,7 @@
     <script src="{{ url_for('static', filename='flow.js') }}"></script>
     <script src="{{ url_for('static', filename='incidents.js') }}"></script>
     <script src="{{ url_for('static', filename='model_card.js') }}"></script>
+    <script src="{{ url_for('static', filename='investigations.js') }}"></script>
 
 </body>
 
