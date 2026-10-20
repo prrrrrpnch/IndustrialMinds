@@ -79,6 +79,14 @@ def forward_trace_to_dashboard(trace: dict) -> None:
     _enqueue("/api/trace", trace)
 
 
+def forward_delivery_failure(tx_id: str, register_name: str, value: float, reason: str) -> None:
+    """Correct an already-published PASS: the command was approved but never reached the PLC (AUDIT C1).
+
+    The decision is unchanged - the agents did approve it. What changes is what the operator is told about its delivery."""
+    _enqueue("/api/delivery", {"tx_id": tx_id, "delivered": False, "command": register_name,
+                               "value": value, "reason": reason})
+
+
 def forward_investigation_to_dashboard(finding: dict) -> None:
     """Publish an investigator finding. It is an analysis for a human, never an instruction to any component."""
     _enqueue("/api/investigation", finding)

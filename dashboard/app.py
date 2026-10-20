@@ -76,13 +76,32 @@ def _require_token_for_writes():
 
 @app.route("/api/health")
 def health() -> Response:
-    """Unauthenticated liveness/readiness probe (GET)."""
+    """Liveness of THIS process, plus what it knows about the rest of the system (GET, unauthenticated).
+
+    AUDIT A5: this used to answer `ok` with the PLC dead and commands silently failing to deliver. It still cannot probe the
+    PLC itself - only the middleware talks to it - but it can report what the middleware has told it, so `status` degrades
+    instead of lying."""
     with _lock:
         n_traces = len(_traces)
+        undelivered = _metrics["undelivered"]
+        last_event = _scada_to_plc[0]["timestamp"] if _scada_to_plc else None
+        model = dict(_model_card)
+    status = "ok"
+    degraded = []
+    if undelivered:
+        status = "degraded"
+        degraded.append(f"{undelivered} command(s) approved but never delivered to the PLC")
+    if model and model.get("status") not in (None, "OK"):
+        status = "degraded"
+        degraded.append(f"physical model status {model.get('status')}")
     return jsonify({
-        "status": "ok",
+        "status": status,
+        "degraded": degraded,
         "uptime_seconds": round(time.time() - _START_TIME, 1),
         "traces": n_traces,
+        "undelivered_commands": undelivered,
+        "last_command_at": last_event,
+        "physical_model": model.get("status") if model else "not reported",
         "auth": "token" if _DASHBOARD_TOKEN else "open",
     })
 
@@ -135,6 +154,7 @@ _metrics = {
     "total": 0,
     "pass": 0,
     "drop": 0,
+    "undelivered": 0,          # AUDIT C1: approved by the agents, but the PLC never took it
 }
 
 # One entry per configured machine (docs/interfaces.MACHINES).
@@ -451,6 +471,29 @@ def post_trace() -> Response:
     return jsonify({"success": True})
 
 
+@app.route("/api/delivery", methods=["POST"])
+def post_delivery() -> Response:
+    """Middleware -> dashboard: a command that was approved but never reached the PLC (AUDIT C1).
+
+    The event was already published as PASS before the forward was attempted. Rewrite it to UNDELIVERED so the operator is
+    not shown a green verdict for a setpoint that was never applied."""
+    data = request.get_json(silent=True) or {}
+    tx = _short_tx_id(data.get("tx_id"))
+    if not tx or data.get("delivered", True):
+        return jsonify({"success": False}), 400
+    reason = str(data.get("reason") or "the PLC did not accept the write")
+    with _lock:
+        for event in _scada_to_plc:
+            if event.get("tx_id") == tx and event.get("verdict") in ("PASS", "ALERT"):
+                if event["verdict"] in ("PASS", "ALERT"):
+                    _metrics["pass"] = max(0, _metrics["pass"] - 1)
+                _metrics["undelivered"] += 1
+                event["verdict"] = "UNDELIVERED"
+                event["reason"] = reason
+                return jsonify({"success": True, "corrected": tx})
+    return jsonify({"success": False, "error": "no matching forwarded event"}), 404
+
+
 @app.route("/api/investigation", methods=["POST"])
 def post_investigation() -> Response:
     """Middleware -> dashboard: one investigator finding. An analysis for a human; nothing here has been applied."""
@@ -604,6 +647,9 @@ def dashboard_data() -> Response:
 
                 "drop":
                     _metrics["drop"],
+
+                "undelivered":
+                    _metrics["undelivered"],
             },
 
             "scada_to_plc":
@@ -713,6 +759,7 @@ def reset_dashboard() -> Response:
         _metrics["total"] = 0
         _metrics["pass"] = 0
         _metrics["drop"] = 0
+        _metrics["undelivered"] = 0
 
         for m in MACHINES:
             _telemetry[m["name"]] = float(m["initial"])

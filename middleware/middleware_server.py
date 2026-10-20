@@ -213,6 +213,50 @@ _plc_client: ModbusTcpClient | None = None
 
 _last_telemetry_report = 0.0
 
+# How long one Modbus call to the PLC may take. Env override for slow links; see AUDIT C2.
+PLC_IO_TIMEOUT_S = float(os.environ.get("IM_PLC_TIMEOUT_S", "0.5"))
+
+# pymodbus retries 3 times by default, so a timeout costs retries x timeout. The poll loop already retries continuously and a
+# forwarded setpoint that needs three attempts is a setpoint the operator should be told about, not one to keep grinding on.
+PLC_IO_RETRIES = int(os.environ.get("IM_PLC_RETRIES", "1"))
+
+
+class _RateLimitFilter(logging.Filter):
+    """Let one record per interval through, per (logger, level, message), for a chosen set of noisy libraries.
+
+    AUDIT C3: the middleware rate-limits its own 'cannot reach the PLC' line, but pymodbus logs a connection failure at ERROR
+    on every attempt. During a 30 s outage that was 99 library lines against 2 of ours - ~5/s, enough to bury every DROP in
+    the log an operator is actually reading. Silencing the library outright would hide real faults, so it is rate limited:
+    the first failure is reported, then at most one line per interval, with a count of what was suppressed.
+
+    Attached to the HANDLER, not to a logger. A filter on `logging.getLogger("pymodbus")` does not see records emitted by its
+    child `pymodbus.logging`, because logger filters are not inherited - only levels are. That mistake silently does nothing,
+    which is how the first attempt at this fix passed review and changed no behaviour.
+    """
+
+    def __init__(self, prefixes: "tuple[str, ...]", interval_s: float = 5.0) -> None:
+        super().__init__()
+        self.prefixes = prefixes
+        self.interval = interval_s
+        self._last: Dict[str, float] = {}
+        self._suppressed: Dict[str, int] = {}
+
+    def filter(self, record: logging.LogRecord) -> bool:
+        if not record.name.startswith(self.prefixes):
+            return True                       # our own logs are never rate limited
+        key = f"{record.name}:{record.levelno}:{record.msg}"
+        now = time.monotonic()
+        last = self._last.get(key)
+        if last is not None and now - last < self.interval:
+            self._suppressed[key] = self._suppressed.get(key, 0) + 1
+            return False
+        n = self._suppressed.pop(key, 0)
+        if n:
+            record.msg = f"{record.msg}  [+{n} identical suppressed in the last {self.interval:g}s]"
+        self._last[key] = now
+        return True
+
+
 # Rate-limit the "cannot reach the PLC" error so a down PLC laptop does not
 # flood the middleware log at the 0.2 s poll rate.
 _last_poll_error_log = 0.0
@@ -476,9 +520,17 @@ def _handle_downstream_write(
     )
 
     _publish_trace(report, forwarded=success, logged_to=None,
-                   note="forwarded with an advisory ALERT" if decision["verdict"] == "ALERT" else "")
+                   note=("forwarded with an advisory ALERT" if decision["verdict"] == "ALERT" else "") if success
+                   else "the agents approved this command but it never reached the PLC")
 
-    # If forwarding failed, remove pending command.
+    # -----------------------------------------------------
+    # AUDIT C1: a command the PLC never received is NOT a PASS.
+    #
+    # The verdict was decided and published before the forward was attempted, and _forward_to_plc's return value used to be
+    # discarded. With the PLC unreachable the operator saw a green PASS for a setpoint that was never applied - the classic
+    # control-room failure where the HMI and the plant disagree and the operator believes the HMI. Correct the record.
+    # -----------------------------------------------------
+
     if not success:
 
         with _state_lock:
@@ -487,6 +539,20 @@ def _handle_downstream_write(
                 register,
                 None
             )
+
+        log.warning(
+            f"[MIDDLEWARE] UNDELIVERED "
+            f"{register_name}={value:.2f} "
+            f"tx={tx_id} - approved by the agents but the PLC did not accept it; "
+            f"the operator view has been corrected"
+        )
+
+        orchestrator.forward_delivery_failure(
+            tx_id=tx_id,
+            register_name=register_name,
+            value=value,
+            reason="PLC_UNREACHABLE: approved, but the PLC did not accept the write"
+        )
 
 
 # =========================================================
@@ -1102,9 +1168,14 @@ def start_middleware_server(
     # Connect to PLC
     # -----------------------------------------------------
 
+    # AUDIT C2: an explicit, short timeout. The default is 3 s, and the forward runs on the asyncio event loop, so an
+    # unresponsive PLC (accepts TCP, never answers - a pulled cable or a firewall DROP) stalled the ENTIRE middleware for
+    # every client: measured 2,002 ms per command and 0.5 commands/s. A 0.5 s ceiling bounds that damage.
     _plc_client = ModbusTcpClient(
         host=plc_host,
-        port=plc_port
+        port=plc_port,
+        timeout=PLC_IO_TIMEOUT_S,
+        retries=PLC_IO_RETRIES
     )
 
     if not _plc_client.connect():
@@ -1198,7 +1269,13 @@ if __name__ == "__main__":
     )
 
     # pymodbus is chatty at INFO; keep it to warnings.
+    # pymodbus is chatty at INFO, and logs a connection failure at ERROR on EVERY attempt (AUDIT C3), so it needs both a
+    # level floor and a rate limit - the level alone let ERROR straight through. The rate limit goes on the handler, because
+    # a filter on the "pymodbus" logger would not see records from its child "pymodbus.logging".
     logging.getLogger("pymodbus").setLevel(logging.WARNING)
+    _noise = _RateLimitFilter(("pymodbus",), POLL_ERROR_LOG_INTERVAL)
+    for _handler in logging.getLogger().handlers:
+        _handler.addFilter(_noise)
 
     # Load both models before accepting traffic.
     get_pipeline()

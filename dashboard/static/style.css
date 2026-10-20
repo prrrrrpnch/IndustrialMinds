@@ -18,8 +18,8 @@
     --color-drop-bg: rgba(244, 63, 94, 0.14);
     --color-primary: #0ea5e9;
 
-    --font-main: 'Inter', system-ui, -apple-system, sans-serif;
-    --font-mono: 'JetBrains Mono', monospace;
+    --font-main: system-ui, -apple-system, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
+    --font-mono: ui-monospace, SFMono-Regular, "SF Mono", Menlo, Consolas, "Liberation Mono", monospace;
 }
 
 * {
@@ -377,6 +377,14 @@ body {
     color: var(--text-muted);
 }
 
+/* The CPU chart is drawn by static/vendor/microchart.js, which sizes itself from the canvas's CSS box. Chart.js used to do
+   this with responsive:true; without it the canvas falls back to its 300x150 intrinsic default. */
+#cpuLoadChart {
+    width: 100%;
+    height: 220px;
+    display: block;
+}
+
 .cpu-stat {
     font-size: 12px;
     color: var(--text-sub);
@@ -441,6 +449,18 @@ body {
     border: 1px solid rgba(239, 68, 68, 0.4);
 }
 
+.verdict.undelivered {
+    background: rgba(234, 179, 8, 0.18);
+    color: #eab308;
+    border: 1px solid rgba(234, 179, 8, 0.5);
+}
+
+.chart-missing {
+    color: #eab308;
+    font-size: 12px;
+    margin: 8px 0 0 0;
+}
+
 .verdict.unknown {
     background: rgba(148, 163, 184, 0.15);
     color: #94a3b8;
@@ -448,7 +468,7 @@ body {
 }
 
 .transaction-id {
-    font-family: "JetBrains Mono", monospace;
+    font-family: var(--font-mono);
     font-weight: 600;
     white-space: nowrap;
 }
@@ -754,6 +774,7 @@ body {
 #flow-svg .dot-pass, .flow-legend .dot-pass { fill: var(--color-pass); background: var(--color-pass); }
 #flow-svg .dot-alert, .flow-legend .dot-alert { fill: #eab308; background: #eab308; }
 #flow-svg .dot-drop, .flow-legend .dot-drop { fill: var(--color-drop); background: var(--color-drop); }
+#flow-svg .dot-undelivered, .flow-legend .dot-undelivered { fill: #eab308; background: #eab308; }
 #flow-svg .dot-untrusted { fill: #a855f7; }
 .flow-legend .dot-untrusted { background: transparent; border: 2px solid var(--color-drop); }
 .flow-legend { display: flex; flex-wrap: wrap; gap: 14px; margin: 10px 0; font-size: 0.8rem; color: var(--text-sub); }
