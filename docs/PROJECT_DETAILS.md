@@ -624,3 +624,24 @@ a note column explains each. First run: command-level TN 40 / FP 0 / FN 11 / TP 
 9/10, 9/9 of those passing through the middleware; `false-injection` bypasses the middleware (documented limit). The physical ML model is cold
 during the campaign (120 s warm-up), so it measures the rules. Outputs: docs/reports/evidence_pack.md, benchmarks/evidence_pack.json,
 docs/reports/figures/evidence_live_campaign.png, evidence_swat_heldout.png.
+
+## Explaining the physical model's verdict (no retraining)
+
+`models/explain.py` turns one probability into a sentence. The 18 live channels (10 sensors, 8 actuators) are grouped by plant stage;
+when the model flags, the 120 s window is rebuilt five times, each time with one stage's RAW CHANNELS replaced by those of the most recent
+window the model itself scored as normal, every feature is recomputed and the window is rescored. The drop in probability is that stage's
+contribution and the largest names `suspect_stage`. Swapping raw channels rather than feature columns is essential: several features
+(`sensors_outside_envelope`, `max_envelope_excess`, `resid_abs_*`) summarise the whole plant, so editing columns leaves them stale and the
+attribution collapses onto them. The explanation is contrastive ("what changed since the plant last looked fine"), needs no training data at
+run time, costs about 2-3 ms, and runs only on a flag. Measured on synthetic single-sensor spoofs it names S1, S3 and S5 correctly with the
+driving stage contributing 0.6-0.9 probability while the others stay within +/-0.02.
+
+Each assessment also reports the three sensors furthest from measured normal (z-score, direction, whether outside the measured envelope),
+`confidence` (`marginal` when the probability is within 0.05 of the threshold), `reference_age_s` and `warmup_remaining_s`. `suspect_stage`
+reaches the ALERT reason (`PHYSICAL_MODEL:classifier S3`), the fusion record, the packet tracer and the blocked-attack log.
+
+`models/operating_points.py` exposes named operating points read from the held-out report, never invented: `balanced` (shipped, 0.5/h budget,
+threshold 0.7880, measured 1.17 alerts/h, 8/10 segments, F1 0.485) and `sensitive` (1.0/h budget, threshold 0.6895, 2.0 alerts/h, recall 0.563,
+F1 0.468), selected with `IM_PHYSICAL_SENSITIVITY`; `IM_PHYSICAL_THRESHOLD` still overrides with a raw number. `model_card()` and
+`docs/MODEL_CARD.md` state what the model is, its measured performance and its known limits; the middleware publishes the card to the
+dashboard at startup (`/api/model`) so the panel describes the model that is actually running. Tests: `tests/test_physical_explain.py`.

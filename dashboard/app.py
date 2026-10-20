@@ -94,6 +94,7 @@ _cpu_history = deque(maxlen=60)
 # Phase 9 packet-tracer: one hop-by-hop trace per command, newest first (full tx_id -> trace).
 MAX_TRACES = 300
 _traces: "OrderedDict[str, Dict[str, Any]]" = OrderedDict()
+_model_card: Dict[str, Any] = {}                                 # the live physical model's card, pushed by the middleware
 _incidents: "OrderedDict[str, Dict[str, Any]]" = OrderedDict()   # correlated incidents from the middleware (id -> latest state)
 MAX_INCIDENTS = 100
 _trace_seq = 0                 # increases with every trace received; the Network Flow view asks for "everything after seq N"
@@ -446,6 +447,25 @@ def post_trace() -> Response:
         while len(_traces) > MAX_TRACES:
             _traces.popitem(last=False)
     return jsonify({"success": True})
+
+
+@app.route("/api/model", methods=["POST"])
+def post_model_card() -> Response:
+    """Middleware -> dashboard: what the live physical model is, how it was measured, and what it cannot do."""
+    data = request.get_json(silent=True) or {}
+    if not data.get("model"):
+        return jsonify({"success": False}), 400
+    global _model_card
+    with _lock:
+        _model_card = data
+    return jsonify({"success": True})
+
+
+@app.route("/api/model")
+def get_model_card() -> Response:
+    """The model card, or an empty object until the middleware has published one."""
+    with _lock:
+        return jsonify(dict(_model_card))
 
 
 @app.route("/api/incident", methods=["POST"])

@@ -783,3 +783,10 @@ body {
 .incident-card .inc-meta { font-size: 12px; opacity: 0.75; margin-top: 4px; }
 .incident-card .inc-tl { font-size: 12px; margin: 6px 0 0 0; padding-left: 16px; max-height: 120px; overflow-y: auto; }
 .incident-card .inc-q { color: #ff6b6b; font-weight: 700; }
+
+/* Live physical model card strip */
+.model-strip .m-line { font-size: 13px; margin: 4px 0; }
+.model-strip .m-key { opacity: 0.7; display: inline-block; min-width: 130px; }
+.model-strip .m-limits { font-size: 12px; margin: 6px 0 0 16px; padding: 0; opacity: 0.85; }
+.model-strip .m-limits li { margin: 2px 0; }
+.model-strip .m-warn { color: #e6b800; font-weight: 700; }

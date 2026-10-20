@@ -569,6 +569,18 @@ def _log_blocked(
         return False
 
 
+def _publish_model_card() -> None:
+    """Tell the dashboard what the live physical model is and what it cannot do (never fatal: it is only documentation)."""
+    try:
+        from models.physical_model_v2 import model_card
+        card = model_card(get_pipeline().physical_model)
+        orchestrator.forward_model_card_to_dashboard(card)
+        log.info("[MIDDLEWARE] physical model: %s (%s) threshold %.4f - %s", card.get("model"), card.get("status"),
+                 card.get("threshold") or 0.0, card.get("held_out_result") or "no held-out result recorded")
+    except Exception as e:
+        log.info(f"[MIDDLEWARE] model card unavailable: {e}")
+
+
 def _publish_trace(report: dict, forwarded: bool, logged_to: Optional[str], note: str = "") -> None:
     """Add the final outcome hop to this command's packet-trace and hand it to the dashboard (never blocks)."""
     hop_trace = report.get("trace")
@@ -1190,6 +1202,7 @@ if __name__ == "__main__":
 
     # Load both models before accepting traffic.
     get_pipeline()
+    _publish_model_card()
 
     # Startup objects (modules, models, config) live for the whole process.
     # Moving them out of the GC's view keeps full collections short, so they
