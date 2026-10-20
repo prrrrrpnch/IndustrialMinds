@@ -19,9 +19,9 @@ import numpy as np  # noqa: E402
 
 from attacker import scenarios  # noqa: E402
 from attacker.scenarios import TYPES, make_plan  # noqa: E402
-from docs import hmac_auth  # noqa: E402
-from docs.interfaces import ACTUATOR_REGISTERS, MACHINES, MACHINE_BY_REGISTER, make_command  # noqa: E402
-from docs.netconfig import LOOPBACK  # noqa: E402
+from core import hmac_auth# noqa: E402
+from core.interfaces import ACTUATOR_REGISTERS, MACHINES, MACHINE_BY_REGISTER, make_command  # noqa: E402
+from core.netconfig import LOOPBACK  # noqa: E402
 from middleware import cyber_agent, orchestrator  # noqa: E402
 from pipeline.multi_model_pipeline import MultiModelPipeline  # noqa: E402
 

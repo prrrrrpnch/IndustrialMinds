@@ -15,9 +15,9 @@ os.environ.setdefault("IM_LOG_DIR", tempfile.mkdtemp(prefix="im-pipe-"))
 
 import numpy as np  # noqa: E402
 
-from docs.netconfig import LOOPBACK  # documented loopback default
-from docs import hmac_auth  # noqa: E402
-from docs.interfaces import (MACHINES, NUM_REGISTERS, MV101, P101, LIT101, P203, P205, UV401,  # noqa: E402
+from core.netconfig import LOOPBACK  # documented loopback default
+from core import hmac_auth# noqa: E402
+from core.interfaces import (MACHINES, NUM_REGISTERS, MV101, P101, LIT101, P203, P205, UV401,  # noqa: E402
                              MV302, P302, P402, P501, MV503, make_command)
 from middleware import cyber_agent, orchestrator, physical_agent  # noqa: E402
 from models.telemetry_generator import generate_stream  # noqa: E402

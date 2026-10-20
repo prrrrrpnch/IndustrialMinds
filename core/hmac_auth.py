@@ -1,5 +1,5 @@
 """
-docs/hmac_auth.py - HMAC-SHA256 authentication for SCADA -> Middleware commands.
+core/hmac_auth.py - HMAC-SHA256 authentication for SCADA -> Middleware commands.
 
 Shared by the signer (SCADA) and the verifier (middleware Cyber Agent).
 
@@ -37,7 +37,7 @@ import struct
 import threading
 import time
 
-from docs.interfaces import FRAME_BASE, FRAME_LEN, FRAME_VERSION, to_raw
+from core.interfaces import FRAME_BASE, FRAME_LEN, FRAME_VERSION, to_raw
 
 PROJECT_ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 DEFAULT_SECRET_FILE = os.path.join(PROJECT_ROOT, "config", "hmac_secret.key")

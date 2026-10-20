@@ -112,10 +112,10 @@ turn a pass into an `ALERT` but never into a `DROP`. Inference is packed (`Packe
 ### Physical model v3 (candidate, opt-in, not promoted)
 
 A stronger physical model is built and tested but **not yet measured on real SWaT** (run it where the archive is):
-`python -m models.train_physical_v3 --data-dir <archive> --candidate`. It adds multi-scale dynamics, normal-only
+`python -m research.train_physical_v3 --data-dir <archive> --candidate`. It adds multi-scale dynamics, normal-only
 consistency/PCA features, per-stage heads and a stacker, and writes a held-out report with confusion matrix, PR curve,
 per-segment detection and bootstrap CIs to `models/candidates/physical_v3/`. Until reviewed, v2 stays live; v3 is selected only
-with `IM_PHYSICAL_MODEL=v3` after packaging (`models/package_physical_v3.py`, needs explicit approval). See GETTING_STARTED.md.
+with `IM_PHYSICAL_MODEL=v3` after packaging (`research/package_physical_v3.py`, needs explicit approval). See GETTING_STARTED.md.
 
 ### Evidence pack (proof for a panel)
 
@@ -197,7 +197,7 @@ dashboard. All deterministic and covered by `tests/test_response_layer.py`; none
 On the upstream path only the physical side exists. The orchestrator also forwards each decision to the dashboard from a single background worker thread, so a slow
 dashboard can never delay a command. **A learned fusion model was trained and rejected**: on the held-out test block it ranked attacks worse (ROC-AUC 0.68) than the physical
 model alone (0.83) and detected fewer segments (4 vs 6 of 10) (`docs/reports/fusion_training_report_swat.md`). The code is kept as a reproducible negative result
-(`models/train_fusion_swat.py`).
+(`research/train_fusion_swat.py`).
 
 ---
 
@@ -220,7 +220,7 @@ attack windows. Everything SWaT cannot supply is either **derived from SWaT colu
 ## The digital twin
 
 `plc/twin.py` is a small physics model of a five-stage SWaT-style train, exposed over Modbus by `plc/plc.py`. **20 registers = 5 stages x 4 points**; names are SWaT tags;
-10 actuators are writable, 10 sensors are read-only (writes to them are dropped). The single source of truth is `docs/interfaces.py` (`MACHINES`); `docs/register_map.md` is generated from it.
+10 actuators are writable, 10 sensors are read-only (writes to them are dropped). The single source of truth is `core/interfaces.py` (`MACHINES`); `docs/register_map.md` is generated from it.
 
 | Stage | Process | Actuators | Sensors |
 |---|---|---|---|
@@ -244,7 +244,7 @@ replica; the wire format is value x 10 (0.1 resolution, max 6553.5), so pH and p
 Follow a single operator write of `MV101 = 56.0 %`. **There is no encryption in this system: it provides integrity and authenticity, not confidentiality** (see Limitations).
 
 1. **SCADA builds and signs a frame.** It packs `version, register, raw value (=560), nonce, timestamp` into a fixed-width binary block and computes **HMAC-SHA256** over it with
-   the shared secret (`docs/hmac_auth.py`). The frame is **27 Modbus registers**, written with **function code 16 to address 100** of the middleware:
+   the shared secret (`core/hmac_auth.py`). The frame is **27 Modbus registers**, written with **function code 16 to address 100** of the middleware:
 
    | Words | 0 | 1 | 2 | 3-6 | 7-10 | 11-26 |
    |---|---|---|---|---|---|---|
@@ -270,7 +270,7 @@ the replay check and the whole Physical Agent sit behind it.
 
 ## Setup per laptop role
 
-Single machine: nothing to configure (all defaults are loopback). For several machines the **only** place defaults live is `docs/netconfig.py`; every component takes environment variables or flags.
+Single machine: nothing to configure (all defaults are loopback). For several machines the **only** place defaults live is `core/netconfig.py`; every component takes environment variables or flags.
 The recommended four-laptop layout (2 MacBooks, 2 Windows laptops), the firewall rules, the preflight check and the two attack modes are in **`docs/topology.md`**. Summary:
 
 | Laptop | Role | Runs | Needs set |
@@ -311,10 +311,10 @@ cross-sensor consistency residuals, choose by segment-grouped cross-validation, 
 `models/candidates/physical_v2/` and needs the SWaT archive: `python -m models.train_physical_v2 --data-dir "<SWaT archive>" --candidate` (about 30-90 minutes). The report compares a refit
 baseline with the selected configuration on the held-out test block (used for exactly two looks, disclosed). Persistence (`k of m`) was measured and made F1 worse, so the live flag is the single-window threshold. Report: `docs/reports/physical_training_report_v2_swat.md`.
 
-**Cyber model: not trained, by design.** A SWaT-based candidate exists (`models/train_cyber_swat.py --data-dir ... --candidate`) and is documented as a negative result: test ROC-AUC 0.63, F1 0.14
+**Cyber model: not trained, by design.** A SWaT-based candidate exists (`research/train_cyber_swat.py --data-dir ... --candidate`) and is documented as a negative result: test ROC-AUC 0.63, F1 0.14
 (`docs/reports/cyber_training_report_swat.md`). SWaT has no network traffic, so it could only model actuator state-change events, and it was not promoted. The cyber branch is rules-only.
 
-**Fusion (orchestrator) model: trained, rejected.** `python -m models.train_fusion_swat --data-dir "<SWaT archive>" --candidate` reproduces the cross-fitted experiment (out-of-fold physical outputs,
+**Fusion (orchestrator) model: trained, rejected.** `python -m research.train_fusion_swat --data-dir "<SWaT archive>" --candidate` reproduces the cross-fitted experiment (out-of-fold physical outputs,
 capped dominant segment, thresholds from validation, test touched once). Result: worse than the physical model alone, so the orchestrator is the rule-based table. A fixture mode (`--fixture`) checks the code.
 
 **Reproducing the held-out numbers:** `python -m benchmark.run_all --data-dir "<SWaT archive>"` (next sections).

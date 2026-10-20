@@ -12,7 +12,7 @@ import tempfile
 import numpy as np
 
 from models.physical_model import PhysicalModel
-from swat.fusion_scenarios import cross_fit_observations, fold_ids, CLASSES, RULE_REASONS, and_gate, build_scenarios, four_branch, naive_lookup, sample_rows
+from research.fusion_scenarios import cross_fit_observations, fold_ids, CLASSES, RULE_REASONS, and_gate, build_scenarios, four_branch, naive_lookup, sample_rows
 from swat.loader import load_stream
 from swat.physical_features import ACTUATORS, SENSORS
 from tests.swat_fixture import make_swat_archive

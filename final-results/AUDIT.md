@@ -31,8 +31,8 @@ attacker address, reached the PLC and appears in no other record. The project do
 but the name "inline security middleware" invites the reader to believe the plant is protected. It is not; one network path is.
 
 **M2 — `docs/` is a source directory.** 800 LOC across five Python modules (`interfaces.py`, `hmac_auth.py`, `attack_log.py`,
-`netconfig.py`, plus `__init__`) imported by every runtime component. `docs/interfaces.py` is the single source of truth for
-the register map; `docs/hmac_auth.py` is the cryptographic core. A new engineer greps `docs/` for documentation and finds the
+`netconfig.py`, plus `__init__`) imported by every runtime component. `core/interfaces.py` is the single source of truth for
+the register map; `core/hmac_auth.py` is the cryptographic core. A new engineer greps `docs/` for documentation and finds the
 security primitives. The folder name is a lie the whole team has agreed to live with.
 
 **M3 — The dashboard is not a view, it is the database.** Traces (300), incidents (200), investigations (100) and events

@@ -19,7 +19,7 @@ from typing import Any, Dict, List, Optional, Tuple
 import numpy as np
 import pandas as pd
 
-from docs.interfaces import MACHINES
+from core.interfaces import MACHINES
 
 WINDOW = 30           # seconds
 SENSORS: List[str] = [m["name"] for m in MACHINES if m["kind"] == "sensor"]

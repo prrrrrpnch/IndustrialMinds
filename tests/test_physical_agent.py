@@ -26,15 +26,15 @@ from pathlib import Path
 
 sys.path.insert(0, str(Path(__file__).resolve().parent.parent))
 
-from docs.interfaces import (make_command, MACHINES, MACHINE_BY_REGISTER, CROSS_REGISTER_RULES,
+from core.interfaces import (make_command, MACHINES, MACHINE_BY_REGISTER, CROSS_REGISTER_RULES,
                              ACTUATOR_REGISTERS, SENSOR_REGISTERS,
                              MV101, P101, LIT101, FIT101, P203, P205, AIT202, FIT201,
                              MV302, P302, LIT301, DPIT301, P402, UV401, LIT401, AIT402,
                              P501, MV503, PIT501, FIT501)
-from docs.netconfig import LOOPBACK
+from core.netconfig import LOOPBACK
 from middleware import physical_agent
 
-SRC = LOOPBACK   # trusted by default (docs/netconfig.py)
+SRC = LOOPBACK   # trusted by default (core/netconfig.py)
 NOW = time.time()
 
 

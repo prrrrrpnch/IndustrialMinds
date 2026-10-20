@@ -1,11 +1,11 @@
 """
-models/train_physical_v3.py - physical model v3 (CANDIDATE trainer; writes only models/candidates/physical_v3/).
+research/train_physical_v3.py - physical model v3 (CANDIDATE trainer; writes only models/candidates/physical_v3/).
 
-    python -m models.train_physical_v3 --data-dir "C:\\IndustrialMind\\SWaT_dataset\\archive" --candidate
-    python -m models.train_physical_v3 --fixture --candidate --quick        # synthetic SWaT-SHAPED data, code-path check only
+    python -m research.train_physical_v3 --data-dir "C:\\IndustrialMind\\SWaT_dataset\\archive" --candidate
+    python -m research.train_physical_v3 --fixture --candidate --quick        # synthetic SWaT-SHAPED data, code-path check only
 
 WHAT IS NEW versus the live v2 model (each recipe is cross-validated and scored separately; the report shows all of them):
-  1. FEATURES (swat/features_v3.py): multi-scale dynamics, no absolute levels, "seconds since last toggle", and NORMAL-ONLY models as
+  1. FEATURES (research/features_v3.py): multi-scale dynamics, no absolute levels, "seconds since last toggle", and NORMAL-ONLY models as
      features - a ridge consistency model and a PCA process monitor (Hotelling T2 / SPE, also per stage).
   2. CROSS-FITTED normal models: a training window's consistency/PCA features come from a model that never saw its hour, exactly like
      the test block's do. (v2 fitted them in-sample on the training windows: optimistic residuals the classifier then trusted.)
@@ -33,9 +33,9 @@ from typing import Any, Dict, List, Optional, Tuple
 import numpy as np
 
 from models import train_physical_v2 as V2
-from swat import features_v3 as F3
+from research import features_v3 as F3
 from swat.alarm_logic import benign_hours, best_alarm_rule, persist, threshold_for_budget
-from swat.fusion_scenarios import fold_ids
+from research.fusion_scenarios import fold_ids
 from swat.loader import load_stream
 from swat.physical_features import ACTUATORS, SENSORS, Norm, compute_bounds
 
@@ -133,7 +133,7 @@ def design_for(X3: np.ndarray, AUX: np.ndarray, nm: F3.NormalModels) -> np.ndarr
 
 # ----------------------------------------------------------------------------- stacker
 class Stacker:
-    """Logistic regression on the heads' logits (+ their max). Inference is plain NumPy (swat.features_v3.stack_*)."""
+    """Logistic regression on the heads' logits (+ their max). Inference is plain NumPy (research.features_v3.stack_*)."""
 
     def __init__(self, heads: List[str]) -> None:
         self.heads, self.w, self.b = list(heads), None, 0.0
@@ -529,7 +529,7 @@ def save_candidate(out_dir: str, res: Dict[str, Any], final: Dict[str, Any], nor
                  "stacker": None if stk is None else {"heads": stk.heads, "w": stk.w, "b": stk.b},
                  "norm_stats": {"mu": norm.mu, "sd": norm.sd, "lo": norm.lo, "hi": norm.hi}, "alarm_rules": res["alarm_rules"],
                  "feature_names": F3.FEATURE_NAMES, "fixture": fixture,
-                 "note": "CANDIDATE: package with models.package_physical_v3 only after review and approval"}, path)
+                 "note": "CANDIDATE: package with research.package_physical_v3 only after review and approval"}, path)
     with open(os.path.join(out_dir, "physical_v3_report.json"), "w") as fh:
         json.dump(res, fh, indent=2, default=float)
     return path

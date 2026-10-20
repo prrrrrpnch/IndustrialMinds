@@ -1,6 +1,6 @@
 # Register Map (Modbus holding registers, unit id 1, addresses 0-19)
 
-Source of truth: `docs/interfaces.py` -> `MACHINES`. Edit there, not here (this table is generated from it).
+Source of truth: `core/interfaces.py` -> `MACHINES`. Edit there, not here (this table is generated from it).
 
 The plant is a 5-stage water-treatment train modeled on iTrust SWaT (P1 raw water, P2 chemical
 dosing, P3 ultrafiltration (+P6 backwash folded in), P4 dechlorination, P5 reverse osmosis). Point
@@ -62,7 +62,7 @@ PIT501 > 90 % of its range).
 ## Signed command frame (SCADA -> middleware)
 
 FC16 write of 27 registers at address 100: version, register, raw value,
-64-bit nonce, 64-bit timestamp (ms), 32-byte HMAC-SHA256 tag. See `docs/hmac_auth.py`.
+64-bit nonce, 64-bit timestamp (ms), 32-byte HMAC-SHA256 tag. See `core/hmac_auth.py`.
 
 ## Ports (settled convention — use these everywhere)
 

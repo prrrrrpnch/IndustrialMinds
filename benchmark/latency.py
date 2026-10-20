@@ -31,8 +31,8 @@ import numpy as np
 
 from benchmark import workload as W
 from benchmark.env import environment
-from docs import hmac_auth
-from docs.interfaces import CROSS_REGISTER_RULES, MACHINE_BY_REGISTER, to_raw
+from core import hmac_auth
+from core.interfaces import CROSS_REGISTER_RULES, MACHINE_BY_REGISTER, to_raw
 from middleware import cyber_agent, orchestrator, physical_agent
 from middleware import trace as tracer
 from pipeline import multi_model_pipeline as mmp
@@ -186,8 +186,8 @@ def run_once(n: int, warmup: int, seed: int, raw_rows: List[Dict[str, Any]] | No
 def run_live(n: int = 300) -> Dict[str, Any]:
     """Client-side round trip of a signed FC16 write to a RUNNING middleware (includes sockets and the Modbus server)."""
     from pymodbus.client import ModbusTcpClient
-    from docs import netconfig
-    from docs.interfaces import FRAME_BASE, MV101
+    from core import netconfig
+    from core.interfaces import FRAME_BASE, MV101
     c = ModbusTcpClient(netconfig.MIDDLEWARE_HOST, port=netconfig.MIDDLEWARE_PORT, timeout=2)
     if not c.connect():
         return {"status": "NOT RUN: no middleware reachable at the configured address"}

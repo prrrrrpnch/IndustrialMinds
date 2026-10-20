@@ -31,7 +31,7 @@ from typing import Any, Dict, List, Optional
 
 import numpy as np
 
-from docs.interfaces import ACTUATOR_REGISTERS, CROSS_REGISTER_RULES, MACHINE_BY_REGISTER
+from core.interfaces import ACTUATOR_REGISTERS, CROSS_REGISTER_RULES, MACHINE_BY_REGISTER
 
 TYPES: Dict[str, str] = {
     "freeze": "swat-derived",

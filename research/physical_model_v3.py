@@ -1,9 +1,9 @@
 """
-models/physical_model_v3.py - PhysicalModelV3: the v3 physical model (advisory), same API and safety behaviour as PhysicalModelV2.
+research/physical_model_v3.py - PhysicalModelV3: the v3 physical model (advisory), same API and safety behaviour as PhysicalModelV2.
 
-Opt-in: IM_PHYSICAL_MODEL=v3 (v2 stays the default until v3 has been reviewed on real data and promoted; see models/package_physical_v3.py).
+Opt-in: IM_PHYSICAL_MODEL=v3 (v2 stays the default until v3 has been reviewed on real data and promoted; see research/package_physical_v3.py).
 
-What it computes from the live 120 s, 1 Hz window (all of it through swat/features_v3.py, the SAME code the trainer uses):
+What it computes from the live 120 s, 1 Hz window (all of it through research/features_v3.py, the SAME code the trainer uses):
   multi-scale dynamics -> NORMAL-ONLY consistency + PCA monitor features -> per-stage heads and global head(s) (gradient-boosted trees,
   evaluated by the packed NumPy engine) -> a small logistic stacker -> attack probability. threat_flag = probability > the packaged threshold.
 
@@ -28,7 +28,7 @@ import numpy as np
 
 from models.physical_model_v2 import PhysicalModelV2, apply_threshold_override, norm_from_stats
 from models.tree_inference import PackedHistGB
-from swat import features_v3 as F3
+from research import features_v3 as F3
 
 log = logging.getLogger("industrialmind.models.physical_v3")
 
@@ -129,7 +129,7 @@ class PhysicalModelV3(PhysicalModelV2):
         return report
 
     def fit(self, *a, **k):
-        raise NotImplementedError("train with models.train_physical_v3 (candidate), then models.package_physical_v3")
+        raise NotImplementedError("train with research.train_physical_v3 (candidate), then research.package_physical_v3")
 
     def predict(self, X: np.ndarray) -> np.ndarray:
         raise NotImplementedError("use assess() / score_batch()")

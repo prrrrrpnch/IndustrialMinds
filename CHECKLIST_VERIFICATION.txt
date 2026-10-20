@@ -25,7 +25,7 @@ Legend   [x] verified with evidence   [~] done with a stated deviation   [n/a] n
     CyberModel threat flag also DROP commands (reason ML_ANOMALY).
 
 * SCALE
-  - 10 named machines (M1-M10) in docs/interfaces.MACHINES, Modbus holding
+  - 10 named machines (M1-M10) in core/interfaces.MACHINES, Modbus holding
     registers 0-9. Added: AIR_COMPRESSOR, MIXER_SPEED, COOLANT_FLOW,
     EXHAUST_FAN, plus correlation rule COOLANT_STARVATION.
 

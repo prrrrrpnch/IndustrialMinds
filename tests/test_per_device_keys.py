@@ -15,8 +15,8 @@ import ipaddress
 import os
 import time
 
-from docs import hmac_auth
-from docs.interfaces import make_command
+from core import hmac_auth
+from core.interfaces import make_command
 from middleware import cyber_agent
 
 fails = 0

@@ -6,7 +6,7 @@ real-data performance.
 
 There is no historical plant data in this project, so both ML models are
 trained on synthetic data produced here from the central machine config
-(docs/interfaces.MACHINES). Every generator takes an explicit seed, so the
+(core/interfaces.MACHINES). Every generator takes an explicit seed, so the
 same seed always produces the same data and therefore the same model.
 
 Physical telemetry (one value per machine per sample):
@@ -27,9 +27,9 @@ from typing import Dict, Iterator, List, Optional, Tuple
 
 import numpy as np
 
-from docs.netconfig import LOOPBACK  # documented loopback default
-from docs.interfaces import MACHINES, NUM_REGISTERS, ACTUATOR_REGISTERS, make_command, to_raw
-from docs import hmac_auth
+from core.netconfig import LOOPBACK  # documented loopback default
+from core.interfaces import MACHINES, NUM_REGISTERS, ACTUATOR_REGISTERS, make_command, to_raw
+from core import hmac_auth
 
 # Telemetry sample period used by the middleware poll loop (seconds).
 SAMPLE_PERIOD_S = 0.2

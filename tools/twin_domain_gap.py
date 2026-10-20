@@ -26,7 +26,7 @@ if ROOT not in sys.path:
 
 import numpy as np  # noqa: E402
 
-from docs.interfaces import MACHINE_BY_NAME  # noqa: E402
+from core.interfaces import MACHINE_BY_NAME  # noqa: E402
 from models.physical_model import PhysicalModel  # noqa: E402
 from plc.twin import PlantTwin  # noqa: E402
 
@@ -103,7 +103,7 @@ def run_scenario(model: PhysicalModel, changes: Dict[str, float], seed: int, set
 
 def run(weights: str, hours: float, seed: int) -> Dict[str, Any]:
     from models.physical_model_v2 import PhysicalModelV2
-    from models.physical_model_v3 import PhysicalModelV3
+    from research.physical_model_v3 import PhysicalModelV3
     model = PhysicalModelV3.load(weights)
     if model.status != "OK":
         model = PhysicalModelV2.load(weights)

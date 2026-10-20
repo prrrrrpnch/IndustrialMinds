@@ -1,7 +1,7 @@
 """
-models/package_physical_v3.py - turn a REVIEWED v3 candidate into the live weights file models/weights/physical_model_v3.joblib.
+research/package_physical_v3.py - turn a REVIEWED v3 candidate into the live weights file models/weights/physical_model_v3.joblib.
 
-    python -m models.package_physical_v3 --budget 0.5 --report-json models/candidates/physical_v3/physical_v3_report.json
+    python -m research.package_physical_v3 --budget 0.5 --report-json models/candidates/physical_v3/physical_v3_report.json
 
 Refuses unless the user approved replacing the physical model this session (python3 .claude/hooks/confirm.py retrain physical, only after the
 user says yes in chat), refuses a candidate trained on the synthetic fixture, and never overwrites an existing weights file. It does not
@@ -22,7 +22,7 @@ from typing import Any, Dict, Optional
 import joblib
 
 from models.promote_candidate import approved
-from swat import features_v3 as F3
+from research import features_v3 as F3
 
 ROOT = os.path.realpath(os.path.join(os.path.dirname(os.path.abspath(__file__)), ".."))
 CAND = os.path.join(ROOT, "models", "candidates", "physical_v3", "physical_v3_candidate.joblib")
@@ -40,7 +40,7 @@ def package(src: str, out: str, budget: str, report_json: Optional[str] = None, 
         print("REFUSED: that candidate was trained on the synthetic fixture, not SWaT")
         return 1
     if blob.get("schema") != F3.FEATURE_VERSION or list(blob.get("feature_names", [])) != F3.FEATURE_NAMES:
-        print("REFUSED: candidate feature schema does not match swat/features_v3.py (retrain with the current code)")
+        print("REFUSED: candidate feature schema does not match research/features_v3.py (retrain with the current code)")
         return 1
     rules = blob["alarm_rules"].get(str(budget))
     rule = rules and rules.get("selected_without_persistence")

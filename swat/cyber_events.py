@@ -26,7 +26,7 @@ from typing import Deque, Dict, List, Optional
 import numpy as np
 import pandas as pd
 
-from docs.interfaces import MACHINES, MACHINE_BY_REGISTER
+from core.interfaces import MACHINES, MACHINE_BY_REGISTER
 
 ON_THRESHOLD = 50.0     # percent; >= this counts as "on/open" for live commands
 

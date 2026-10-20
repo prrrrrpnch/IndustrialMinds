@@ -56,7 +56,7 @@ Useful columns (right-click a field -> Apply as Column): `modbus.reference_num`,
 
 ### Reading a signed command frame
 
-A command is one FC16 write to address **100** with 27 words, in this order (`docs/interfaces.py`, `docs/hmac_auth.py`):
+A command is one FC16 write to address **100** with 27 words, in this order (`core/interfaces.py`, `core/hmac_auth.py`):
 
 | Words (`modbus.regval_uint16`) | Content |
 |---|---|

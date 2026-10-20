@@ -12,8 +12,8 @@ import tempfile
 
 import numpy as np
 
-from models import train_physical_v3 as T
-from swat import features_v3 as F3
+from research import train_physical_v3 as T
+from research import features_v3 as F3
 from swat.features_v2 import LONG, build_windows_v2
 from swat.loader import load_stream
 from swat.physical_features import ACTUATORS, SENSORS, Norm, compute_bounds

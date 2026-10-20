@@ -46,7 +46,7 @@ OPERATOR = r"""
 import sys, time
 sys.path.insert(0, %r)
 from attacker import attacker as A
-from docs.interfaces import MACHINE_BY_NAME
+from core.interfaces import MACHINE_BY_NAME
 A._SOURCE_IP = sys.argv[1]
 c = A.connect(A.MIDDLEWARE_HOST, A.MIDDLEWARE_PORT)
 if c is None:

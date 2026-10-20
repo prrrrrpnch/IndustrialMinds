@@ -1,8 +1,8 @@
 """
-models/train_cyber_swat.py - train the CyberModel on SWaT ONLY and write a CANDIDATE + report.
+research/train_cyber_swat.py - train the CyberModel on SWaT ONLY and write a CANDIDATE + report.
 
-    python -m models.train_cyber_swat --data-dir "C:\\IndustrialMind\\SWaT_dataset\\archive" --candidate
-    python -m models.train_cyber_swat --fixture --candidate        # synthetic SWaT-SHAPED fixture, code check only
+    python -m research.train_cyber_swat --data-dir "C:\\IndustrialMind\\SWaT_dataset\\archive" --candidate
+    python -m research.train_cyber_swat --fixture --candidate        # synthetic SWaT-SHAPED fixture, code check only
 
 Outputs (default models/candidates/, NEVER models/weights/):
     cyber_model.joblib            candidate weights (Isolation Forest + supervised head + thresholds)

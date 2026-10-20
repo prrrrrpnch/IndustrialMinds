@@ -23,8 +23,8 @@ import time
 
 os.environ.setdefault("IM_LOG_DIR", tempfile.mkdtemp(prefix="im-sprint-"))
 
-from docs import hmac_auth  # noqa: E402
-from docs.interfaces import MACHINE_BY_NAME  # noqa: E402
+from core import hmac_auth# noqa: E402
+from core.interfaces import MACHINE_BY_NAME  # noqa: E402
 from middleware import cyber_agent  # noqa: E402
 from middleware import middleware_server as mw  # noqa: E402
 

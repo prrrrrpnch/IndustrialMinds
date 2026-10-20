@@ -1,4 +1,4 @@
-# docs/interfaces.py
+# core/interfaces.py
 
 from __future__ import annotations
 
@@ -186,7 +186,7 @@ def make_command(tx_id: str, timestamp: float, source_ip: str, function_code: Op
     """Command dict passed to the agents.
 
     auth: None when the command arrived without a signed frame, otherwise the
-          parsed frame fields (see docs/hmac_auth.parse_frame).
+          parsed frame fields (see core/hmac_auth.parse_frame).
     """
     return {
         "tx_id": tx_id,

@@ -24,8 +24,8 @@ import time
 import urllib.request
 from typing import Optional
 
-from docs import netconfig
-from docs.interfaces import make_decision
+from core import netconfig
+from core.interfaces import make_decision
 
 _decision_log = []
 

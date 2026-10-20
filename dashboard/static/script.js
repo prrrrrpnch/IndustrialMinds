@@ -231,7 +231,7 @@ function updateTelemetry(telemetry) {
         telemetry.registers || {};
 
     // One row per machine from the central config
-    // (docs/interfaces.MACHINES, injected by the template).
+    // (core/interfaces.MACHINES, injected by the template).
 
     (window.IM_MACHINES || []).forEach(machine => {
 

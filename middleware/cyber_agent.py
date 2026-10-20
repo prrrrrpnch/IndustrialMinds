@@ -14,8 +14,13 @@ Check order (first failure wins):
   4. Per-source rate limit     RATE_LIMIT_EXCEEDED     (cheap DoS guard before crypto)
   5. HMAC-SHA256 verification  HMAC_MISSING / HMAC_MALFORMED / HMAC_INVALID / HMAC_EXPIRED
   6. Replay                    REPLAY_DETECTED         (nonce reuse or duplicate payload)
-  7. Authorization (policy)    UNAUTHORIZED_*          (opt-in config/policy.json: who may write which register, how far)
-Opt-in quarantine (IM_QUARANTINE=1) is checked right after the whitelist: SOURCE_QUARANTINED.
+  7. Quarantine (authenticated) SOURCE_QUARANTINED     (opt-in IM_QUARANTINE=1)
+  8. Authorization (policy)    UNAUTHORIZED_*          (opt-in config/policy.json: who may write which register, how far)
+
+The quarantine check sits AFTER authentication on purpose (AUDIT S4). It used to run first, before any cryptography, which
+meant refusing a frame on its source address - the one field an attacker on a flat L2 segment controls. Combined with
+address-keyed strikes, an attacker could ARP-spoof the operator and get the REAL SCADA cut off. A device is now only ever
+quarantined on the strength of commands it provably signed, and only checked once we know it signed this one.
 
 A command is only trusted after step 5 succeeds.
 """
@@ -29,8 +34,8 @@ from typing import Any, Deque, Dict, List, Tuple, Union
 import time
 from collections import defaultdict, deque
 
-from docs.interfaces import make_verdict, ALL_REGISTERS, to_raw
-from docs import hmac_auth, netconfig
+from core.interfaces import make_verdict, ALL_REGISTERS, to_raw
+from core import hmac_auth, netconfig
 from middleware import policy, quarantine
 
 # ---- Configuration ----
@@ -41,7 +46,7 @@ ALLOWED_REGISTERS = set(ALL_REGISTERS)
 REPLAY_WINDOW_SECONDS = 2.0
 
 # Trusted SCADA sources. Comma-separated IPs and/or CIDR blocks.
-# Default (docs/netconfig.py): this machine only. For a SCADA on another laptop set
+# Default (core/netconfig.py): this machine only. For a SCADA on another laptop set
 # IM_TRUSTED_SOURCES to its address / CIDR.
 TRUSTED_SOURCES_ENV = netconfig.TRUSTED_SOURCES
 
@@ -165,10 +170,6 @@ def check(command: Dict[str, Any]) -> Dict[str, Any]:
     if not is_trusted_source(source_ip):
         return make_verdict(tx_id, False, "UNTRUSTED_SOURCE", "cyber")
 
-    held, remaining = quarantine.is_quarantined(source_ip, now)        # opt-in (IM_QUARANTINE=1); first, before any crypto
-    if held:
-        return make_verdict(tx_id, False, f"SOURCE_QUARANTINED:{remaining:.0f}s remaining", "cyber")
-
     if command.get("function_code") not in VALID_FUNCTION_CODES:
         return make_verdict(tx_id, False, "INVALID_FUNCTION_CODE", "cyber")
 
@@ -210,6 +211,14 @@ def check(command: Dict[str, Any]) -> Dict[str, Any]:
 
     if not _check_replay(command, now):
         verdict = make_verdict(tx_id, False, "REPLAY_DETECTED", "cyber")
+        verdict["auth_status"] = code
+        return verdict
+
+    # The sender provably holds the key. Only NOW may a quarantine refuse it (AUDIT S4): before this line the identity is
+    # just a source address, and refusing on an address is refusing on something the attacker chooses.
+    held, remaining = quarantine.is_quarantined(source_ip, now)        # opt-in (IM_QUARANTINE=1)
+    if held:
+        verdict = make_verdict(tx_id, False, f"SOURCE_QUARANTINED:{remaining:.0f}s remaining", "cyber")
         verdict["auth_status"] = code
         return verdict
 

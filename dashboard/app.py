@@ -44,8 +44,8 @@ PROJECT_ROOT = os.path.dirname(
 if PROJECT_ROOT not in sys.path:
     sys.path.insert(0, PROJECT_ROOT)
 
-from docs.interfaces import MACHINES, STAGES  # noqa: E402
-from docs import attack_log, netconfig  # noqa: E402
+from core.interfaces import MACHINES, STAGES  # noqa: E402
+from core import attack_log, forensics, netconfig  # noqa: E402
 
 app = Flask(__name__)
 
@@ -162,6 +162,7 @@ def health() -> Response:
         "dropped_forwards": mw.get("dropped_forwards", 0),
         "forward_backlog": mw.get("forward_backlog", 0),
         "middleware_report_age_s": round(age, 1) if age is not None else None,
+        "forensics": "on" if forensics.enabled() else "off",
         "auth": "token" if _DASHBOARD_TOKEN else "open",
     })
 
@@ -208,6 +209,55 @@ MAX_INCIDENTS = 100
 _trace_seq = 0                 # increases with every trace received; the Network Flow view asks for "everything after seq N"
 
 
+def _replay_forensics() -> None:
+    """Rebuild the in-memory views from the on-disk record at startup (AUDIT A4).
+
+    Traces, incidents, investigations and the event feed used to exist ONLY here, so restarting this process - or it dying -
+    destroyed the whole record of an incident. They are now appended to JSONL under IM_LOG_DIR as they arrive and replayed
+    on boot, so the forensic record outlives the thing that draws it."""
+    global _trace_seq, _event_counter
+    if not forensics.enabled():
+        return
+    try:
+        for t in forensics.load("traces", MAX_TRACES):
+            tx = str(t.get("tx_id") or "")
+            if tx:
+                _trace_seq += 1
+                t["seq"] = _trace_seq           # re-sequence: the Network Flow view asks for "everything after seq N"
+                _traces[tx] = t
+        for i in forensics.load("incidents", MAX_INCIDENTS):
+            _incidents[str(i["id"])] = i
+        for v in forensics.load("investigations", MAX_INVESTIGATIONS):
+            _investigations[str(v["incident_id"])] = v
+
+        # The event feed is newest-first in memory and oldest-first on disk. Only the latest line per tx_id is kept, so a
+        # PASS later corrected to UNDELIVERED replays as UNDELIVERED - the correction survives the restart too.
+        # No pop before the re-insert here (unlike the keyed stores above): the key keeps its FIRST position so the feed
+        # replays in ARRIVAL order, while the value is the latest line - a PASS later corrected to UNDELIVERED comes back
+        # as UNDELIVERED, in the place the command actually arrived.
+        latest = {}
+        for e in forensics.load("events", None):
+            latest[str(e.get("tx_id") or id(e))] = e
+        for e in list(latest.values())[-MAX_EVENTS:]:
+            _scada_to_plc.appendleft(e)
+            _metrics["total"] += 1
+            v = e.get("verdict")
+            if v in ("PASS", "ALERT"):
+                _metrics["pass"] += 1
+            elif v == "DROP":
+                _metrics["drop"] += 1
+            elif v == "UNDELIVERED":
+                _metrics["undelivered"] += 1
+        if _scada_to_plc or _traces or _incidents:
+            print(f"[DASHBOARD] recovered from {forensics.log_dir()}: "
+                  f"{len(_scada_to_plc)} event(s), {len(_traces)} trace(s), {len(_incidents)} incident(s), "
+                  f"{len(_investigations)} investigation(s)")
+    except Exception as exc:                                   # a damaged record must not stop the dashboard starting
+        print(f"[DASHBOARD] could not fully replay the forensic record ({exc}); continuing with what loaded")
+
+
+
+
 def _host_labels() -> Dict[str, str]:
     """Optional friendly names for source hosts, e.g. IM_HOST_LABELS="<scada-ip>=SCADA (Mac B),<attacker-ip>=Attacker (Windows B)".
     Addresses come from the environment, never from code."""
@@ -244,7 +294,7 @@ _metrics = {
     "undelivered": 0,          # AUDIT C1: approved by the agents, but the PLC never took it
 }
 
-# One entry per configured machine (docs/interfaces.MACHINES).
+# One entry per configured machine (core/interfaces.MACHINES).
 _telemetry = {
     m["name"]: float(m["initial"]) for m in MACHINES
 }
@@ -367,6 +417,7 @@ def add_scada_event(event: Dict[str, Any]) -> None:
         _scada_to_plc.appendleft(event)
 
         _metrics["total"] += 1
+        forensics.append("events", event)                      # AUDIT A4: outlive this process
 
         if verdict == "PASS":
             _metrics["pass"] += 1
@@ -555,6 +606,7 @@ def post_trace() -> Response:
         _traces[tx] = data
         while len(_traces) > MAX_TRACES:
             _traces.popitem(last=False)
+    forensics.append("traces", data)                           # AUDIT A4
     return jsonify({"success": True})
 
 
@@ -577,6 +629,8 @@ def post_delivery() -> Response:
                 _metrics["undelivered"] += 1
                 event["verdict"] = "UNDELIVERED"
                 event["reason"] = reason
+                # A NEW line, not an edit: the record keeps both the PASS and its correction, with timestamps.
+                forensics.append("events", event)
                 return jsonify({"success": True, "corrected": tx})
     return jsonify({"success": False, "error": "no matching forwarded event"}), 404
 
@@ -592,6 +646,7 @@ def post_investigation() -> Response:
         _investigations[data["incident_id"]] = data
         while len(_investigations) > MAX_INVESTIGATIONS:
             _investigations.popitem(last=False)
+    forensics.append("investigations", data)                   # AUDIT A4
     return jsonify({"success": True})
 
 
@@ -633,6 +688,7 @@ def post_incident() -> Response:
         _incidents[iid] = data
         while len(_incidents) > MAX_INCIDENTS:
             _incidents.popitem(last=False)
+    forensics.append("incidents", data)                        # AUDIT A4
     return jsonify({"success": True})
 
 
@@ -857,13 +913,22 @@ def reset_dashboard() -> Response:
         _incidents.clear()
         _investigations.clear()
 
+    # AUDIT A4: Reset clears the VIEW. The record is renamed aside, not deleted - pressing Reset mid-demo must not be able
+    # to destroy the evidence of what just happened, which is exactly what the in-memory-only version did.
+    forensics.clear()
+
     print(
-        "[DASHBOARD] Reset"
+        "[DASHBOARD] Reset (the forensic record was set aside, not deleted)"
     )
 
     return jsonify({
         "success": True
     })
+
+
+# Rebuild the view from the on-disk record. Called here, at the bottom, because it touches state defined throughout this
+# module (_metrics, _traces, _incidents, the event deques).
+_replay_forensics()
 
 
 # =========================================================

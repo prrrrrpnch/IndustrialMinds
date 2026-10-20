@@ -36,7 +36,7 @@ import numpy as np
 
 from swat.alarm_logic import STRIDE_S, benign_hours, best_alarm_rule, episodes, persist, segment_balanced_recall, threshold_for_budget
 from swat.features_v2 import FEATURE_SETS, ResidualModel, assemble, build_windows_v2, feature_names
-from swat.fusion_scenarios import fold_ids
+from research.fusion_scenarios import fold_ids
 from swat.loader import load_stream
 from swat.physical_features import ACTUATORS, SENSORS, Norm, compute_bounds
 

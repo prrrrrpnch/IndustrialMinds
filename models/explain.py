@@ -27,7 +27,7 @@ from typing import Any, Callable, Dict, List, Optional, Sequence
 
 import numpy as np
 
-from docs.interfaces import MACHINE_BY_NAME, STAGES
+from core.interfaces import MACHINE_BY_NAME, STAGES
 
 MIN_CONTRIBUTION = 0.02              # below this a stage is not called a driver (probability units)
 MARGINAL_BAND = 0.05                 # |probability - threshold| under this is reported as a marginal call

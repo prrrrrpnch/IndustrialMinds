@@ -5,7 +5,7 @@ A flat log of 400 DROP lines tells an analyst nothing. Here every non-PASS decis
 same source close together in time. An incident carries what happened (counts per attack type, registers touched, verdicts), a short
 timeline, a severity and a one-line summary, e.g. "Source A: 14 events in 9 s - Replay, Flood / Rate Limit - quarantined".
 
-Rule-based and deterministic (the attack type comes from docs/attack_log.classify_reason, the same derivation the blocked-attack log
+Rule-based and deterministic (the attack type comes from core/attack_log.classify_reason, the same derivation the blocked-attack log
 uses). An incident stays open while events keep arriving within IM_INCIDENT_GAP_S (default 30); after that the next event from the
 same source opens a new one.
 
@@ -24,8 +24,8 @@ import time
 from collections import Counter, OrderedDict
 from typing import Any, Dict, List, Optional
 
-from docs import attack_log
-from docs.interfaces import MACHINE_BY_REGISTER
+from core import attack_log
+from core.interfaces import MACHINE_BY_REGISTER
 
 MAX_INCIDENTS = 200
 MAX_TIMELINE = 40

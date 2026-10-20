@@ -1,11 +1,11 @@
 """
-models/train_fusion_swat.py - Phase 7: orchestrator fusion model (scenario set from SWaT + constructed cyber failures).
+research/train_fusion_swat.py - Phase 7: orchestrator fusion model (scenario set from SWaT + constructed cyber failures).
 
-    python -m models.train_fusion_swat --data-dir "C:\\IndustrialMind\\SWaT_dataset\\archive" --sample 20
-    python -m models.train_fusion_swat --fixture --sample 20          # synthetic SWaT-SHAPED data, format check only
+    python -m research.train_fusion_swat --data-dir "C:\\IndustrialMind\\SWaT_dataset\\archive" --sample 20
+    python -m research.train_fusion_swat --fixture --sample 20          # synthetic SWaT-SHAPED data, format check only
 
 TRAIN MODE (approved protocol; candidate only):
-    python -m models.train_fusion_swat --data-dir "C:\\IndustrialMind\\SWaT_dataset\\archive" --candidate
+    python -m research.train_fusion_swat --data-dir "C:\\IndustrialMind\\SWaT_dataset\\archive" --candidate
   Train-block physical outputs are OUT-OF-FOLD (cross-fitted: attack windows folded by segment, benign by hour), the
   dominant attack segment's weight is capped to the median segment's, a gradient-boosted classifier + ALERT threshold are
   chosen on the VALIDATION block (false-alarm budget), the TEST block is touched once. Writes orchestrator_model.joblib
@@ -32,7 +32,7 @@ import numpy as np
 import pandas as pd
 
 from models.physical_model import PhysicalModel
-from swat.fusion_scenarios import (CLASSES, FEATURES, and_gate, build_scenarios, naive_lookup, sample_rows)
+from research.fusion_scenarios import (CLASSES, FEATURES, and_gate, build_scenarios, naive_lookup, sample_rows)
 from swat.loader import load_stream
 from swat.physical_features import ACTUATORS, SENSORS
 

@@ -13,7 +13,7 @@ The stages are COUPLED - a change upstream propagates downstream:
   S5 RO          PIT501 = P501 pressure, starved when the S4 feed (P402 flow) is low,
                  raised by closing the reject valve MV503 ; FIT501 permeate follows PIT501
 
-CALIBRATION: every constant below is DERIVED in _calibrate() from docs/interfaces.MACHINES - the sensors'
+CALIBRATION: every constant below is DERIVED in _calibrate() from core/interfaces.MACHINES - the sensors'
 `initial` values are the MEASURED SWaT normal-operation medians (docs/swat_bounds.json) and the actuators'
 `initial` values are the nominal setpoints - so at nominal setpoints the twin sits at the measured operating
 point (checked by tests/test_bounds_alignment.py). Edit the config and the plant recalibrates itself.
@@ -29,7 +29,7 @@ import random
 from dataclasses import dataclass
 from typing import Dict
 
-from docs.interfaces import (
+from core.interfaces import (
     MACHINES, MACHINE_BY_REGISTER, MACHINE_BY_NAME, ACTUATOR_REGISTERS,
     MV101, P101, LIT101, FIT101, P203, P205, AIT202, FIT201,
     MV302, P302, LIT301, DPIT301, P402, UV401, LIT401, AIT402,

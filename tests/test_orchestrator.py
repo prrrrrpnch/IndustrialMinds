@@ -1,5 +1,5 @@
 import time
-from docs.interfaces import make_verdict
+from core.interfaces import make_verdict
 from middleware import orchestrator
 
 orchestrator.reset_log()

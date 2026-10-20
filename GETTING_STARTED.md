@@ -244,7 +244,7 @@ v3 is built and unit-tested, but its real-data accuracy is **not measured yet**
 it, on the machine that holds the SWaT archive (Windows example):
 
 ```
-python -m models.train_physical_v3 --data-dir "G:\IM2\SWaT_dataset\archive" --candidate
+python -m research.train_physical_v3 --data-dir "G:\IM2\SWaT_dataset\archive" --candidate
 ```
 
 Add `--quick` for a fast first pass. Nothing in `models/weights/` is touched. It writes
@@ -257,7 +257,7 @@ to `models/candidates/physical_v3/`:
 
 Send back the report and the three PNGs. If v3 beats v2 on the held-out block, we
 decide on promotion together; only then is it packaged
-(`python -m models.package_physical_v3 --budget <b> --report-json ...`, which needs
+(`python -m research.package_physical_v3 --budget <b> --report-json ...`, which needs
 your explicit approval) and used with `IM_PHYSICAL_MODEL=v3`.
 
 ## Common failures

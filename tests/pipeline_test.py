@@ -21,13 +21,13 @@ from pymodbus.client import ModbusTcpClient
 
 import middleware.middleware_server as mw
 from middleware import orchestrator
-from docs import netconfig
-from docs.netconfig import LOOPBACK  # documented loopback default
-from docs import hmac_auth, attack_log
-from docs.interfaces import (MACHINES, MV101, P101, LIT101, PIT501, UV401,
+from core import netconfig
+from core.netconfig import LOOPBACK  # documented loopback default
+from core import hmac_auth, attack_log
+from core.interfaces import (MACHINES, MV101, P101, LIT101, PIT501, UV401,
                              REGISTER_MAP, NUM_REGISTERS, DATASTORE_SIZE, FRAME_BASE)
 
-NOM = {m['register']: m['initial'] for m in MACHINES}   # nominal setpoints (docs/interfaces)
+NOM = {m['register']: m['initial'] for m in MACHINES}   # nominal setpoints (core/interfaces)
 TEST_IP = LOOPBACK   # what a local SCADA connection reports as its peer address
 
 

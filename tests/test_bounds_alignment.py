@@ -1,7 +1,7 @@
 """
 tests/test_bounds_alignment.py - PART 0 #2 evidence: the plant configuration is MEASURED, not guessed.
 
-Checks docs/interfaces.MACHINES and the calibrated twin against docs/swat_bounds.json (aggregate statistics
+Checks core/interfaces.MACHINES and the calibrated twin against docs/swat_bounds.json (aggregate statistics
 of SWaT train-block NORMAL rows, produced by models/train_physical_swat.py on the real archive).
 
     python -m tests.test_bounds_alignment
@@ -12,7 +12,7 @@ from __future__ import annotations
 import json
 import os
 
-from docs.interfaces import MACHINES
+from core.interfaces import MACHINES
 from plc.twin import PlantTwin
 
 fails = 0

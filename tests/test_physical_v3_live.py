@@ -15,17 +15,17 @@ import time
 import joblib
 import numpy as np
 
-from docs import hmac_auth
-from docs.interfaces import MACHINES, make_command
-from docs.netconfig import LOOPBACK
+from core import hmac_auth
+from core.interfaces import MACHINES, make_command
+from core.netconfig import LOOPBACK
 from middleware import cyber_agent
-from models import package_physical_v3 as P
+from research import package_physical_v3 as P
 from models import physical_model_v2 as V2mod
-from models import physical_model_v3 as V3mod
-from models import train_physical_v3 as T
-from models.physical_model_v3 import PhysicalModelV3
+from research import physical_model_v3 as V3mod
+from research import train_physical_v3 as T
+from research.physical_model_v3 import PhysicalModelV3
 from pipeline.multi_model_pipeline import MultiModelPipeline
-from swat import features_v3 as F3
+from research import features_v3 as F3
 from swat.loader import load_stream
 from swat.physical_features import ACTUATORS, SENSORS, Norm, actuator_class_series, compute_bounds
 from tests.swat_fixture import make_swat_archive

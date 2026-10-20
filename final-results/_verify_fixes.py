@@ -55,7 +55,7 @@ SEND = r'''
 import sys, time, contextlib, io
 sys.path.insert(0, "%s")
 from attacker import attacker as A
-from docs.interfaces import MACHINE_BY_NAME
+from core.interfaces import MACHINE_BY_NAME
 with contextlib.redirect_stdout(io.StringIO()):
     c = A.connect(A.MIDDLEWARE_HOST, A.MIDDLEWARE_PORT)
 if c is None:

@@ -14,7 +14,7 @@ visible on the middleware leg and is ABSENT from the PLC leg; a forwarded one ap
 2.  python -m tools.wire_correlate --mw mw.tsv [--plc plc.tsv] [--dashboard-url http://<dashboard>:5050]
     (--traces-json <file> instead of --dashboard-url for offline use)
 
-Addresses come from docs/netconfig.py (env IM_DASHBOARD_URL, IM_MIDDLEWARE_PORT, IM_PLC_PORT) or the flags.
+Addresses come from core/netconfig.py (env IM_DASHBOARD_URL, IM_MIDDLEWARE_PORT, IM_PLC_PORT) or the flags.
 """
 
 from __future__ import annotations
@@ -26,8 +26,8 @@ import urllib.request
 from collections import defaultdict
 from typing import Any, Dict, List, Optional, Tuple
 
-from docs import netconfig
-from docs.interfaces import FRAME_BASE, FRAME_LEN
+from core import netconfig
+from core.interfaces import FRAME_BASE, FRAME_LEN
 
 COLUMNS = ["frame", "time", "src", "dstport", "func", "reference", "regvals", "data"]
 

@@ -6,7 +6,7 @@ SCADA operator simulation.
 Sends one Modbus write every 2 seconds to the middleware.
 
 Every command is an HMAC-SHA256 signed frame (Modbus FC16 to FRAME_BASE,
-see docs/hmac_auth.py). The shared secret comes from IM_HMAC_SECRET /
+see core/hmac_auth.py). The shared secret comes from IM_HMAC_SECRET /
 IM_HMAC_SECRET_FILE / config/hmac_secret.key - the same source the
 middleware uses.
 
@@ -24,8 +24,8 @@ import uuid
 
 from pymodbus.client import ModbusTcpClient
 
-from docs.interfaces import REGISTER_MAP, MACHINES, NUM_REGISTERS, FRAME_BASE, from_raw
-from docs import hmac_auth, netconfig
+from core.interfaces import REGISTER_MAP, MACHINES, NUM_REGISTERS, FRAME_BASE, from_raw
+from core import hmac_auth, netconfig
 
 
 # ============================================================
@@ -45,7 +45,7 @@ COMMAND_INTERVAL = 2.0
 # OPERATOR PROFILES
 # ============================================================
 
-# Built from the central machine config (docs/interfaces.MACHINES).
+# Built from the central machine config (core/interfaces.MACHINES).
 OPERATOR_PROFILES = {
     m["name"]: {
         "register": m["register"],

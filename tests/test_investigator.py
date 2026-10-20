@@ -18,8 +18,8 @@ from typing import Any, Dict, List
 
 os.environ.setdefault("IM_LOG_DIR", tempfile.mkdtemp(prefix="im-inv-"))
 
-from docs.interfaces import MACHINES, make_command  # noqa: E402
-from docs.netconfig import LOOPBACK  # noqa: E402
+from core.interfaces import MACHINES, make_command  # noqa: E402
+from core.netconfig import LOOPBACK  # noqa: E402
 from middleware import incidents, investigator  # noqa: E402
 from middleware.investigator import ACTIONS, Evidence, investigate, offline_finding, run_agent, validate_finding  # noqa: E402
 
@@ -269,7 +269,7 @@ check("a failure while gathering evidence is swallowed, not raised into the pipe
 
 print("\nTHE PIPELINE IS UNCHANGED BY IT")
 from middleware import cyber_agent  # noqa: E402
-from docs import hmac_auth  # noqa: E402
+from core import hmac_auth# noqa: E402
 from pipeline.multi_model_pipeline import MultiModelPipeline  # noqa: E402
 investigator.reset()
 incidents.reset()
