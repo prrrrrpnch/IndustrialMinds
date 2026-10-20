@@ -505,6 +505,15 @@
     </div>
 
 
+    <!-- LIVE PHYSICAL MODEL: what it is, how well it was measured, what it cannot do -->
+    <section class="card model-strip" id="model-strip" style="margin:20px;">
+        <div class="card-header">
+            <h2><i class="fa-solid fa-circle-info title-icon"></i> PHYSICAL MODEL</h2>
+            <span class="badge-tag" id="model-role">advisory</span>
+        </div>
+        <div id="model-body"><p class="tracer-empty">Waiting for the middleware to publish the live model's card.</p></div>
+    </section>
+
     <!-- INCIDENTS (correlated blocked/alerted commands, quarantine state) -->
     <section class="card incident-card" id="incident-section" style="margin:20px;">
         <div class="card-header">
@@ -535,6 +544,7 @@
     <script src="{{ url_for('static', filename='script.js') }}"></script>
     <script src="{{ url_for('static', filename='flow.js') }}"></script>
     <script src="{{ url_for('static', filename='incidents.js') }}"></script>
+    <script src="{{ url_for('static', filename='model_card.js') }}"></script>
 
 </body>
 

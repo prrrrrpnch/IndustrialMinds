@@ -224,6 +224,9 @@ none of them on leaves the demo exactly as described.
 - **Incidents panel** (always on): blocked and alerted commands from one source
   are grouped on the dashboard into a single incident with severity, timeline
   and whether the source was quarantined.
+- **Model sensitivity** (how talkative the physical model is). `IM_PHYSICAL_SENSITIVITY=balanced` is the default shipped
+  point: about 1.2 alerts per hour, 8 of 10 attack types caught on the held-out data. `sensitive` catches a little more and
+  roughly doubles the alerts. Only operating points that were actually measured are offered, so there is nothing to guess.
 - **Fail-closed decisions** are already the default: any internal error in a
   rule agent or the orchestrator drops the command (`AGENT_ERROR`), never passes
   it. Nothing to configure.

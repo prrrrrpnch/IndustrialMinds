@@ -126,6 +126,21 @@ response layer and quotes the held-out REAL SWaT results, **kept in separate sec
 `--no-live` skips the live campaign. First recorded run: 15 of 26 attack-phase commands flagged, 0 of 40 legitimate commands flagged,
 9 of 9 attack campaigns that pass through the middleware detected (`false-injection` bypasses it by design).
 
+### Reading the physical model's verdict
+
+Every flag says **where**, not just how likely. The 18 live channels are grouped by plant stage; the window is rescored once per
+stage with that stage's channels replaced by the last window the model itself called normal, and the biggest drop names the
+driver. The result reaches the `ALERT` reason (`PHYSICAL_MODEL:classifier S3`), the Packet Tracer and the dashboard as a sentence:
+*"stage 3 (Ultrafiltration) is driving this: LIT301 7.8 sigma above normal (outside the measured envelope)"*. It costs a few
+milliseconds and runs only when the model flags. Alongside it each assessment reports the sensors furthest from measured normal,
+whether the call was `marginal` or `clear`, and how many seconds of warm-up remain.
+
+The dashboard also carries a **model card** published by the middleware at startup (`docs/MODEL_CARD.md`, `GET /api/model`):
+what the model is, the operating point it is running at with its measured cost, and its known limits. Operating points are named
+rather than numeric and come only from measured rows of the held-out report: `IM_PHYSICAL_SENSITIVITY=balanced` (shipped, 1.17
+alerts/h, 8/10 attack segments, F1 0.485) or `sensitive` (2.0 alerts/h, recall 0.563). `IM_PHYSICAL_THRESHOLD` still overrides
+with a raw number.
+
 ### Response layer: authorization, quarantine, incidents (rule-based)
 
 Beyond blocking single commands the middleware can restrict and respond. **Policy-as-code** (`config/policy.json`, see

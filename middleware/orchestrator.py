@@ -79,6 +79,11 @@ def forward_trace_to_dashboard(trace: dict) -> None:
     _enqueue("/api/trace", trace)
 
 
+def forward_model_card_to_dashboard(card: dict) -> None:
+    """Publish the live physical model's card once at startup, so the dashboard can state what the model is and what it cannot do."""
+    _enqueue("/api/model", card)
+
+
 def forward_incident_to_dashboard(incident: dict) -> None:
     """Hand the current state of one correlated incident to the dashboard (same non-blocking worker)."""
     _enqueue("/api/incident", incident)
@@ -117,7 +122,8 @@ def decide(cyber_verdict: dict | None, physical_verdict: dict, start_time: float
         verdict, reason = "DROP", physical_verdict["reason"]
     elif physical_advisory and physical_advisory.get("threat_flag"):
         flagged = "+".join(physical_advisory.get("flagged_by") or ["model"])
-        verdict, reason = "ALERT", f"PHYSICAL_MODEL:{flagged}"
+        where = physical_advisory.get("suspect_stage")
+        verdict, reason = "ALERT", f"PHYSICAL_MODEL:{flagged}" + (f" {where}" if where else "")
     else:
         verdict, reason = "PASS", "OK"
 
@@ -130,7 +136,9 @@ def decide(cyber_verdict: dict | None, physical_verdict: dict, start_time: float
         "inputs": {"cyber_rules_pass": cyber_ok, "cyber_reason": None if cyber_verdict is None else cyber_verdict["reason"],
                    "physical_rules_pass": bool(physical_verdict["pass"]), "physical_reason": physical_verdict["reason"],
                    "physical_model_flag": adv_flag,
-                   "physical_model_flagged_by": list((physical_advisory or {}).get("flagged_by") or [])},
+                   "physical_model_flagged_by": list((physical_advisory or {}).get("flagged_by") or []),
+                   "physical_model_suspect_stage": (physical_advisory or {}).get("suspect_stage"),
+                   "physical_model_explanation": (physical_advisory or {}).get("explanation")},
         "branch": {"DROP": ("cyber_rules_failed" if cyber_ok is False else "physical_rules_failed"),
                    "ALERT": "rules_passed_physical_model_flagged", "PASS": "all_clear"}[verdict],
     }
