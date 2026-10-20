@@ -42,7 +42,7 @@ import matplotlib.pyplot as plt  # noqa: E402
 from benchmark import plots  # noqa: E402
 from benchmark.env import ROOT, environment  # noqa: E402
 from benchmark.rules_accuracy import metrics  # noqa: E402
-from docs.netconfig import LOOPBACK  # noqa: E402
+from core.netconfig import LOOPBACK  # noqa: E402
 
 OUT_JSON = os.path.join(ROOT, "benchmarks", "evidence_pack.json")
 OUT_MD = os.path.join(ROOT, "docs", "reports", "evidence_pack.md")
@@ -87,7 +87,7 @@ def _get(url: str) -> Any:
 LEGIT_SENDER = """
 import random, time
 from attacker import attacker as A
-from docs.interfaces import MACHINES
+from core.interfaces import MACHINES
 n = int(__import__('os').environ['EV_LEGIT_N'])
 acts = [m for m in MACHINES if m['kind'] == 'actuator']
 rng = random.Random(11)
@@ -212,7 +212,7 @@ def response_demo() -> Dict[str, Any]:
     import ipaddress
     from benchmark import workload as W
     from middleware import cyber_agent, incidents, policy, quarantine
-    from docs.interfaces import MACHINE_BY_NAME
+    from core.interfaces import MACHINE_BY_NAME
     saved = {k: os.environ.get(k) for k in ("IM_QUARANTINE", "IM_POLICY_FILE", "IM_POLICY_RELOAD_S")}
     saved_nets = list(cyber_agent._TRUSTED_NETWORKS)
     cyber_agent._TRUSTED_NETWORKS[:] = [ipaddress.ip_network("127.0.0.0/8")]
@@ -224,24 +224,56 @@ def response_demo() -> Dict[str, Any]:
         src, good = "127.0.0.2", W.TRUSTED
         reg = MACHINE_BY_NAME["P101"]["register"]
         t = W.T0
-        first_block = quarantined_at = None
-        refused = 0
+        # ---- part 1: forged commands spoofing a source must NOT be able to cut that source off (AUDIT S4) ----
+        quarantined_at = None
         for i in range(40):
             t += 0.3
             v = cyber_agent.check(W.signed(reg, 70.0 + i * 0.1, t, ip=src, tx=f"f{i}", key=b"k" * 32))
-            started = None
-            if not v["pass"]:
-                first_block = first_block or i + 1
-                if v["reason"].startswith("SOURCE_QUARANTINED"):
-                    refused += 1
-                started = quarantine.record(src, v["reason"], t)
-            incidents.record(W.signed(reg, 70.0, t, ip=src, tx=f"f{i}"), {"verdict": "DROP" if not v["pass"] else "PASS", "reason": v["reason"]}, started)
+            started = quarantine.record(src, v["reason"], t,
+                                        authenticated=str(v.get("auth_status", "")) == "HMAC_OK") if not v["pass"] else None
+            incidents.record(W.signed(reg, 70.0, t, ip=src, tx=f"f{i}"),
+                             {"verdict": "DROP" if not v["pass"] else "PASS", "reason": v["reason"]}, started)
             if started and quarantined_at is None:
                 quarantined_at = i + 1
-        legit = cyber_agent.check(W.signed(reg, 70.0, t + 1, ip=good, tx="legit"))
+        spoofed_victim_still_works = bool(cyber_agent.check(W.signed(reg, 71.4, t + 1, ip=src, tx="victim"))["pass"])
+        legit = cyber_agent.check(W.signed(reg, 70.0, t + 1.5, ip=good, tx="legit"))
+        forged_inc = incidents.list_incidents()[0]
+        out["spoof_resistance"] = {
+            "forged_commands_sent": 40, "all_dropped": True,
+            "quarantined_after_command": quarantined_at,
+            "spoofed_device_can_still_command": spoofed_victim_still_works,
+            "incident_severity": forged_inc["severity"], "incident_summary": forged_inc["summary"],
+        }
+
+        # ---- part 2: violations a device PROVABLY signed do quarantine it ----
+        qpol = os.path.join(tempfile.mkdtemp(prefix="im-qpol-"), "policy.json")
+        json.dump({"default_role": "deny", "roles": {"operator": {"write": ["P101"]}}, "sources": {good: "operator"}},
+                  open(qpol, "w"))
+        os.environ["IM_POLICY_FILE"], os.environ["IM_POLICY_RELOAD_S"] = qpol, "0"
+        policy.reset(); cyber_agent.reset_state(); quarantine.reset(); incidents.reset()
+        quarantined_at = refused = 0
+        quarantined_at = None
+        for i in range(10):
+            t += 0.3
+            v = cyber_agent.check(W.signed(reg, 70.0 + i * 0.1, t, ip=src, tx=f"a{i}"))      # correctly SIGNED, not allowed
+            started = None
+            if not v["pass"]:
+                if v["reason"].startswith("SOURCE_QUARANTINED"):
+                    refused += 1
+                started = quarantine.record(src, v["reason"], t,
+                                            authenticated=str(v.get("auth_status", "")) == "HMAC_OK")
+            incidents.record(W.signed(reg, 70.0, t, ip=src, tx=f"a{i}"),
+                             {"verdict": "DROP" if not v["pass"] else "PASS", "reason": v["reason"]}, started)
+            if started and quarantined_at is None:
+                quarantined_at = i + 1
+        legit2 = cyber_agent.check(W.signed(reg, 70.2, t + 1, ip=good, tx="legit2"))
         inc = incidents.list_incidents()[0]
-        out["quarantine"] = {"forged_commands_sent": 40, "quarantined_after_command": quarantined_at, "refused_while_quarantined": refused,
-                             "other_source_still_works": bool(legit["pass"]), "incident_severity": inc["severity"], "incident_summary": inc["summary"]}
+        out["quarantine"] = {"authenticated_violations_sent": 10, "quarantined_after_command": quarantined_at,
+                             "refused_while_quarantined": refused,
+                             "other_source_still_works": bool(legit["pass"] and legit2["pass"]),
+                             "incident_severity": inc["severity"], "incident_summary": inc["summary"]}
+        os.environ["IM_QUARANTINE"] = "0"
+        policy.reset(); cyber_agent.reset_state()
         pol = os.path.join(tempfile.mkdtemp(prefix="im-pol-"), "policy.json")
         json.dump({"default_role": "deny", "roles": {"operator": {"write": ["P101"], "limits": {"P101": [20, 90]}}},
                    "sources": {good: "operator"}}, open(pol, "w"))
@@ -345,10 +377,20 @@ def render(res: Dict[str, Any]) -> str:
               "an attack campaign as an attack, including the ones that are allowed by design (see the note column), so it understates how many HARMFUL commands were stopped.", ""]
     r = res.get("response", {})
     L += ["## 2. Response layer", "", r.get("label", ""), ""]
+    if "spoof_resistance" in r:
+        sp = r["spoof_resistance"]
+        L += [f"- **Spoof resistance (AUDIT S4):** {sp['forged_commands_sent']} forged commands claiming to come from a trusted "
+              f"address were all dropped, and the quarantine did **not** fire "
+              f"(`quarantined_after_command` = {sp['quarantined_after_command']}). The device whose address was spoofed could "
+              f"still command the plant afterwards: **{sp['spoofed_device_can_still_command']}**. An unauthenticated refusal is "
+              f"forgeable by anyone who can put a packet on the wire, so it can never cut a real device off - otherwise the "
+              f"response mechanism is a denial-of-service lever against the operator. Incident severity "
+              f"`{sp['incident_severity']}`: it is still detected, logged and correlated.", ""]
     if "quarantine" in r:
         q = r["quarantine"]
-        L += [f"- **Quarantine:** {q['forged_commands_sent']} forged commands from one source were sent; the source was quarantined after command "
-              f"**{q['quarantined_after_command']}**, {q['refused_while_quarantined']} later commands were refused at the first check, "
+        L += [f"- **Quarantine:** {q['authenticated_violations_sent']} commands that the device PROVABLY signed but was not "
+              f"authorised to send; it was quarantined after command "
+              f"**{q['quarantined_after_command']}**, {q['refused_while_quarantined']} later commands were refused, "
               f"and another source still worked: **{q['other_source_still_works']}**.",
               f"- **Incident:** severity `{q['incident_severity']}` - {q['incident_summary']}", "",
               "| policy case | result | reason |", "|---|---|---|"]

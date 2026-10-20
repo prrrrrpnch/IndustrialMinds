@@ -21,10 +21,12 @@ from __future__ import annotations
 import time
 from typing import Any, Dict, List, Optional
 
-from docs import hmac_auth
-from docs.interfaces import CROSS_REGISTER_RULES, MACHINE_BY_REGISTER
+from core import hmac_auth
+from core.interfaces import CROSS_REGISTER_RULES, MACHINE_BY_REGISTER
 
-CYBER_ORDER = ["source_whitelist", "quarantine", "function_code", "register_allowlist", "rate_limit", "hmac", "replay", "authorization"]
+# The quarantine sits after replay, not first: a device is only refused on the strength of commands it provably signed
+# (AUDIT S4). The order here must mirror middleware/cyber_agent.check().
+CYBER_ORDER = ["source_whitelist", "function_code", "register_allowlist", "rate_limit", "hmac", "replay", "quarantine", "authorization"]
 _CYBER_BY_PREFIX = {"UNTRUSTED_SOURCE": "source_whitelist", "SOURCE_QUARANTINED": "quarantine", "INVALID_FUNCTION_CODE": "function_code",
                     "INVALID_REGISTER": "register_allowlist", "RATE_LIMIT_EXCEEDED": "rate_limit",
                     "HMAC_": "hmac", "UNKNOWN_DEVICE": "hmac", "REPLAY_DETECTED": "replay",

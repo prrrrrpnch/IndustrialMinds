@@ -32,11 +32,11 @@ Source IP:
 
 Authentication:
   Trusted commands arrive as HMAC-SHA256 signed frames (FC16 to FRAME_BASE,
-  see docs/hmac_auth.py). Plain writes to machine registers are still run
+  see core/hmac_auth.py). Plain writes to machine registers are still run
   through the pipeline so they are visibly rejected (HMAC_MISSING) and logged.
 
 Blocked attacks:
-  Every DROP is appended to logs/blocked_attacks.jsonl (docs/attack_log.py).
+  Every DROP is appended to logs/blocked_attacks.jsonl (core/attack_log.py).
 """
 
 from __future__ import annotations
@@ -63,7 +63,7 @@ from pymodbus.datastore import (
 from pymodbus.server import ModbusTcpServer
 from pymodbus.server.async_io import ModbusServerRequestHandler
 
-from docs.interfaces import (
+from core.interfaces import (
     make_command,
     REGISTER_MAP,
     MACHINES,
@@ -75,7 +75,7 @@ from docs.interfaces import (
     DATASTORE_SIZE,
     SCALE,
 )
-from docs import hmac_auth, attack_log, netconfig
+from core import hmac_auth, attack_log, netconfig
 from middleware import trace as tracer
 
 from middleware import (
@@ -98,7 +98,7 @@ _last_telemetry_log = 0.0
 # CONFIG
 # =========================================================
 
-# Resolved in docs/netconfig.py (env: IM_PLC_HOST/PORT, IM_LISTEN_HOST/PORT, IM_DASHBOARD_URL;
+# Resolved in core/netconfig.py (env: IM_PLC_HOST/PORT, IM_LISTEN_HOST/PORT, IM_DASHBOARD_URL;
 # CLI flags in __main__ override).
 PLC_HOST = netconfig.PLC_HOST
 PLC_PORT = netconfig.PLC_PORT

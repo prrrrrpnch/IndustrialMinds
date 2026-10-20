@@ -28,7 +28,7 @@ from typing import Any, Dict, Iterable, List, Optional, Sequence, Tuple, Union
 
 import numpy as np
 
-from docs.interfaces import MACHINE_BY_REGISTER, ACTUATOR_REGISTERS
+from core.interfaces import MACHINE_BY_REGISTER, ACTUATOR_REGISTERS
 from models.tree_inference import PackedForestRegressor, PackedIsolationForest
 from swat.cyber_events import FEATURE_NAMES, EventFeatureStream, state_class
 
@@ -193,7 +193,7 @@ class CyberModel:
             meta = dict(blob.get("metadata", {}))
             if meta.get("feature_names") != list(FEATURE_NAMES):
                 log.warning("CyberModel weights at %s use a different feature schema (%s) - ignoring them; "
-                            "retrain with models.train_cyber_swat (running rules-only, NO_MODEL)",
+                            "retrain with research.train_cyber_swat (running rules-only, NO_MODEL)",
                             path, meta.get("feature_names"))
                 return inst
             inst._model = blob["model"]

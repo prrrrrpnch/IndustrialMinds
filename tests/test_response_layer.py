@@ -12,9 +12,9 @@ import os
 import tempfile
 import time
 
-from docs import hmac_auth
-from docs.interfaces import MACHINE_BY_NAME, MACHINES, make_command
-from docs.netconfig import LOOPBACK
+from core import hmac_auth
+from core.interfaces import MACHINE_BY_NAME, MACHINES, make_command
+from core.netconfig import LOOPBACK
 from middleware import cyber_agent, incidents, policy, quarantine
 from pipeline.multi_model_pipeline import MultiModelPipeline
 
@@ -135,35 +135,65 @@ for bad in ({"roles": {"r": {"write": [True]}}}, {"roles": {"r": {"write": [99]}
 print("\nQUARANTINE")
 fresh()
 set_env(IM_POLICY_FILE=os.path.join(tmp, "absent.json"), IM_QUARANTINE=None)
-check("off by default: quarantine never triggers", quarantine.record("s", "HMAC_INVALID") is None and not quarantine.is_quarantined("s")[0])
+check("off by default: quarantine never triggers",
+      quarantine.record("s", "UNAUTHORIZED_REGISTER", authenticated=True) is None and not quarantine.is_quarantined("s")[0])
 set_env(IM_QUARANTINE="force", IM_QUARANTINE_LIMIT="12", IM_QUARANTINE_WINDOW_S="30", IM_QUARANTINE_HOLD_S="60", IM_QUARANTINE_MAX_S="200")
 quarantine.reset()
 n = 1000.0
-check("one forged command is only a strike", quarantine.record("s", "HMAC_INVALID:x", n) is None and not quarantine.is_quarantined("s", n)[0])
-started = quarantine.record("s", "HMAC_INVALID:x", n + 1)
-check("two forged commands (6+6 >= 12) quarantine the source", started is not None and started["hold_s"] == 60 and started["offence"] == 1, str(started))
+
+# AUDIT S4: a strike only ever counts for a command that AUTHENTICATED. An out-of-policy write from a key holder is the
+# canonical authenticated violation; weight 6, so two of them reach the limit of 12.
+AUTH = "UNAUTHORIZED_REGISTER:P101 not writable by this role"
+check("one authenticated violation is only a strike",
+      quarantine.record("s", AUTH, n, authenticated=True) is None and not quarantine.is_quarantined("s", n)[0])
+started = quarantine.record("s", AUTH, n + 1, authenticated=True)
+check("two authenticated violations (6+6 >= 12) quarantine the device",
+      started is not None and started["hold_s"] == 60 and started["offence"] == 1, str(started))
 held, rem = quarantine.is_quarantined("s", n + 2)
-check("while held, the source is quarantined with time remaining", held and 50 < rem <= 60, f"{rem:.1f}s")
-check("commands refused because of the quarantine add no strikes", quarantine.record("s", "SOURCE_QUARANTINED:5s", n + 3) is None)
+check("while held, the device is quarantined with time remaining", held and 50 < rem <= 60, f"{rem:.1f}s")
+check("commands refused because of the quarantine add no strikes",
+      quarantine.record("s", "SOURCE_QUARANTINED:5s", n + 3, authenticated=True) is None)
 check("it lifts by itself after the hold", not quarantine.is_quarantined("s", n + 62)[0])
-quarantine.record("s", "HMAC_INVALID", n + 70)
-second = quarantine.record("s", "HMAC_INVALID", n + 71)
+quarantine.record("s", AUTH, n + 70, authenticated=True)
+second = quarantine.record("s", AUTH, n + 71, authenticated=True)
 check("a repeat offender is held twice as long (doubling)", second is not None and second["hold_s"] == 120 and second["offence"] == 2, str(second))
 quarantine.release("s")
-quarantine.record("s", "HMAC_INVALID", n + 300)
-third = quarantine.record("s", "HMAC_INVALID", n + 301)
+quarantine.record("s", AUTH, n + 300, authenticated=True)
+third = quarantine.record("s", AUTH, n + 301, authenticated=True)
 check("the hold is capped (IM_QUARANTINE_MAX_S)", third is not None and third["hold_s"] == 200, str(third))
 quarantine.reset()
 for i in range(11):
-    quarantine.record("slow", "RATE_LIMIT_EXCEEDED", n + i * 4)         # 1 point each, 4 s apart: never 12 inside 30 s
-check("slow low-severity noise does not quarantine (sliding window)", not quarantine.is_quarantined("slow", n + 50)[0])
+    quarantine.record("slow", "SOMETHING_MINOR", n + i * 4, authenticated=True)  # default weight 1, 4 s apart
+check("slow noise does not quarantine (sliding window)", not quarantine.is_quarantined("slow", n + 50)[0])
 quarantine.reset()
-check("a flood of rate-limit drops does quarantine", any(quarantine.record("f", "RATE_LIMIT_EXCEEDED", n + i * 0.05) for i in range(14)))
+check("a flood of authenticated violations does quarantine",
+      any(quarantine.record("f", "OUT_OF_BOUNDS", n + i * 0.05, authenticated=True) for i in range(14)))
+
+# ---- AUDIT S4: the denial-of-service lever is gone -------------------------------------------------------------------
+quarantine.reset()
+VICTIM = "the-operator"
+forged = [quarantine.record(VICTIM, r, n + i * 0.05, authenticated=False)
+          for i, r in enumerate(["HMAC_INVALID:tag mismatch", "HMAC_MISSING:no frame", "UNKNOWN_DEVICE:no key",
+                                 "UNTRUSTED_SOURCE", "RATE_LIMIT_EXCEEDED", "INVALID_FUNCTION_CODE",
+                                 "INVALID_REGISTER", "HMAC_MALFORMED:short frame"] * 5)]
+check("40 UNAUTHENTICATED refusals spoofing one address score NOTHING (the S4 DoS lever)",
+      not any(forged) and not quarantine.is_quarantined(VICTIM, n + 3)[0])
+check("...so the real operator is never cut off by someone forging its address",
+      not quarantine.is_quarantined(VICTIM, n + 3)[0])
+check("every pre-auth reason is classified as forgeable",
+      all(quarantine.is_pre_auth(r) for r in quarantine.PRE_AUTH_REASONS))
+check("an authenticated policy violation is NOT classified as forgeable",
+      not quarantine.is_pre_auth("UNAUTHORIZED_REGISTER:x") and not quarantine.is_pre_auth("CROSS_REGISTER"))
+check("even claiming authentication cannot launder a pre-auth reason",
+      quarantine.record(VICTIM, "HMAC_INVALID:x", n, authenticated=True) is None)
+check("a shared secret is flagged as the weaker mode", "per-device" in (quarantine.shared_secret_warning() or ""))
+
 quarantine.reset()
 set_env(IM_QUARANTINE_EXEMPT="s")
-check("an exempt source is never quarantined", quarantine.record("s", "HMAC_INVALID", n) is None and quarantine.record("s", "HMAC_INVALID", n + 1) is None)
+check("an exempt source is never quarantined", quarantine.record("s", AUTH, n, authenticated=True) is None
+      and quarantine.record("s", AUTH, n + 1, authenticated=True) is None)
 set_env(IM_QUARANTINE_EXEMPT=None)
-check("severity weights: forged tag > flood", quarantine.weight_for("HMAC_INVALID:x") > quarantine.weight_for("RATE_LIMIT_EXCEEDED"))
+check("severity weights: out-of-policy write > flood", quarantine.weight_for(AUTH) > quarantine.weight_for("RATE_LIMIT_EXCEEDED"))
 check("a quarantined source's status is listed", quarantine.status()["enabled"])
 
 print("\nQUARANTINE: single-laptop auto-off")
@@ -175,7 +205,8 @@ for val in ("1", "auto", "on"):
     check(f"IM_QUARANTINE={val} on a loopback-only demo is switched off automatically",
           quarantine.mode() == "auto-off-single-laptop" and not quarantine.enabled() and quarantine.single_laptop())
 set_env(IM_QUARANTINE="1", IM_TRUSTED_SOURCES=LOOPBACK)
-check("...and then no strikes ever quarantine SCADA", all(quarantine.record(LOOPBACK, "HMAC_INVALID", 10.0 + i) is None for i in range(5))
+check("...and then no strikes ever quarantine SCADA",
+      all(quarantine.record(LOOPBACK, "UNAUTHORIZED_REGISTER", 10.0 + i, authenticated=True) is None for i in range(5))
       and not quarantine.is_quarantined(LOOPBACK, 12.0)[0])
 check("the status says why", quarantine.status()["mode"] == "auto-off-single-laptop" and quarantine.status()["single_laptop"])
 set_env(IM_QUARANTINE="auto", IM_TRUSTED_SOURCES=f"{LOOPBACK},{OTHER}")
@@ -193,10 +224,15 @@ set_env(IM_TRUSTED_SOURCES=saved_ts, IM_QUARANTINE=None)
 print("\nQUARANTINE inside the cyber agent")
 fresh()
 set_env(IM_QUARANTINE="force")
-quarantine.record(SRC_B, "HMAC_INVALID")
-quarantine.record(SRC_B, "HMAC_INVALID")
+quarantine.record(SRC_B, "UNAUTHORIZED_REGISTER:x", authenticated=True)
+quarantine.record(SRC_B, "UNAUTHORIZED_REGISTER:x", authenticated=True)
 v = cyber_agent.check(signed("q1", time.time(), SRC_B, REG["P101"], 70.0))
-check("a quarantined source is refused FIRST, with the time left", not v["pass"] and v["reason"].startswith("SOURCE_QUARANTINED"), v["reason"])
+check("a quarantined device's correctly signed command is refused, with the time left",
+      not v["pass"] and v["reason"].startswith("SOURCE_QUARANTINED"), v["reason"])
+check("the quarantine runs AFTER authentication, so the refusal is of a device, not of an address (AUDIT S4)",
+      v.get("auth_status") == "HMAC_OK", str(v.get("auth_status")))
+import middleware.trace as _tr
+check("the tracer agrees on the order", _tr.CYBER_ORDER.index("quarantine") > _tr.CYBER_ORDER.index("hmac"))
 v = cyber_agent.check(signed("q2", time.time() + 0.3, SRC_A, REG["P101"], 70.0))
 check("other sources are unaffected", v["pass"], v["reason"])
 cyber_agent.reset_state()
@@ -251,16 +287,36 @@ check("a legitimate command passes and creates no incident", ok["decision"]["ver
 r1 = pipe.process_command(signed("a1", t + 0.3, SRC_B, REG["P101"], 70.0, key=b"y" * 32), state)
 check("a forged command is dropped and opens an incident", r1["decision"]["verdict"] == "DROP" and r1["incident"] and r1["incident"]["severity"] == "high", str(r1["incident"]))
 r2 = pipe.process_command(signed("a2", t + 0.6, SRC_B, REG["P101"], 70.0, key=b"y" * 32), state)
-check("the second forged command triggers the quarantine, visible in the report", r2["incident"]["quarantined"] and r2["incident"]["severity"] == "critical", str(r2["incident"]))
-r3 = pipe.process_command(signed("a3", t + 0.9, SRC_B, REG["P101"], 70.0), state)
-check("now even a correctly signed command from that source is refused (SOURCE_QUARANTINED)", r3["decision"]["verdict"] == "DROP" and r3["decision"]["reason"].startswith("SOURCE_QUARANTINED"), r3["decision"]["reason"])
+check("AUDIT S4: forged commands are dropped but DO NOT quarantine the address they claim to come from",
+      r2["decision"]["verdict"] == "DROP" and not r2["incident"]["quarantined"], str(r2["incident"]))
+r2b = pipe.process_command(signed("a2b", t + 0.9, SRC_B, REG["P101"], 70.0), state)
+check("...so a device whose address was spoofed can still command the plant",
+      r2b["decision"]["verdict"] in ("PASS", "ALERT"), r2b["decision"]["reason"])
+
+# What DOES quarantine: violations the device provably signed. A policy that denies SRC_B gives us two of them.
+write_policy({"default_role": "deny", "roles": {"op": {"write": ["P101"]}}, "sources": {SRC_A: "op"}})
+set_env(IM_POLICY_FILE=POLICY)
+policy.reset()
+q1 = pipe.process_command(signed("b1", t + 1.2, SRC_B, REG["P101"], 70.5), state)
+check("an AUTHENTICATED policy violation is a DROP", q1["decision"]["reason"].startswith("UNAUTHORIZED"), q1["decision"]["reason"])
+q2 = pipe.process_command(signed("b2", t + 1.5, SRC_B, REG["P101"], 70.6), state)
+check("the second one quarantines the device, visible in the report",
+      q2["incident"]["quarantined"] and q2["incident"]["severity"] == "critical", str(q2["incident"]))
+r3 = pipe.process_command(signed("a3", t + 1.8, SRC_B, REG["P101"], 71.3), state)   # a fresh value: not a replay
+check("now even a correctly signed command from that device is refused (SOURCE_QUARANTINED)",
+      r3["decision"]["verdict"] == "DROP" and r3["decision"]["reason"].startswith("SOURCE_QUARANTINED"), r3["decision"]["reason"])
 cy = [h for h in r3["trace"]["hops"] if h["hop"] == "cyber_rules"][0]["checks"]
 check("the packet tracer shows the quarantine check failing and the rest NOT_RUN", [c["check"] for c in cy if c["result"] == "FAIL"] == ["quarantine"]
       and all(c["result"] == "NOT_RUN" for c in cy[cy.index(next(c for c in cy if c["check"] == "quarantine")) + 1:]))
-r4 = pipe.process_command(signed("a4", t + 1.2, SRC_A, REG["P101"], 72.0), state)
+check("and the hops BEFORE it, including hmac, passed - the device was identified before being refused",
+      all(c["result"] == "PASS" for c in cy[:cy.index(next(c for c in cy if c["check"] == "quarantine"))]),
+      str([(c["check"], c["result"]) for c in cy]))
+r4 = pipe.process_command(signed("a4", t + 2.1, SRC_A, REG["P101"], 72.0), state)
 check("the legitimate source still works while the other is quarantined", r4["decision"]["verdict"] in ("PASS", "ALERT"), r4["decision"]["reason"])
+set_env(IM_POLICY_FILE=os.path.join(tmp, "absent.json"))
+policy.reset()
 inc = [i for i in incidents.list_incidents() if i["source"] == SRC_B]
-check("all of it is ONE incident for that source", len(inc) == 1 and inc[0]["events"] == 3 and inc[0]["quarantined"], str(inc and inc[0]["events"]))
+check("all of it is ONE incident for that source", len(inc) == 1 and inc[0]["events"] == 5 and inc[0]["quarantined"], str(inc and inc[0]["events"]))
 check("the quarantine-blocked attempt is logged as such in the timeline", any(e["type"] == "Blocked While Quarantined" for e in inc[0]["timeline"]))
 write_policy({"default_role": "deny", "roles": {"op": {"write": ["P101"]}}, "sources": {SRC_C: "op"}})
 set_env(IM_POLICY_FILE=POLICY, IM_QUARANTINE=None)

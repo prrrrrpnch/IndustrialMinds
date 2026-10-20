@@ -13,7 +13,7 @@ import json
 import os
 import tempfile
 
-from docs.interfaces import FRAME_BASE, FRAME_LEN
+from core.interfaces import FRAME_BASE, FRAME_LEN
 from tools import sim_four_laptops as S
 
 fails = 0

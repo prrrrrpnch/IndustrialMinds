@@ -1,8 +1,8 @@
 """
-swat/features_v3.py - physical model v3 features: multi-scale dynamics, per-stage views, and NORMAL-ONLY consistency models.
+research/features_v3.py - physical model v3 features: multi-scale dynamics, per-stage views, and NORMAL-ONLY consistency models.
 
-THE single feature implementation for v3: training (models/train_physical_v3.py) and the live middleware
-(models/physical_model_v3.py) both call base_features() / NormalModels, so live == training by construction.
+THE single feature implementation for v3: training (research/train_physical_v3.py) and the live middleware
+(research/physical_model_v3.py) both call base_features() / NormalModels, so live == training by construction.
 
 Inputs are the same live-available points as v1/v2 (10 sensors, 8 actuators) over a LONG = 120 s window at 1 Hz, so the live warm-up
 does not grow. What is new compared with swat/features_v2.py:
@@ -27,7 +27,7 @@ from typing import Dict, List, Optional, Tuple
 
 import numpy as np
 
-from docs.interfaces import MACHINE_BY_NAME
+from core.interfaces import MACHINE_BY_NAME
 from swat.features_v2 import LONG
 from swat.physical_features import ACTUATORS, SENSORS, Norm
 

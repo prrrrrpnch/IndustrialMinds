@@ -1,6 +1,6 @@
 import time
-from docs.interfaces import make_command
-from docs import hmac_auth
+from core.interfaces import make_command
+from core import hmac_auth
 from middleware import cyber_agent
 
 
@@ -14,9 +14,9 @@ def signed(tx_id, ts, src, fc, register, value, key=None, timestamp_ms=None):
                         raw_value=parsed["raw_value"], auth=parsed["auth"])
 
 
-from docs.netconfig import LOOPBACK
+from core.netconfig import LOOPBACK
 cyber_agent.reset_state()
-SRC = LOOPBACK   # trusted by default (docs/netconfig.py)
+SRC = LOOPBACK   # trusted by default (core/netconfig.py)
 
 # 1. Normal command -> expect PASS
 cmd = signed("tx1", time.time(), SRC, 16, 2, 45.0)

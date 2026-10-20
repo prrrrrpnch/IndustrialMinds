@@ -28,7 +28,7 @@ import pandas as pd
 from benchmark.env import environment
 from models.physical_model import PhysicalModel
 from models.physical_model_v2 import load_physical_model
-from swat.fusion_scenarios import physical_observations
+from research.fusion_scenarios import physical_observations
 from swat.loader import load_stream
 from swat.physical_features import ACTUATORS, SENSORS, build_windows
 
@@ -106,7 +106,7 @@ def _v2_observations(model, test: pd.DataFrame):
 
 def _v3_observations(model, test: pd.DataFrame):
     """PhysicalModelV3 on the test block: the same feature code and scoring the live model calls (batch path)."""
-    from swat import features_v3 as F3
+    from research import features_v3 as F3
     X87, XL, X3, AUX, meta = F3.build_windows_v3(test, model.norm, stride=STRIDE)
     if len(X87) == 0:
         return None
@@ -170,7 +170,7 @@ def evaluate(model: PhysicalModel, stream: pd.DataFrame) -> Dict[str, Any]:
 def run(data_dir: str, fixture: bool = False, weights: str | None = None) -> Dict[str, Any]:
     if weights:
         from models.physical_model_v2 import PhysicalModelV2
-        from models.physical_model_v3 import PhysicalModelV3
+        from research.physical_model_v3 import PhysicalModelV3
         model = PhysicalModelV3.load(weights)
         if model.status != "OK":
             model = PhysicalModelV2.load(weights)

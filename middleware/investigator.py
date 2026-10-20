@@ -100,7 +100,7 @@ class Evidence:
     def get_rule_catalogue(self) -> Dict[str, Any]:
         """Which deterministic checks exist, in the order they run. Explains why something was or was not stopped."""
         from middleware import trace as tracer
-        from docs.interfaces import CROSS_REGISTER_RULES
+        from core.interfaces import CROSS_REGISTER_RULES
         cat = {"cyber_checks_in_order": list(tracer.CYBER_ORDER),
                "physical_checks_in_order": list(tracer.PHYSICAL_ORDER),
                "cross_register_rules": [{"id": r["id"], "description": r["description"]} for r in CROSS_REGISTER_RULES],
@@ -127,7 +127,7 @@ class Evidence:
 
     def get_blocked_attack_log(self, source_ip: str = "", limit: int = 20) -> Dict[str, Any]:
         """Recent DROPped commands from the persistent log, optionally for one source."""
-        from docs import attack_log
+        from core import attack_log
         try:
             records = attack_log.AttackLogReader().records()
         except Exception as exc:

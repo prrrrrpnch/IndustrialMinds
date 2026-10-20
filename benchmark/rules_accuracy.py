@@ -26,8 +26,8 @@ import numpy as np
 from attacker import scenarios as atk
 from benchmark import workload as W
 from benchmark.env import environment
-from docs import hmac_auth
-from docs.interfaces import (CROSS_REGISTER_RULES, LIT101, MACHINE_BY_REGISTER, MV101, PIT501, P501, to_raw)
+from core import hmac_auth
+from core.interfaces import (CROSS_REGISTER_RULES, LIT101, MACHINE_BY_REGISTER, MV101, PIT501, P501, to_raw)
 from middleware import cyber_agent, orchestrator
 from pipeline.multi_model_pipeline import MultiModelPipeline
 

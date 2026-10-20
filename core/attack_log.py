@@ -1,5 +1,5 @@
 """
-docs/attack_log.py - persistent, file-based log of every detected/blocked attack.
+core/attack_log.py - persistent, file-based log of every detected/blocked attack.
 
 No database or extra service: the middleware appends one JSON object per
 blocked command to logs/blocked_attacks.jsonl, and the dashboard reads the

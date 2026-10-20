@@ -68,8 +68,8 @@ os.environ["IM_MIDDLEWARE_PORT"] = str(MW_PORT)
 import contextlib
 import io as _io
 from pymodbus.client import ModbusTcpClient
-from docs import hmac_auth
-from docs.interfaces import MACHINE_BY_NAME, to_raw
+from core import hmac_auth
+from core.interfaces import MACHINE_BY_NAME, to_raw
 
 FRAME_BASE = 100
 client = ModbusTcpClient("127.0.0.1", port=MW_PORT, timeout=10)

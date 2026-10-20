@@ -1,5 +1,5 @@
 """
-docs/netconfig.py - the ONE place where hosts and ports are resolved.
+core/netconfig.py - the ONE place where hosts and ports are resolved.
 
 Every component (PLC, middleware, dashboard, SCADA, attacker, orchestrator)
 reads its addresses from here, so the system can be spread over several
@@ -18,6 +18,7 @@ Environment variables (all optional):
   IM_DASHBOARD_URL                          full URL override for the line above
   IM_DASHBOARD_BIND_HOST                    what the dashboard binds to
   IM_TRUSTED_SOURCES                        cyber-agent SCADA whitelist (IPs/CIDRs)
+  IM_PLC_ALLOWED_WRITERS                    who the PLC accepts plant writes from ("any" disables the check)
 
 CLI flags on each entry point override the environment.
 """
@@ -63,3 +64,9 @@ DASHBOARD_BIND_HOST = _env_str("IM_DASHBOARD_BIND_HOST", LOOPBACK)
 # Cyber-agent SCADA whitelist. Default: this machine only. Add the SCADA
 # laptop's address (or CIDR) via IM_TRUSTED_SOURCES for multi-laptop runs.
 TRUSTED_SOURCES = _env_str("IM_TRUSTED_SOURCES", LOOPBACK)
+
+# Who the PLC accepts plant writes from (AUDIT S1). Default: the middleware only,
+# which on a one-laptop demo is this machine - so the default demo is unchanged,
+# while the four-laptop lab refuses an attacker's direct-to-PLC write out of the
+# box. Set to "any" to restore the old unprotected behaviour explicitly.
+PLC_ALLOWED_WRITERS = _env_str("IM_PLC_ALLOWED_WRITERS", MIDDLEWARE_HOST)

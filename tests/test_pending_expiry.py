@@ -11,7 +11,7 @@ from __future__ import annotations
 
 import time
 
-from docs.interfaces import MACHINE_BY_NAME
+from core.interfaces import MACHINE_BY_NAME
 import middleware.middleware_server as mw
 
 fails = 0

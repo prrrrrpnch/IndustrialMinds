@@ -35,7 +35,7 @@ import threading
 import time
 from typing import Any, Dict, Optional, Tuple
 
-from docs.interfaces import MACHINE_BY_NAME, MACHINE_BY_REGISTER
+from core.interfaces import MACHINE_BY_NAME, MACHINE_BY_REGISTER
 
 ROOT = os.path.realpath(os.path.join(os.path.dirname(os.path.abspath(__file__)), ".."))
 DEFAULT_FILE = os.path.join(ROOT, "config", "policy.json")

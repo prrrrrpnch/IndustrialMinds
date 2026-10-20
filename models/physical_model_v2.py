@@ -240,7 +240,7 @@ def load_physical_model(version: Optional[str] = None) -> PhysicalModel:
     if version == "v1":
         return PhysicalModel.load()
     if version == "v3":                                   # opt-in only: v2 stays the default until v3 is promoted
-        from models.physical_model_v3 import PhysicalModelV3
+        from research.physical_model_v3 import PhysicalModelV3
         m3 = PhysicalModelV3.load()
         if m3.status == "OK":
             return m3
@@ -256,7 +256,7 @@ def live_weights_path() -> str:
     """Weights file the live loader would use (v2 unless IM_PHYSICAL_MODEL=v1 or the v2 file is missing)."""
     from models.physical_model import DEFAULT_WEIGHTS as V1
     if os.environ.get("IM_PHYSICAL_MODEL", "v2").lower() == "v3":
-        from models.physical_model_v3 import DEFAULT_WEIGHTS as V3
+        from research.physical_model_v3 import DEFAULT_WEIGHTS as V3
         if os.path.exists(V3):
             return V3
     if os.environ.get("IM_PHYSICAL_MODEL", "v2").lower() != "v1" and os.path.exists(DEFAULT_WEIGHTS):

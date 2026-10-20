@@ -15,7 +15,7 @@ Downstream (SCADA -> PLC):
                             are physically impossible (e.g. valve slamming shut
                             while pressure is already low), plus the
                             config-driven correlation rules in
-                            docs/interfaces.CROSS_REGISTER_RULES: each command
+                            core/interfaces.CROSS_REGISTER_RULES: each command
                             may be safe on its own, but the COMBINED projected
                             plant state across several machines is unsafe
                             -> CROSS_REGISTER_VIOLATION.
@@ -29,7 +29,7 @@ current_state contract (passed in by the caller — middleware or test harness):
   {
       "registers": {
           <register>: <float>,   # current PLC value, one entry per machine
-          ...                    # (see docs/interfaces.MACHINES)
+          ...                    # (see core/interfaces.MACHINES)
       },
       "setpoints": {             # OPTIONAL - latest approved target per register
           <register>: <float>,   # (pending setpoints the PLC is still ramping to).
@@ -45,7 +45,7 @@ from __future__ import annotations
 import time
 from typing import Any, Dict, List, Optional, Tuple
 
-from docs.interfaces import (
+from core.interfaces import (
     make_verdict,
     REGISTER_MAP,
     MACHINES,
@@ -307,12 +307,12 @@ def check_command(command: dict, current_state: dict) -> dict:
     Downstream check: validate a SCADA->PLC command against physical laws.
 
     Args:
-        command:       Command dict (docs/interfaces.make_command shape).
+        command:       Command dict (core/interfaces.make_command shape).
         current_state: Latest plant state from plc.get_telemetry() or a
                        compatible dict (see module docstring for shape).
 
     Returns:
-        Verdict dict (docs/interfaces.make_verdict shape).
+        Verdict dict (core/interfaces.make_verdict shape).
         pass=True only if ALL three rule layers pass.
     """
     tx_id    = command.get("tx_id", "")
@@ -382,7 +382,7 @@ def check_feedback(commanded_value: float, reported_value: float, register: int)
     Args:
         commanded_value: The last value sent to this register by the middleware.
         reported_value:  The value the PLC is currently reporting.
-        register:        Register number (see docs/interfaces.MACHINES).
+        register:        Register number (see core/interfaces.MACHINES).
 
     Returns:
         Verdict dict with agent="physical".

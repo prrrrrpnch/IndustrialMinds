@@ -32,7 +32,7 @@ from collections import OrderedDict
 from concurrent.futures import Future, ThreadPoolExecutor
 from typing import Any, Callable, Dict, Mapping, Optional, Tuple, Union
 
-from docs.interfaces import make_verdict
+from core.interfaces import make_verdict
 from middleware import cyber_agent, incidents, investigator, orchestrator, physical_agent, quarantine, trace as tracer
 from models.cyber_model import CyberModel
 from models.physical_model import PhysicalModel
@@ -138,7 +138,7 @@ class MultiModelPipeline:
             hop_trace = None
 
         self._remember(command, current_state, hop_trace)
-        incident = self._respond(command, decision)
+        incident = self._respond(command, decision, cyber_rule)
 
         return {
             "trace": hop_trace,
@@ -197,7 +197,8 @@ class MultiModelPipeline:
                 "plant_state": {"registers": dict(self._last_registers), "physical_model": model,
                                 "suspect_stages": sorted(set(suspect))}}
 
-    def _respond(self, command: Dict[str, Any], decision: Dict[str, Any]) -> Optional[Dict[str, Any]]:
+    def _respond(self, command: Dict[str, Any], decision: Dict[str, Any],
+                 cyber_rule: Optional[Dict[str, Any]] = None) -> Optional[Dict[str, Any]]:
         """Strikes for the quarantine, incident correlation, dashboard notification. Never raises, never changes the decision."""
         try:
             verdict = decision.get("verdict")
@@ -205,7 +206,12 @@ class MultiModelPipeline:
                 return None
             started = None
             if verdict == "DROP":
-                started = quarantine.record(str(command.get("source_ip")), decision.get("reason", ""), command.get("timestamp"))
+                # AUDIT S4: a strike only counts if the command authenticated. cyber_agent stamps auth_status = HMAC_OK
+                # on every verdict that got past the signature check; anything refused earlier is forgeable from a spoofed
+                # source address and must never be able to cut the real device off.
+                authenticated = str((cyber_rule or {}).get("auth_status", "")) == "HMAC_OK"
+                started = quarantine.record(str(command.get("source_ip")), decision.get("reason", ""),
+                                            command.get("timestamp"), authenticated=authenticated)
                 if started:
                     log.warning("QUARANTINE source=%s for %.0fs (offence %s, trigger %s)", started["source"], started["hold_s"],
                                 started["offence"], started["trigger"])

@@ -13,9 +13,9 @@ import time
 
 os.environ.setdefault("IM_LOG_DIR", tempfile.mkdtemp(prefix="im-wire-"))
 
-from docs import hmac_auth  # noqa: E402
-from docs.interfaces import FRAME_BASE, MACHINES, MV101, P101, make_command, to_raw  # noqa: E402
-from docs.netconfig import LOOPBACK  # noqa: E402
+from core import hmac_auth# noqa: E402
+from core.interfaces import FRAME_BASE, MACHINES, MV101, P101, make_command, to_raw  # noqa: E402
+from core.netconfig import LOOPBACK  # noqa: E402
 from middleware import cyber_agent, orchestrator, trace as tracer  # noqa: E402
 from pipeline.multi_model_pipeline import MultiModelPipeline  # noqa: E402
 from tools import wire_correlate as wc  # noqa: E402

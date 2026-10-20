@@ -78,8 +78,8 @@ Attacker --------same port-------------------> [ Cyber Agent  ||  Physical Agent
 | Dashboard | `dashboard/` | web UI | live tables, tracer panel |
 | PLC and twin | `plc/plc.py`, `plc/twin.py` | simulator | five-stage plant over Modbus |
 | Attacker | `attacker/` | client | fixed and randomised attacks |
-| HMAC module | `docs/hmac_auth.py` | crypto | frame build/verify |
-| Shared interfaces | `docs/interfaces.py`, `docs/netconfig.py` | config | registers, bounds, rules, addresses |
+| HMAC module | `core/hmac_auth.py` | crypto | frame build/verify |
+| Shared interfaces | `core/interfaces.py`, `core/netconfig.py` | config | registers, bounds, rules, addresses |
 | Benchmarks | `benchmark/` | tooling | latency and accuracy, report generation |
 
 ### 3.3 Concurrency and failure policy
@@ -176,7 +176,7 @@ Five stages with four points each: **20 Modbus holding registers**, unit id 1, a
 * Optional sensor noise: Gaussian, standard deviation 0.2 % of range. `IM_TWIN_TIME_SCALE` speeds the simulation up.
 
 ### 5.3 Calibration and verification
-Every constant is **derived in `_calibrate()` from the nominal values** in `docs/interfaces.py`, so the twin sits at the measured SWaT operating point at nominal set-points. Two tests guard this:
+Every constant is **derived in `_calibrate()` from the nominal values** in `core/interfaces.py`, so the twin sits at the measured SWaT operating point at nominal set-points. Two tests guard this:
 * `tests/test_bounds_alignment.py` (34 checks): configuration and twin versus the measured bounds; over a simulated hour with noise, 0 of 3,600 samples leave the measured envelope; a 20-hour run with backwash keeps `DPIT301` inside the envelope.
 * `tests/test_twin_propagation.py`: perturb stage 1 and assert stages 2 to 5 respond in order (about 1.4 s, 5 s, 25 s, 100 s).
 
@@ -192,7 +192,7 @@ Modbus/TCP over ports 5021 (middleware) and 5020 (PLC). SCADA does not write mac
 |---|---|---|---|---|---|---|
 | Content | version (=1) | target register | raw value (value x 10) | 64-bit nonce | 64-bit timestamp (ms) | 32-byte HMAC-SHA256 tag |
 
-### 6.3 Authentication algorithm (`docs/hmac_auth.py`)
+### 6.3 Authentication algorithm (`core/hmac_auth.py`)
 * **Primitive:** HMAC with SHA-256 (RFC 2104, FIPS 180-4), 32-byte tag, shared secret of at least 32 characters (`IM_HMAC_SECRET`, a key file, or an auto-generated key file with mode 0600). The secret is never logged, printed, returned by an API or sent to the dashboard.
 * **Canonical message:** `b"IM-CMD-v1|" + pack(">BHHQQ", version, register, raw_value, nonce, timestamp_ms)`. A domain-separation prefix and fixed-width big-endian binary give **exactly one encoding per command**, so there is no whitespace, ordering or number-format ambiguity.
 * **Verification order (important):** (1) frame present? else `HMAC_MISSING`; (2) well-formed and version correct? else `HMAC_MALFORMED`; (3) recompute the MAC and compare in **constant time** (`hmac.compare_digest`), else `HMAC_INVALID`; (4) only then check freshness `|now - timestamp| <= 30 s`, else `HMAC_EXPIRED`. **The MAC is checked before the timestamp, so freshness decisions are made only on authenticated data.**
@@ -384,7 +384,7 @@ For each downstream command it builds a **hop-by-hop record from the real verdic
 ### 7.10 Dashboard (`dashboard/app.py`, Flask)
 KPIs (total, pass, drop), two security tables (**SCADA to PLC** decisions and **PLC to SCADA** confirmations), live telemetry for all 20 points with a process schematic, CPU history, a **Blocked sources** section (reads the blocked-attack log, grouped by source with attack-type counts), the **Live Network Flow** panel (each command drawn from its real TCP source host through the three middleware layers to the PLC, or stopped at the layer that dropped it; built from the same traces as the tracer; host names from `IM_HOST_LABELS`), and the **Packet Tracer**. The dashboard has no attack controls: attacks come only from the attacker system. Endpoints: `/api/security-event`, `/api/telemetry`, `/api/dashboard`, `/api/blocked-ips`, `/api/blocked-ips/<ip>`, `/api/flow`, `/api/reset`, `/api/trace` (POST), `/api/traces`, `/api/trace/<id>`. Event tables keep the latest 100 events; the tracer keeps the latest 300. Transaction ids are shortened for display (`TX-001`) with a stable mapping.
 
-### 7.11 Attack log (`docs/attack_log.py`)
+### 7.11 Attack log (`core/attack_log.py`)
 Every `DROP` appends one JSON line to `logs/blocked_attacks.jsonl`: time, direction, source address and port, tx id, function code, register and name, requested and current value, signature state (`present`, `absent`, `malformed`), HMAC status, both verdicts with reasons, orchestrator decision, latency, and a model summary (plant state, scores). The attack **type is derived from the agents' reason codes**, never from anything the sender claims. The HMAC key and tag are never written.
 
 ### 7.12 Attacker (`attacker/attacker.py`, `attacker/scenarios.py`)
@@ -571,9 +571,9 @@ Under `docs/reports/figures/` (generated from `benchmarks/latest.json`): `middle
 ## 15. Appendix: where each fact lives in the repository
 | Topic | File |
 |---|---|
-| Registers, bounds, slew rates, cross-register rules, message shapes | `docs/interfaces.py`, `docs/register_map.md` |
-| Addresses and environment variables | `docs/netconfig.py` |
-| HMAC frame and verification | `docs/hmac_auth.py` |
+| Registers, bounds, slew rates, cross-register rules, message shapes | `core/interfaces.py`, `docs/register_map.md` |
+| Addresses and environment variables | `core/netconfig.py` |
+| HMAC frame and verification | `core/hmac_auth.py` |
 | Measured SWaT bounds | `docs/swat_bounds.json` |
 | Cyber rules | `middleware/cyber_agent.py` |
 | Physical rules and envelope | `middleware/physical_agent.py` |
@@ -591,7 +591,7 @@ Under `docs/reports/figures/` (generated from `benchmarks/latest.json`): `middle
 
 ## Physical model v3 (candidate; real-data results pending)
 
-Files: `swat/features_v3.py`, `models/train_physical_v3.py`, `models/physical_model_v3.py`, `models/package_physical_v3.py`.
+Files: `research/features_v3.py`, `research/train_physical_v3.py`, `research/physical_model_v3.py`, `research/package_physical_v3.py`.
 Design: 120 s windows with 30/60/120 s dynamics and time-since-last-toggle (no absolute levels); normal-only ridge consistency
 residuals and PCA (T2/SPE, total and per stage) fitted on normal rows and cross-fitted by hour-fold to avoid in-sample optimism;
 per-stage and global gradient-boosted heads combined by a logistic stacker; segment-grouped CV with segment-balanced AP for

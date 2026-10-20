@@ -54,8 +54,8 @@ sys.path.insert(0, PROJECT_ROOT)
 
 import importlib  # noqa: E402
 
-from docs import netconfig  # noqa: E402
-from docs.netconfig import LOOPBACK  # noqa: E402  documented loopback default
+from core import netconfig# noqa: E402
+from core.netconfig import LOOPBACK  # noqa: E402  documented loopback default
 
 # Must be set before middleware modules are imported (read at import time).
 # Legit SCADA hosts are 127.20.x.x; untrusted attackers use 127.30.x.x.
@@ -67,8 +67,8 @@ importlib.reload(netconfig)   # netconfig already read the env at import; re-rea
 import numpy as np  # noqa: E402
 import psutil  # noqa: E402
 
-from docs import hmac_auth  # noqa: E402
-from docs.interfaces import (  # noqa: E402
+from core import hmac_auth# noqa: E402
+from core.interfaces import (  # noqa: E402
     ACTUATOR_REGISTERS, SENSOR_REGISTERS, FRAME_BASE, MACHINES, NUM_REGISTERS,
     P101, P203, to_raw,
 )

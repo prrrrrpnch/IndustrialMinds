@@ -69,14 +69,33 @@ Reference files are listed by path below; none are auto-loaded.
   (A6/N6) middleware `health_snapshot()` -> `orchestrator.forward_middleware_health()` -> dashboard `POST /api/middleware-health`
   every 5 s; GET /api/health reports the PLC leg (connected/unreachable/unknown/not reported) and degrades on dropped forwards or a
   heartbeat older than 20 s. The header badge was the hardcoded word ONLINE; `refreshHealth()` in script.js now drives it.
-- `docs/` holds code (`interfaces.py`, `hmac_auth.py`, `attack_log.py`), not only docs.
-  `docs/interfaces.py: MACHINES` is the single source of truth for registers/bounds (sensor ranges/nominals are
+- NEXT-QUARTER AUDIT FIXES (final-results/AUDIT.md, verified by tests/test_quarter_fixes.py):
+  (S1) the PLC now applies a write only from an allowed writer: `IM_PLC_ALLOWED_WRITERS` (core/netconfig.PLC_ALLOWED_WRITERS),
+  DEFAULT = the middleware's host, so the one-laptop demo is unchanged (everything is 127.0.0.1) but the 4-laptop lab refuses the
+  attacker's direct-to-PLC write out of the box. `plc.writer_allowed()` in `SyncedDataBlock.setValues`; a refused write never reaches
+  the physics, is logged `REFUSED direct write` (rate limited) and counted in `plc.refused_writes()`. `IM_PLC_ALLOWED_WRITERS=any`
+  restores the old bypass for demonstrating it. Peer address captured by `WriteSourceRequestHandler` (same pattern as the middleware).
+  Defence in depth, NOT a substitute for segmentation: a spoofed source address still gets through.
+  (S4) the quarantine is keyed to AUTHENTICATED identity: `quarantine.record(..., authenticated=)` ignores every pre-auth reason
+  (`quarantine.PRE_AUTH_REASONS`/`is_pre_auth()`), and the quarantine CHECK moved in cyber_agent from first to AFTER hmac+replay
+  (trace.CYBER_ORDER updated). Before this, spoofing the operator's address with 2 forged frames quarantined the REAL SCADA -
+  the response layer was a DoS lever. `quarantine.shared_secret_warning()` says per-device keys are needed to be fully spoof-proof.
+  (A4) the forensic record outlives the UI: `core/forensics.py` appends traces/incidents/investigations/events as JSONL under
+  IM_LOG_DIR and the dashboard replays them at startup (`_replay_forensics()`, called at the BOTTOM of app.py - it touches state
+  defined throughout the module). Append-only, so a PASS later corrected to UNDELIVERED keeps both lines and replays as UNDELIVERED
+  in arrival order. `/api/reset` renames the files `.cleared-<unix>` instead of deleting. IM_FORENSICS=0 opts out, IM_FORENSICS_MAX_MB rotates.
+  (#11) `docs/` is documentation ONLY - the source moved to `core/` (interfaces, hmac_auth, attack_log, netconfig, forensics);
+  `docs/` is no longer a package. Rejected experiments moved to `research/`: physical_model_v3, features_v3, train_physical_v3,
+  package_physical_v3, train_fusion_swat, fusion_scenarios, train_cyber_swat. DELIBERATELY NOT moved: `swat/cyber_events.py`
+  (models/cyber_model.py imports it live; shared train/serve feature code is the skew defence the audit itself credits).
+- `docs/` holds DOCUMENTATION ONLY now (the code moved to `core/`; see the next-quarter fixes above).
+  `core/interfaces.py: MACHINES` is the single source of truth for registers/bounds (sensor ranges/nominals are
   MEASURED from SWaT: docs/swat_bounds.json). plc/twin.py derives ALL its physics constants from MACHINES `initial`.
 - `check_feedback()` returns `tx_id=""` by design; caller must set it (docs/register_map.md).
 - `models/telemetry_generator.py` is synthetic data: never cite its metrics as real-data results.
 - Orchestrator forwards decisions to the dashboard via HTTP in a fire-and-forget thread.
 - Models are advisory (MONITOR) unless `IM_CYBER_MODEL_ENFORCE=1`.
-- `docs/netconfig.py` is the ONLY place host/port defaults live (env vars documented in its header).
+- `core/netconfig.py` is the ONLY place host/port defaults live (env vars documented in its header).
 - requirements.txt pins scikit-learn==1.9.1: physical_model.joblib was last saved by this container (1.9.1); other versions warn. tests/test_environment.py enforces pin + clean load. The user's machine had 1.8.0: they must `pip install scikit-learn==1.9.1`.
 - Pre-existing lab IPs remain only in synthetic-data files (telemetry_generator, train_models, evaluation, some tests); replaced when data is replaced in P5-P7/P11.
 - Plant = 5 stages x 4 points = 20 registers (10 actuators writable, 10 sensors read-only); register constants are SWaT tags (MV101, LIT101...). Old names (TANK_PRESSURE...) are gone.
@@ -88,7 +107,7 @@ Reference files are listed by path below; none are auto-loaded.
 - HARDENING: a PASSed command the PLC never settles to is expired after IM_PENDING_TIMEOUT_S (default 15) so its value stops being projected into the cross-register setpoints (middleware_server._expire_pending_if_stale; tests/test_pending_expiry.py). 'cannot reach the PLC' poll error is rate-limited to 1 line/5s - AND SO IS pymodbus's own ERROR line, which used to bypass it entirely (99 library lines vs our 2 in a 30 s outage; AUDIT C3). The rate limit is a logging.Filter on the ROOT HANDLER, not on the 'pymodbus' logger: logger filters are NOT inherited by child loggers and 'pymodbus.logging' is where the records actually originate.
 - IM_PHYSICAL_THRESHOLD (prob in [0,1]) overrides the v2 model's live operating point WITHOUT retraining (lower = more recall/more alerts; default ~0.788 = 0.5 FA/h). Invalid values ignored. Model stays advisory. train_physical_v2 BUDGETS sweep widened to (0.25,0.5,1,2,4) for the re-run report; package_physical_v2 --budget picks one.
 - LIVE PHYSICAL MODEL = v2 (user approved promotion): `models/weights/physical_model_v2.joblib` via `models/package_physical_v2.py`, class `models/physical_model_v2.py` (120 s window, 117 features, HGB prob > 0.7880, advisory, 120 s warm-up, packed inference). `load_physical_model()` selects it; `IM_PHYSICAL_MODEL=v1` or unusable v2 weights -> v1. Held-out test (budget 0.5/h): P .461 R .513 F1 .485 8/10 segs AUC .836 1.17 ep/h. PLC twin runs WITH sensor noise by default (noiseless plant = out-of-distribution -> constant ALERT). Tests: tests/test_physical_v2_live.py.
-- PHYSICAL v3 (candidate, NOT promoted, opt-in `IM_PHYSICAL_MODEL=v3`): `swat/features_v3.py` (multi-scale + normal-only ridge/PCA features, cross-fitted), `models/train_physical_v3.py` (`--data-dir <archive> --candidate`, event + window metrics, bootstrap CIs, confusion/PR/segment PNGs -> models/candidates/physical_v3/), `models/physical_model_v3.py` (live, same API as v2, adds head_scores/stage_spe/suspect_stage), `models/package_physical_v3.py` (needs `confirm.py retrain physical`, refuses fixture). Tests: tests/test_physical_v3.py, tests/test_physical_v3_live.py. Real-data accuracy UNMEASURED until the user runs the trainer on the SWaT machine; HGB sample_weight is ~70x slow here so the trainer replicates rows instead.
+- PHYSICAL v3 (candidate, NOT promoted, opt-in `IM_PHYSICAL_MODEL=v3`): `research/features_v3.py` (multi-scale + normal-only ridge/PCA features, cross-fitted), `research/train_physical_v3.py` (`--data-dir <archive> --candidate`, event + window metrics, bootstrap CIs, confusion/PR/segment PNGs -> models/candidates/physical_v3/), `research/physical_model_v3.py` (live, same API as v2, adds head_scores/stage_spe/suspect_stage), `research/package_physical_v3.py` (needs `confirm.py retrain physical`, refuses fixture). Tests: tests/test_physical_v3.py, tests/test_physical_v3_live.py. Real-data accuracy UNMEASURED until the user runs the trainer on the SWaT machine; HGB sample_weight is ~70x slow here so the trainer replicates rows instead.
 - models/weights (v1 fallback): physical_model.joblib is the previous SWaT-trained model (advisory; operating point 0.5 false alarms/h, clf thr 0.601, variant drift_robust). The old synthetic cyber_model.joblib/training_report.json were deleted (user-confirmed); with no cyber weights the CyberModel reports NO_MODEL = cyber branch is rules-only.
 - SWaT archive facts (from tools/swat_inspect.py reports; data lives ONLY on the user's Windows machine, never in this container):
   attack.csv = 54,621 attack-only rows in 35 time-gap segments; normal.csv = 1,387,098 rows; merged.csv = their concatenation; 51 tags + Timestamp + `Normal/Attack`;
@@ -100,7 +119,7 @@ Reference files are listed by path below; none are auto-loaded.
   SWaT actuators are discrete (pumps 1/2, valves 0/1/2); P401/P404/P502/P601/P603 constant, P402/P501/UV401 ~always on. MV503 does not exist in SWaT.
 - Phases 5-7 need the data on the machine that RUNS training: run the session locally (recommended) or have the user run `--candidate` training and paste reports.
 - DECISION (P6 gate): physical candidate promoted as advisory at the 0.5/h budget (threshold edited from the trained 0.558 to 0.601, recorded in metadata). Physical ML never blocks; the envelope rule is alert-only.
-- DECISION (P7 gate): learned fusion NOT promoted (docs/reports/fusion_training_report_swat.md); orchestrator = deterministic four-branch rules. `models/train_fusion_swat.py --candidate` stays as the reproducible negative result.
+- DECISION (P7 gate): learned fusion NOT promoted (docs/reports/fusion_training_report_swat.md); orchestrator = deterministic four-branch rules. `research/train_fusion_swat.py --candidate` stays as the reproducible negative result.
 - DECISION (P5 gate): cyber ML candidate NOT promoted. the old synthetic cyber weights were deleted; there are no cyber weights in models/weights.
 - Cyber ML = actuator STATE-CHANGE events (1/2 -> 0/100 %); it abstains on writes that don't flip on/off. Old 13-feature weights in models/weights are refused (schema mismatch -> NO_MODEL) until the SWaT candidate is promoted.
 - Guard hook only fires on EXECUTING a training script (python ... train*), not on reads; avoid heredocs whose text mentions weights paths / training commands (false positives) - write scripts with the Write tool.
@@ -124,14 +143,16 @@ Reference files are listed by path below; none are auto-loaded.
 | `tests/run_all.py` | `python -m tests.run_all`: runs every test script, saves benchmarks/test_results.json (status, per-script check counts, env, commit); `--with-stress`/`--with-plc` for the 2 that need extras; tests/test_test_runner.py covers its parsing |
 | `benchmark/` (`run_all.py`, `latency.py`, `rules_accuracy.py`, `swat_accuracy.py`, `render.py`, `plots.py` -> docs/reports/figures/*.png: SWaT confusion matrices, latency, rule checks, attacker plans, twin; drawn from latest.json by run_all/--render-only) | Phase 11: ONE command `python -m benchmark.run_all [--data-dir <SWaT>]` regenerates benchmarks/latest.json + docs/reports/benchmark_report.md + the README BENCHMARK block (generated, never hand-typed; tests/test_benchmark.py fails on drift). Sections kept apart: latency / held-out SWaT (needs the archive; `benchmarks/swat_accuracy.json` is reused if present) / rule-based constructed scenarios / twin |
 | `benchmark/evidence_pack.py` | `python -m benchmark.evidence_pack [--no-live]`: panel proof set -> docs/reports/evidence_pack.md + benchmarks/evidence_pack.json + figures/evidence_*.png. Live campaign (spawns PLC/dashboard/middleware on free loopback ports, runs every attacker attack + labelled legit traffic, reads outcomes from /api/flow) + response-layer demo + recorded SWaT/rules results, kept in separate sections. Do NOT run --no-live last: it overwrites the live section. tests/test_evidence_pack.py |
-| `docs/netconfig.py` | any host/port/env-var question (single source for addresses) |
+| `core/netconfig.py` | any host/port/env-var question (single source for addresses) |
 | `docs/demo_workflow.md` | end-to-end roles/start order/attack/aftermath/recovery (`python -m scada.scada --restore`); dashboard has NO attack controls, Live Network Flow = `/api/flow` + `dashboard/static/flow.js` |
 | `docs/topology.md`, `docs/wireshark_setup.md` | Phase 10: 4-laptop roles, env vars, firewall rules, preflight; capture filters, field names, side-by-side demo (verified on loopback with tshark 4.2.2) |
 | `tools/sim_four_laptops.py`, `docs/reports/system_flow_verification.md` | ONE command (`python -m tools.sim_four_laptops [--no-capture] [--out <dir>]`) runs the whole 4-role demo on loopback (127.0.0.1 mw+dash / .2 PLC / .3 SCADA / .4 attacker / .9 rogue), captures BOTH legs with tshark + a pcapng, runs 9 phases, then cross-checks capture vs tracer (by nonce) vs blocked log vs dashboard flow and writes the verification report. ~6 min (120 s model warm-up). tests/test_sim_four_laptops.py |
 | `tools/check_topology.py`, `tools/wire_correlate.py` | per-laptop preflight (`--role ... --multi`, HMAC fingerprint); match tshark frames to tracer entries by nonce and cross-check PLC leg (tests: test_check_topology, test_wire_correlate) |
-| `docs/interfaces.py` | machines/registers/bounds, verdict/decision dict shapes, cross-register rules |
-| `docs/hmac_auth.py` | signed frame format, HMAC build/verify |
-| `docs/attack_log.py` | blocked-attack JSONL logging |
+| `core/interfaces.py` | machines/registers/bounds, verdict/decision dict shapes, cross-register rules |
+| `core/hmac_auth.py` | signed frame format, HMAC build/verify |
+| `core/attack_log.py` | blocked-attack JSONL logging |
+| `core/forensics.py` | AUDIT A4: append-only JSONL store (traces/incidents/investigations/events) under IM_LOG_DIR, replayed by the dashboard at startup so the record outlives the Flask process |
+| `research/__init__.py` | what each rejected experiment was, what it measured, and why it is NOT on the live import path |
 | `docs/register_map.md` | register table, ports, contract notes |
 | `middleware/middleware_server.py` | Modbus proxy, downstream/upstream handling, poll loop |
 | `middleware/cyber_agent.py` | rule checks: whitelist, quarantine, FC, register, rate, HMAC, replay, authorization (policy) |
@@ -148,8 +169,8 @@ Reference files are listed by path below; none are auto-loaded.
 | `models/train_physical_swat.py` | Phase 6 trainer (`--data-dir <archive> --candidate` or `--fixture`): bounds + model + report; candidates only |
 | `tests/test_swat_physical.py` | Phase 6 checks on the synthetic fixture (code paths, live==training scores) |
 | `docs/reports/cyber_training_report_swat.md/.json` | REAL SWaT held-out results of the cyber candidate (aggregate only): weak - test ROC-AUC 0.63, F1 0.137 |
-| `models/train_cyber_swat.py` | Phase 5 trainer (`--data-dir <archive> --candidate`, or `--fixture`); writes models/candidates/ + report + provenance |
-| `swat/fusion_scenarios.py`, `models/train_fusion_swat.py` | Phase 7 fusion: ground-truth-labelled scenario set (real SWaT physical rows + constructed cyber-rule failures), cross-fitted train-block physical outputs; `--candidate` trains HistGradientBoosting, threshold by false-alarm budget on val, test once; candidate only |
+| `research/train_cyber_swat.py` | Phase 5 trainer (`--data-dir <archive> --candidate`, or `--fixture`); writes models/candidates/ + report + provenance |
+| `research/fusion_scenarios.py`, `research/train_fusion_swat.py` | Phase 7 fusion: ground-truth-labelled scenario set (real SWaT physical rows + constructed cyber-rule failures), cross-fitted train-block physical outputs; `--candidate` trains HistGradientBoosting, threshold by false-alarm budget on val, test once; candidate only |
 | `swat/features_v2.py`, `swat/alarm_logic.py`, `models/train_physical_v2.py`, `tests/test_physical_v2.py` | EXPERIMENT to raise F1/recall (research track, live model UNCHANGED): train on train+val, 120 s long-context + cross-sensor residual features, segment-grouped CV with segment-balanced AP, k-of-m persistence + false-alarm-budget thresholds; writes models/candidates/physical_v2/ only; test block used for exactly two refits (disclosed). RAN on real SWaT (docs/reports/physical_training_report_v2_swat.md/.json): selected = long+residual features + HGB, NO persistence at budget 0.5/h -> test precision 0.46, recall 0.51, F1 0.49, 1.17 episodes/h, 8/10 segments, AUC 0.836 (shipped: 0.37/0.26/0.31, 1.79/h, 6/10, 0.8245). Most gain = train+val refit (baseline refit F1 0.47); features add AUC and +1 segment; persistence (3-of-6) HURT on test. NOT live: needs a 120 s live buffer + approval to promote |
 | `models/promote_candidate.py` | copy an approved candidate into models/weights/ (refuses without `confirm.py retrain <model>`) |
 | `swat/loader.py`, `swat/cyber_events.py` | chronological de-duplicated SWaT stream + segments + calendar blocks / actuator events + THE feature implementation shared by training and live |
@@ -174,7 +195,7 @@ Reference files are listed by path below; none are auto-loaded.
 |---|---|---|---|
 | 1 | Models trained only on synthetic data | P5 (cyber), P6 (physical) | cyber: trained on real SWaT, result WEAK (docs/reports); user DROPPED cyber ML entirely -> cyber branch is RULES-ONLY by design (negative result = documented limitation); physical: run 2 on real SWaT (test AUC 0.83, F1 ~0.3), PROMOTED as ADVISORY at the 0.5 false-alarm/h operating point (user decision, P6 gate) -> NO synthetic-trained model is active any more |
 | 2 | Guessed physical bounds | P6 | CLOSED (docs/swat_bounds.json measured on real SWaT train-normal rows; MACHINES + twin calibrated to it; tests/test_bounds_alignment.py enforces) |
-| 3 | Hardcoded 127.0.0.1 | P2 | CLOSED (docs/netconfig.py; env+CLI; grep clean) |
+| 3 | Hardcoded 127.0.0.1 | P2 | CLOSED (core/netconfig.py; env+CLI; grep clean) |
 | 4 | Orchestrator is AND-gate | P7 | CLOSED (rule-based four-branch table with an ALERT class for the advisory physical model; tests/test_orchestrator.py) |
 | 5 | No orchestrator model | P7 | CLOSED AS NEGATIVE RESULT (cross-fitted GBM fusion on real SWaT: test AUC 0.68 < physical alone 0.83, 4/10 vs 6/10 segments; user chose NOT to promote; rule-based fusion is the design; documented limitation) |
 | 6 | Attacker deterministic | P8 | CLOSED (randomised plans, distribution check in tests/test_attacker_randomization.py; SWaT-derived ranges pending a local run of tools/swat_attack_profile.py) |

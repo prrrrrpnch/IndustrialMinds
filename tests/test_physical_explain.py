@@ -20,7 +20,7 @@ import numpy as np
 
 os.environ.setdefault("IM_LOG_DIR", tempfile.mkdtemp(prefix="im-explain-"))
 
-from docs.interfaces import MACHINES  # noqa: E402
+from core.interfaces import MACHINES  # noqa: E402
 from middleware import orchestrator, trace as tracer  # noqa: E402
 from models import explain, operating_points  # noqa: E402
 from models.physical_model_v2 import PhysicalModelV2, model_card  # noqa: E402

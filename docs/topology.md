@@ -5,7 +5,7 @@ available, so none of the per-laptop steps below has been run on the actual hard
 laptop first; it tells you what is still wrong.
 
 No IP address is written anywhere in the repository. Every address below is a placeholder you replace in the environment
-variables (`docs/netconfig.py` is the only place defaults live). Pick the placeholders once and write them down:
+variables (`core/netconfig.py` is the only place defaults live). Pick the placeholders once and write them down:
 
 | Placeholder | Meaning |
 |---|---|

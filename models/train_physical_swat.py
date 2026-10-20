@@ -40,7 +40,7 @@ import numpy as np
 import pandas as pd
 
 from models.physical_model import PhysicalModel
-from models.train_cyber_swat import WEIGHTS_DIR, best_f1_threshold, confusion, ranking
+from research.train_cyber_swat import WEIGHTS_DIR, best_f1_threshold, confusion, ranking
 from swat.loader import load_stream
 from swat.physical_features import (ACTUATORS, DROPPED_INPUTS, FEATURE_NAMES, PROVENANCE, SENSORS, VARIANTS, WINDOW, Norm,
                                     build_windows, compute_bounds)

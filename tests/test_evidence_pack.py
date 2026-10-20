@@ -54,7 +54,13 @@ check("a skipped live run is reported as not run, not as zero", "NOT RUN (--no-l
 
 r = E.response_demo()
 q = r["quarantine"]
-check("response demo: forged flood is quarantined after 2 commands and the rest are refused", q["quarantined_after_command"] == 2 and q["refused_while_quarantined"] == 38, str(q))
+sp = r["spoof_resistance"]
+check("response demo: 40 FORGED commands spoofing an address do NOT quarantine it (AUDIT S4)",
+      sp["quarantined_after_command"] is None, str(sp))
+check("response demo: the spoofed device can still command the plant afterwards",
+      sp["spoofed_device_can_still_command"] and sp["incident_severity"] in ("high", "critical"), str(sp))
+check("response demo: AUTHENTICATED violations are quarantined after 2 commands and the rest are refused",
+      q["quarantined_after_command"] == 2 and q["refused_while_quarantined"] == 8, str(q))
 check("response demo: another source keeps working and the incident is critical", q["other_source_still_works"] and q["incident_severity"] == "critical")
 check("response demo: policy cases give PASS / UNAUTHORIZED_VALUE / UNAUTHORIZED_REGISTER / UNAUTHORIZED_SOURCE",
       [p["reason"] for p in r["policy"]] == ["OK", "UNAUTHORIZED_VALUE", "UNAUTHORIZED_REGISTER", "UNAUTHORIZED_SOURCE"], str(r["policy"]))

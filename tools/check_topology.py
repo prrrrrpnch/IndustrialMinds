@@ -4,7 +4,7 @@ tools/check_topology.py - per-laptop preflight for the multi-laptop demo (docs/t
     python -m tools.check_topology --role plc|middleware|dashboard|scada|attacker [--multi]
 
 Run it on each laptop BEFORE the demo, in the order PLC -> middleware -> dashboard -> scada/attacker. It reads the same
-settings the components read (docs/netconfig.py) and checks, for the role you give it:
+settings the components read (core/netconfig.py) and checks, for the role you give it:
   * the settings this role needs are not left at their loopback defaults (--multi: the laptops are different machines)
   * the ports this role must serve are free to bind (or already served by you)
   * the peers this role must reach accept a TCP connection
@@ -22,7 +22,7 @@ import socket
 import sys
 from typing import Callable, List, Tuple
 
-from docs import hmac_auth, netconfig
+from core import hmac_auth, netconfig
 
 Check = Tuple[str, str, str]        # (status OK/FAIL/WARN/INFO, name, detail)
 

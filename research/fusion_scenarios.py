@@ -1,5 +1,5 @@
 """
-swat/fusion_scenarios.py - labelled scenario set for the orchestrator FUSION model (Phase 7).
+research/fusion_scenarios.py - labelled scenario set for the orchestrator FUSION model (Phase 7).
 
 THE KEY DESIGN POINT: the label is GROUND TRUTH, the model sees NOISY OBSERVATIONS.
   truth    : is the cyber layer truly failing? is the physical layer truly failing?  -> label by the four-branch table

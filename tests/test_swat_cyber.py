@@ -17,9 +17,9 @@ import time
 import numpy as np
 import pandas as pd
 
-from docs.interfaces import MV101, MV503, LIT101, P101, MACHINE_BY_REGISTER, make_command
+from core.interfaces import MV101, MV503, LIT101, P101, MACHINE_BY_REGISTER, make_command
 from models.cyber_model import CyberModel, CyberFeatureExtractor
-from models.train_cyber_swat import WEIGHTS_DIR, run
+from research.train_cyber_swat import WEIGHTS_DIR, run
 from swat.cyber_events import (ACTUATOR_COLUMNS, FEATURE_NAMES, EventFeatureStream, event_features, extract_events)
 from swat.loader import SwatDataError, load_stream
 from tests.swat_fixture import make_swat_archive

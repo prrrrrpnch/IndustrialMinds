@@ -17,7 +17,7 @@ import sys
 import time
 from typing import Dict, Optional
 
-from docs.interfaces import (
+from core.interfaces import (
     MACHINE_BY_REGISTER, SENSOR_REGISTERS, NUM_REGISTERS, MACHINES,
     P101, FIT201, AIT202, LIT301, LIT401, AIT402, PIT501, from_raw, to_raw,
 )
@@ -71,7 +71,7 @@ def run_sim(perturb: bool) -> Dict[int, float]:
 
 def run_live(time_scale: float) -> Dict[int, float]:
     from pymodbus.client import ModbusTcpClient
-    from docs import netconfig
+    from core import netconfig
     client = ModbusTcpClient(netconfig.PLC_HOST, port=netconfig.PLC_PORT)
     if not client.connect():
         print(f"cannot reach PLC at {netconfig.PLC_HOST}:{netconfig.PLC_PORT}")

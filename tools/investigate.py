@@ -22,7 +22,7 @@ import urllib.error
 import urllib.request
 from typing import Any, Dict, List, Optional
 
-from docs import netconfig
+from core import netconfig
 from middleware import investigator
 
 

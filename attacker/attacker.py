@@ -81,7 +81,7 @@ sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
 from pymodbus.client import ModbusTcpClient  # noqa: E402
 
-from docs.interfaces import (  # noqa: E402
+from core.interfaces import (  # noqa: E402
     MACHINES,
     NUM_REGISTERS,
     FRAME_BASE,
@@ -92,7 +92,7 @@ from docs.interfaces import (  # noqa: E402
     from_raw,
 )
 from attacker import scenarios  # noqa: E402
-from docs import hmac_auth, netconfig  # noqa: E402
+from core import hmac_auth, netconfig# noqa: E402
 
 
 MIDDLEWARE_HOST = netconfig.MIDDLEWARE_HOST   # env IM_MIDDLEWARE_HOST/PORT, --host/--port

@@ -19,7 +19,7 @@ import time
 
 os.environ.setdefault("IM_LOG_DIR", tempfile.mkdtemp(prefix="im-audit-"))
 
-from docs.interfaces import MACHINES  # noqa: E402
+from core.interfaces import MACHINES  # noqa: E402
 from middleware import middleware_server as mw  # noqa: E402
 from middleware import orchestrator  # noqa: E402
 

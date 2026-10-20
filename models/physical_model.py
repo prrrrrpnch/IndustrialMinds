@@ -29,7 +29,7 @@ from typing import Any, Deque, Dict, List, Mapping, Optional, Tuple, Union
 
 import numpy as np
 
-from docs.interfaces import MACHINE_BY_NAME, MACHINE_BY_REGISTER
+from core.interfaces import MACHINE_BY_NAME, MACHINE_BY_REGISTER
 from models.tree_inference import PackedForestRegressor, PackedIsolationForest
 from swat.physical_features import (ACTUATORS, FEATURE_NAMES, ON_THRESHOLD, SENSORS, VARIANTS, WINDOW, Norm, window_features)
 

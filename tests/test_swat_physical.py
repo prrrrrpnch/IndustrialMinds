@@ -16,10 +16,10 @@ import time
 import joblib
 import numpy as np
 
-from docs.interfaces import MACHINE_BY_NAME, make_command
+from core.interfaces import MACHINE_BY_NAME, make_command
 from models.physical_model import PhysicalModel
 from models.train_physical_swat import STRIDE, run
-from models.train_cyber_swat import WEIGHTS_DIR
+from research.train_cyber_swat import WEIGHTS_DIR
 from pipeline.multi_model_pipeline import MultiModelPipeline
 from swat.loader import load_stream
 from swat.physical_features import (ACTUATORS, FEATURE_NAMES, SENSORS, WINDOW, Norm, actuator_class_series, build_windows,

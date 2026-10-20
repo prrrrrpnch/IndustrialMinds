@@ -11,9 +11,9 @@ from __future__ import annotations
 import time
 from typing import Any, Dict, List, Optional
 
-from docs import hmac_auth
-from docs.interfaces import MACHINES, MACHINE_BY_REGISTER, make_command
-from docs.netconfig import LOOPBACK
+from core import hmac_auth
+from core.interfaces import MACHINES, MACHINE_BY_REGISTER, make_command
+from core.netconfig import LOOPBACK
 
 T0 = 1_800_000_000.0           # virtual epoch (fixed: reproducible)
 TRUSTED = LOOPBACK             # the default trusted source

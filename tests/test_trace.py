@@ -12,9 +12,9 @@ import time
 
 os.environ.setdefault("IM_LOG_DIR", tempfile.mkdtemp(prefix="im-trace-"))
 
-from docs import hmac_auth  # noqa: E402
-from docs.interfaces import MACHINES, MV101, P101, LIT101, make_command, to_raw  # noqa: E402
-from docs.netconfig import LOOPBACK  # noqa: E402
+from core import hmac_auth# noqa: E402
+from core.interfaces import MACHINES, MV101, P101, LIT101, make_command, to_raw  # noqa: E402
+from core.netconfig import LOOPBACK  # noqa: E402
 from middleware import cyber_agent, orchestrator, trace as tracer  # noqa: E402
 from pipeline.multi_model_pipeline import MultiModelPipeline  # noqa: E402
 
