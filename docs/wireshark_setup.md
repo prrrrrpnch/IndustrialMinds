@@ -26,6 +26,11 @@ cannot tell requests from responses (it reports "Cannot classify packet type") a
 |---|---|---|
 | Mac A (middleware leg) | Edit -> Preferences -> Protocols -> Modbus/TCP -> "Modbus/TCP port" = **5021** | `-o mbtcp.tcp.port:5021` |
 | Windows A (PLC leg) | same, = **5020** | `-o mbtcp.tcp.port:5020` |
+| one machine watching BOTH legs | same, = **5020,5021** (one range) | `-o mbtcp.tcp.port:5020,5021` |
+
+**Both legs in one capture:** give the preference a single range, `5020,5021`. Setting it twice (`-o mbtcp.tcp.port:5021
+-o mbtcp.tcp.port:5020`) does **not** work: the second value replaces the first, and frames on the other port are then shown as
+*"Unable to classify as query or response"* with no `modbus.reference_num`. Verified with tshark 4.2.2.
 
 (To look at the PLC leg from Mac A as well, open the same capture a second time with the port set to 5020.)
 

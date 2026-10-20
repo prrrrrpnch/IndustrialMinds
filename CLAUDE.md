@@ -77,7 +77,7 @@ Reference files are listed by path below; none are auto-loaded.
 - DECISION (P5 gate): cyber ML candidate NOT promoted. the old synthetic cyber weights were deleted; there are no cyber weights in models/weights.
 - Cyber ML = actuator STATE-CHANGE events (1/2 -> 0/100 %); it abstains on writes that don't flip on/off. Old 13-feature weights in models/weights are refused (schema mismatch -> NO_MODEL) until the SWaT candidate is promoted.
 - Guard hook only fires on EXECUTING a training script (python ... train*), not on reads; avoid heredocs whose text mentions weights paths / training commands (false positives) - write scripts with the Write tool.
-- Wireshark decodes Modbus only on port 502: use the PORT PREFERENCE (`-o mbtcp.tcp.port:5021`), NOT Decode As (it cannot classify requests/responses). tx_id is not on the wire; the frame nonce words are (shown in the tracer Arrival hop).
+- Wireshark decodes Modbus only on port 502: use the PORT PREFERENCE (`-o mbtcp.tcp.port:5021`), NOT Decode As (it cannot classify requests/responses). To watch BOTH legs in one capture pass ONE RANGE `-o mbtcp.tcp.port:5020,5021`: passing the flag twice makes the second value REPLACE the first and the other leg shows 'Unable to classify as query or response' with no modbus.reference_num (verified, tshark 4.2.2). tx_id is not on the wire; the frame nonce words are (shown in the tracer Arrival hop).
 - Laptop topology (user, P10): 4 laptops = Mac A middleware+dashboard+Wireshark, Windows A PLC+tshark, Mac B SCADA, Windows B attacker. IPs are NOT chosen yet (user sets them later; laptops unavailable): docs/topology.md uses placeholders; do NOT run `confirm.py ips` until the user gives addresses.
 
 ## File index (open only when relevant)
@@ -100,6 +100,7 @@ Reference files are listed by path below; none are auto-loaded.
 | `docs/netconfig.py` | any host/port/env-var question (single source for addresses) |
 | `docs/demo_workflow.md` | end-to-end roles/start order/attack/aftermath/recovery (`python -m scada.scada --restore`); dashboard has NO attack controls, Live Network Flow = `/api/flow` + `dashboard/static/flow.js` |
 | `docs/topology.md`, `docs/wireshark_setup.md` | Phase 10: 4-laptop roles, env vars, firewall rules, preflight; capture filters, field names, side-by-side demo (verified on loopback with tshark 4.2.2) |
+| `tools/sim_four_laptops.py`, `docs/reports/system_flow_verification.md` | ONE command (`python -m tools.sim_four_laptops [--no-capture] [--out <dir>]`) runs the whole 4-role demo on loopback (127.0.0.1 mw+dash / .2 PLC / .3 SCADA / .4 attacker / .9 rogue), captures BOTH legs with tshark + a pcapng, runs 9 phases, then cross-checks capture vs tracer (by nonce) vs blocked log vs dashboard flow and writes the verification report. ~6 min (120 s model warm-up). tests/test_sim_four_laptops.py |
 | `tools/check_topology.py`, `tools/wire_correlate.py` | per-laptop preflight (`--role ... --multi`, HMAC fingerprint); match tshark frames to tracer entries by nonce and cross-check PLC leg (tests: test_check_topology, test_wire_correlate) |
 | `docs/interfaces.py` | machines/registers/bounds, verdict/decision dict shapes, cross-register rules |
 | `docs/hmac_auth.py` | signed frame format, HMAC build/verify |
