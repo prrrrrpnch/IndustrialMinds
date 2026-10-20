@@ -79,6 +79,14 @@ def forward_trace_to_dashboard(trace: dict) -> None:
     _enqueue("/api/trace", trace)
 
 
+def forward_middleware_health(snapshot: dict) -> None:
+    """Heartbeat to the dashboard (AUDIT A6/N6): PLC reachability, dropped forwards, backlog.
+
+    The dashboard has no path to the PLC, so without this its /api/health can only speak for the Flask process. Sent
+    fire-and-forget like every other dashboard post - a slow dashboard must never delay the proxy."""
+    _enqueue("/api/middleware-health", snapshot)
+
+
 def forward_delivery_failure(tx_id: str, register_name: str, value: float, reason: str) -> None:
     """Correct an already-published PASS: the command was approved but never reached the PLC (AUDIT C1).
 

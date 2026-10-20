@@ -16,6 +16,7 @@ from __future__ import annotations
 
 import os
 import sys
+import ipaddress
 import threading
 import time
 from collections import OrderedDict, deque
@@ -61,6 +62,36 @@ _START_TIME = time.time()
 _DASHBOARD_TOKEN = os.environ.get("IM_DASHBOARD_TOKEN", "").strip()
 
 
+def is_loopback_bind(host: str) -> bool:
+    """Is this bind address reachable only from this machine?"""
+    host = (host or "").strip()
+    if host in ("localhost", ""):
+        return True
+    try:
+        return ipaddress.ip_address(host).is_loopback
+    except ValueError:
+        return False           # a hostname we cannot resolve to loopback is treated as exposed
+
+
+def check_bind_is_safe(host: str) -> Optional[str]:
+    """AUDIT S3: an open dashboard must never be put on a network.
+
+    The token has been supported for a while but was purely opt-in, so the documented multi-laptop setup
+    (IM_DASHBOARD_BIND_HOST=0.0.0.0) came up with every state-changing POST endpoint unauthenticated - /api/reset,
+    /api/security-event, /api/delivery - i.e. anyone on the lab network could erase the operator's record of an attack or
+    fabricate one. Binding off loopback now REQUIRES IM_DASHBOARD_TOKEN. Returns an error message, or None if the
+    combination is safe. Loopback is unchanged: no token needed for the one-laptop demo."""
+    if is_loopback_bind(host) or _DASHBOARD_TOKEN:
+        return None
+    return (
+        f"refusing to start: the dashboard would listen on {host}, which is reachable from the network, with NO "
+        f"authentication on its POST endpoints - anyone who can reach it could reset the operator's record of an attack "
+        f"or fabricate events.\n"
+        f"  Fix: set IM_DASHBOARD_TOKEN to the same value on the dashboard AND the middleware\n"
+        f"       (see GETTING_STARTED.md / config/lab.env.example), or bind to 127.0.0.1 for a one-laptop demo."
+    )
+
+
 @app.before_request
 def _require_token_for_writes():
     import hmac as _hmac
@@ -86,6 +117,7 @@ def health() -> Response:
         undelivered = _metrics["undelivered"]
         last_event = _scada_to_plc[0]["timestamp"] if _scada_to_plc else None
         model = dict(_model_card)
+        mw = dict(_middleware_health)
     status = "ok"
     degraded = []
     if undelivered:
@@ -94,6 +126,30 @@ def health() -> Response:
     if model and model.get("status") not in (None, "OK"):
         status = "degraded"
         degraded.append(f"physical model status {model.get('status')}")
+
+    # AUDIT A6/N6: the PLC leg. Only the middleware talks to the PLC, so the dashboard reports what the middleware last
+    # told it - and says so when the middleware itself has gone quiet, rather than implying a healthy plant.
+    age = (time.time() - mw["received_at"]) if mw.get("received_at") else None
+    if mw.get("received_at") is None:
+        plc = "not reported"
+        if _scada_to_plc:
+            status = "degraded"
+            degraded.append("the middleware has never reported its health")
+    elif age > MIDDLEWARE_HEALTH_STALE_S:
+        plc = "unknown"
+        status = "degraded"
+        degraded.append(f"no health report from the middleware for {age:.0f}s - is it still running?")
+    elif not mw.get("plc_connected"):
+        plc = "unreachable"
+        status = "degraded"
+        degraded.append(f"the middleware cannot reach the PLC "
+                        f"({mw.get('consecutive_poll_failures', 0)} consecutive failed polls)")
+    else:
+        plc = "connected"
+    if mw.get("dropped_forwards"):
+        status = "degraded"
+        degraded.append(f"{mw['dropped_forwards']} approved command(s) dropped - the forward queue overflowed")
+
     return jsonify({
         "status": status,
         "degraded": degraded,
@@ -102,8 +158,39 @@ def health() -> Response:
         "undelivered_commands": undelivered,
         "last_command_at": last_event,
         "physical_model": model.get("status") if model else "not reported",
+        "plc": plc,
+        "dropped_forwards": mw.get("dropped_forwards", 0),
+        "forward_backlog": mw.get("forward_backlog", 0),
+        "middleware_report_age_s": round(age, 1) if age is not None else None,
         "auth": "token" if _DASHBOARD_TOKEN else "open",
     })
+
+
+# How long a middleware health report stays meaningful. The middleware posts one every
+# MIDDLEWARE_HEALTH_INTERVAL (5 s), so three missed reports means something is wrong with the middleware itself.
+MIDDLEWARE_HEALTH_STALE_S = 20.0
+
+_middleware_health: Dict[str, Any] = {"received_at": None}
+
+
+@app.route("/api/middleware-health", methods=["POST"])
+def post_middleware_health() -> Response:
+    """Middleware -> dashboard heartbeat (AUDIT A6/N6): PLC reachability, dropped forwards, forward backlog.
+
+    The dashboard cannot reach the PLC itself, so without this /api/health could only ever answer for the Flask process.
+    A missing heartbeat is itself a degraded state (see health())."""
+    data = request.get_json(silent=True) or {}
+    with _lock:
+        _middleware_health.clear()
+        _middleware_health.update({
+            "plc_connected": bool(data.get("plc_connected")),
+            "consecutive_poll_failures": int(data.get("consecutive_poll_failures") or 0),
+            "dropped_forwards": int(data.get("dropped_forwards") or 0),
+            "undelivered": int(data.get("undelivered") or 0),
+            "forward_backlog": int(data.get("forward_backlog") or 0),
+            "received_at": time.time(),
+        })
+    return jsonify({"success": True})
 
 _scada_to_plc = deque(maxlen=MAX_EVENTS)
 _plc_to_scada = deque(maxlen=MAX_EVENTS)
@@ -804,8 +891,17 @@ if __name__ == "__main__":
                         help="bind port (env IM_DASHBOARD_PORT)")
     args = parser.parse_args()
 
+    _unsafe = check_bind_is_safe(args.host)
+    if _unsafe:
+        print(f"\n [FATAL] {_unsafe}\n")
+        raise SystemExit(2)
+
     print(
         f" Dashboard listening on: http://{args.host}:{args.port}"
+    )
+    print(
+        f" POST /api/* auth: "
+        + ("shared token (IM_DASHBOARD_TOKEN)" if _DASHBOARD_TOKEN else "open (loopback only)")
     )
     print(
         " Security API: "

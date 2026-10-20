@@ -33,7 +33,7 @@
   {
    "check": "PLC down: /api/health degrades instead of saying ok",
    "pass": true,
-   "detail": "degraded ['2 command(s) approved but never delivered to the PLC']"
+   "detail": "degraded ['2 command(s) approved but never delivered to the PLC', 'the middleware cannot reach the PLC (3 consecutive failed polls)']"
   },
   {
    "check": "PLC down: the middleware logs UNDELIVERED with the tx id",
@@ -43,7 +43,7 @@
   {
    "check": "pymodbus does not flood the log (baseline was 99 lines in 30 s)",
    "pass": true,
-   "detail": "2 pymodbus line(s)"
+   "detail": "1 pymodbus line(s)"
   },
   {
    "check": "recovery: commands are PASS again",
@@ -63,12 +63,12 @@
   {
    "check": "offline: the CPU chart actually drew pixels (was a blank box)",
    "pass": true,
-   "detail": "6108 non-transparent pixels"
+   "detail": "16259 non-transparent pixels"
   },
   {
    "check": "offline: the chart canvas has real size",
    "pass": true,
-   "detail": "{'x': 39, 'y': 2212.8125, 'width': 300, 'height': 150}"
+   "detail": "{'x': 39, 'y': 2212.8125, 'width': 734, 'height': 220}"
   }
  ]
 }

@@ -45,6 +45,12 @@ $SCADA_IP    = Get-Cfg 'SCADA_IP'    '127.0.0.1'
 $ATTACKER_IP = Get-Cfg 'ATTACKER_IP' '127.0.0.1'
 $DASH_BIND   = Get-Cfg 'DASHBOARD_BIND_HOST' '127.0.0.1'
 $SECRET      = Get-Cfg 'HMAC_SECRET' ''
+$DASH_TOKEN  = Get-Cfg 'DASHBOARD_TOKEN' ''
+
+# The dashboard refuses to start on a network address without a token, so pass it through to both ends that need it.
+function Set-DashToken {
+    if ($DASH_TOKEN) { $env:IM_DASHBOARD_TOKEN = $DASH_TOKEN }
+}
 
 $py = 'python'
 
@@ -63,6 +69,7 @@ switch ($Role) {
     }
     'dashboard' {
         $env:IM_DASHBOARD_BIND_HOST = $DASH_BIND
+        Set-DashToken
         & $py dashboard/app.py @Rest
     }
     'middleware' {
@@ -71,6 +78,7 @@ switch ($Role) {
         $env:IM_HOST_LABELS = "$SCADA_IP=SCADA operator,$ATTACKER_IP=Attacker laptop"
         # auto-quarantine: ON for a multi-laptop run, switched OFF by itself when every address is loopback (one-laptop demo)
         if (-not $env:IM_QUARANTINE) { $env:IM_QUARANTINE = "auto" }
+        Set-DashToken
         Set-Secret
         & $py -m middleware.middleware_server @Rest
     }

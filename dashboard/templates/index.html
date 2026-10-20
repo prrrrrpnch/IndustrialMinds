@@ -48,14 +48,18 @@
 
             <div class="header-actions">
 
-                <div class="status-indicator">
+                <!-- AUDIT N6: this badge used to be the literal text ONLINE, hardcoded in the markup. It said ONLINE
+                     with the PLC dead and commands failing to deliver. It is now driven by GET /api/health. -->
+                <div class="status-indicator" id="systemStatus" title="system health">
 
-                    <span class="status-dot"></span>
+                    <span class="status-dot" id="systemStatusDot"></span>
 
                     <span>
                         System Status:
-                        <strong>ONLINE</strong>
+                        <strong id="systemStatusText">CHECKING</strong>
                     </span>
+
+                    <span class="status-detail" id="systemStatusDetail"></span>
 
                 </div>
 

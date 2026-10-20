@@ -42,6 +42,7 @@ Blocked attacks:
 from __future__ import annotations
 
 import asyncio
+import queue
 import contextvars
 import gc
 import logging
@@ -109,6 +110,9 @@ DASHBOARD_URL = netconfig.DASHBOARD_URL
 
 # PLC is checked frequently for real feedback.
 POLL_INTERVAL = 0.2
+# AUDIT C4: back off while the PLC is unreachable instead of hammering it 5x/s forever.
+POLL_BACKOFF_AFTER = int(os.environ.get("IM_POLL_BACKOFF_AFTER", "3"))     # consecutive failures before backing off
+POLL_BACKOFF_MAX = float(os.environ.get("IM_POLL_BACKOFF_MAX_S", "5.0"))   # ceiling, so recovery is still noticed quickly
 
 # Dashboard telemetry does not need to be sent every
 # PLC polling cycle.
@@ -210,6 +214,47 @@ _register_settled_since = {
 
 
 _plc_client: ModbusTcpClient | None = None
+
+# Every call on _plc_client is serialised here (AUDIT A3/C2). pymodbus happens to hold an internal RLock around a
+# transaction, but that is a library implementation detail; two of OUR threads now share this client (the poll loop and the
+# forwarder below), so the mutual exclusion is made explicit and ours.
+_plc_io_lock = threading.RLock()
+
+# -----------------------------------------------------
+# AUDIT C2 (structural fix): the forward runs on a worker, not on the asyncio event loop.
+#
+# pymodbus calls setValues from the single event-loop thread, and the forward was a BLOCKING socket write on that thread.
+# A PLC that accepts TCP but never answers therefore stalled every SCADA client at once, not just the one issuing the
+# command: measured 2,002 ms/command before the timeout fix, ~504 ms after it. Bounding the timeout limited the damage;
+# it did not remove it. Handing the forward to a worker does: the event loop returns as soon as the verdict is published.
+#
+# ONE worker, not a pool: Modbus writes to the same register must keep their order, and a pool would reorder them.
+# The queue is bounded - a dead PLC must not let the backlog grow without limit - and a full queue is reported as an
+# undelivered command, never silently dropped.
+# -----------------------------------------------------
+FORWARD_QUEUE_MAX = int(os.environ.get("IM_FORWARD_QUEUE", "200"))
+_forward_queue: "queue.Queue[Optional[Dict[str, Any]]]" = queue.Queue(maxsize=FORWARD_QUEUE_MAX)
+_forward_thread: Optional[threading.Thread] = None
+
+# What the middleware knows about its own health, for /api/health (AUDIT A6/N6). Guarded by _state_lock.
+_health = {
+    "plc_connected": False,          # did the last PLC poll succeed?
+    "consecutive_poll_failures": 0,
+    "last_plc_ok": 0.0,
+    "dropped_forwards": 0,           # approved commands the forwarder queue could not even accept
+    "undelivered": 0,                # approved commands the PLC did not take
+    "forward_backlog": 0,
+}
+
+
+def health_snapshot() -> Dict[str, Any]:
+    """A copy of the middleware's self-reported health (AUDIT A6/N6)."""
+    with _state_lock:
+        snap = dict(_health)
+    snap["forward_backlog"] = _forward_queue.qsize()
+    snap["last_plc_ok_age_s"] = (round(time.time() - snap["last_plc_ok"], 1)
+                                 if snap["last_plc_ok"] else None)
+    return snap
 
 _last_telemetry_report = 0.0
 
@@ -514,45 +559,108 @@ def _handle_downstream_write(
     # Forward approved command to REAL PLC
     # -----------------------------------------------------
 
-    success = _forward_to_plc(
-        register,
-        value
+    # -----------------------------------------------------
+    # Hand the approved command to the forwarder thread and return (AUDIT C2).
+    #
+    # The decision is already made and published; what is left is blocking socket I/O, and it must not run on the event
+    # loop. The trace and the delivery outcome are published by the worker once it knows whether the PLC took the write.
+    # -----------------------------------------------------
+
+    job = {
+        "register": register,
+        "register_name": register_name,
+        "value": value,
+        "tx_id": tx_id,
+        "report": report,
+        "alert": decision["verdict"] == "ALERT",
+    }
+
+    try:
+
+        _forward_queue.put_nowait(job)
+
+    except queue.Full:
+
+        # The PLC has been unreachable long enough to fill the backlog. This is still an approved command that the plant
+        # never received, so it is reported exactly like one the PLC refused - never dropped in silence.
+        with _state_lock:
+            _health["dropped_forwards"] += 1
+            dropped = _health["dropped_forwards"]
+
+        log.error(
+            f"[MIDDLEWARE] FORWARD QUEUE FULL ({FORWARD_QUEUE_MAX}) - "
+            f"dropping {register_name}={value:.2f} tx={tx_id}; "
+            f"{dropped} approved command(s) dropped so far. The PLC is not keeping up or is unreachable."
+        )
+
+        _report_undelivered(job, "FORWARD_QUEUE_FULL: approved, but the PLC backlog was full and the command was dropped")
+
+
+def _report_undelivered(job: Dict[str, Any], reason: str) -> None:
+    """AUDIT C1: a command the PLC never received is NOT a PASS.
+
+    The verdict was decided and published before the forward was attempted. With the PLC unreachable the operator saw a
+    green PASS for a setpoint that was never applied - the classic control-room failure where the HMI and the plant
+    disagree and the operator believes the HMI. Correct the record."""
+
+    with _state_lock:
+
+        _pending_commands.pop(job["register"], None)
+        _health["undelivered"] += 1
+
+    log.warning(
+        f"[MIDDLEWARE] UNDELIVERED "
+        f"{job['register_name']}={job['value']:.2f} "
+        f"tx={job['tx_id']} - approved by the agents but the PLC did not accept it; "
+        f"the operator view has been corrected"
     )
 
-    _publish_trace(report, forwarded=success, logged_to=None,
-                   note=("forwarded with an advisory ALERT" if decision["verdict"] == "ALERT" else "") if success
+    orchestrator.forward_delivery_failure(
+        tx_id=job["tx_id"],
+        register_name=job["register_name"],
+        value=job["value"],
+        reason=reason
+    )
+
+
+def _forward_job(job: Dict[str, Any]) -> bool:
+    """Run one queued forward to completion: write, trace, and correct the operator view on failure."""
+
+    success = _forward_to_plc(
+        job["register"],
+        job["value"]
+    )
+
+    _publish_trace(job["report"], forwarded=success, logged_to=None,
+                   note=("forwarded with an advisory ALERT" if job["alert"] else "") if success
                    else "the agents approved this command but it never reached the PLC")
 
-    # -----------------------------------------------------
-    # AUDIT C1: a command the PLC never received is NOT a PASS.
-    #
-    # The verdict was decided and published before the forward was attempted, and _forward_to_plc's return value used to be
-    # discarded. With the PLC unreachable the operator saw a green PASS for a setpoint that was never applied - the classic
-    # control-room failure where the HMI and the plant disagree and the operator believes the HMI. Correct the record.
-    # -----------------------------------------------------
-
     if not success:
+        _report_undelivered(job, "PLC_UNREACHABLE: approved, but the PLC did not accept the write")
 
-        with _state_lock:
+    return success
 
-            _pending_commands.pop(
-                register,
-                None
-            )
 
-        log.warning(
-            f"[MIDDLEWARE] UNDELIVERED "
-            f"{register_name}={value:.2f} "
-            f"tx={tx_id} - approved by the agents but the PLC did not accept it; "
-            f"the operator view has been corrected"
-        )
+def _forward_worker() -> None:
+    """The single FIFO forwarder (AUDIT C2). Never dies: one bad job must not strand every later command."""
 
-        orchestrator.forward_delivery_failure(
-            tx_id=tx_id,
-            register_name=register_name,
-            value=value,
-            reason="PLC_UNREACHABLE: approved, but the PLC did not accept the write"
-        )
+    while True:
+
+        job = _forward_queue.get()
+
+        if job is None:            # shutdown sentinel
+            return
+
+        try:
+            _forward_job(job)
+        except Exception as exc:                                  # pragma: no cover - defensive
+            log.exception(f"[MIDDLEWARE] forwarder failed on tx={job.get('tx_id')}: {exc}")
+            try:
+                _report_undelivered(job, f"FORWARD_ERROR: {exc}")
+            except Exception:
+                pass
+        finally:
+            _forward_queue.task_done()
 
 
 # =========================================================
@@ -679,10 +787,12 @@ def _forward_to_plc(
 
     try:
 
-        result = _plc_client.write_register(
-            register,
-            _to_raw(value)
-        )
+        with _plc_io_lock:
+
+            result = _plc_client.write_register(
+                register,
+                _to_raw(value)
+            )
 
         if result.isError():
 
@@ -956,17 +1066,22 @@ def _poll_once(
         # Read REAL PLC
         # -------------------------------------------------
 
-        if not _plc_client.is_socket_open():
+        with _plc_io_lock:
 
-            _plc_client.connect()
+            if not _plc_client.is_socket_open():
 
-        result = _plc_client.read_holding_registers(
-            0,
-            count=NUM_REGISTERS
-        )
+                _plc_client.connect()
+
+            result = _plc_client.read_holding_registers(
+                0,
+                count=NUM_REGISTERS
+            )
 
         if result.isError():
+            _note_poll_failure()
             return
+
+        _note_poll_success()
 
         raws = result.registers
 
@@ -1118,6 +1233,8 @@ def _poll_once(
 
     except Exception as e:
 
+        _note_poll_failure()
+
         # The poll runs every 0.2 s; if the PLC laptop is down or unreachable
         # this would flood the log 5x/second. Rate-limit to one actionable
         # line every POLL_ERROR_LOG_INTERVAL seconds, and say what to check.
@@ -1138,6 +1255,54 @@ def _poll_once(
 # POLLING LOOP
 # =========================================================
 
+def _note_poll_success() -> None:
+    with _state_lock:
+        _health["plc_connected"] = True
+        _health["consecutive_poll_failures"] = 0
+        _health["last_plc_ok"] = time.time()
+
+
+def _note_poll_failure() -> None:
+    with _state_lock:
+        _health["plc_connected"] = False
+        _health["consecutive_poll_failures"] += 1
+
+
+def _poll_delay() -> float:
+    """How long to wait before the next poll (AUDIT C4).
+
+    While the PLC answers, this is the normal 0.2 s cadence. While it does not, the interval doubles up to
+    POLL_BACKOFF_MAX: against a dead PLC the fixed 0.2 s retry made ~18,000 connection attempts an hour, each one a
+    timeout-bounded socket operation holding _plc_io_lock, which is both pointless load and a self-inflicted delay on the
+    forwarder. Backoff is capped so recovery is still detected within a few seconds, and reset to 0.2 s by the first
+    successful read."""
+
+    with _state_lock:
+        failures = _health["consecutive_poll_failures"]
+
+    if failures <= POLL_BACKOFF_AFTER:
+        return POLL_INTERVAL
+
+    return min(POLL_INTERVAL * (2 ** (failures - POLL_BACKOFF_AFTER)), POLL_BACKOFF_MAX)
+
+
+# How often the middleware tells the dashboard what it knows about the PLC (AUDIT A6/N6).
+MIDDLEWARE_HEALTH_INTERVAL = 5.0
+_last_health_report = 0.0
+
+
+def _report_health_if_due() -> None:
+    global _last_health_report
+    now = time.time()
+    if now - _last_health_report < MIDDLEWARE_HEALTH_INTERVAL:
+        return
+    _last_health_report = now
+    try:
+        orchestrator.forward_middleware_health(health_snapshot())
+    except Exception:                                             # pragma: no cover - never let telemetry break the poll
+        pass
+
+
 def _poll_plc_loop(
     block: "MiddlewareDataBlock"
 ) -> None:
@@ -1146,8 +1311,10 @@ def _poll_plc_loop(
 
         _poll_once(block)
 
+        _report_health_if_due()
+
         time.sleep(
-            POLL_INTERVAL
+            _poll_delay()
         )
 
 
@@ -1177,6 +1344,11 @@ def start_middleware_server(
         timeout=PLC_IO_TIMEOUT_S,
         retries=PLC_IO_RETRIES
     )
+
+    global _forward_thread
+    if _forward_thread is None or not _forward_thread.is_alive():
+        _forward_thread = threading.Thread(target=_forward_worker, name="plc-forwarder", daemon=True)
+        _forward_thread.start()
 
     if not _plc_client.connect():
 

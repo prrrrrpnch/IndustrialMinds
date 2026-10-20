@@ -96,6 +96,22 @@ body {
     background-color: var(--color-pass);
 }
 
+/* AUDIT N6: the health badge has to be able to look unhealthy. */
+.status-dot.degraded { background-color: var(--color-alert, #d9a406); }
+.status-dot.offline  { background-color: var(--color-drop, #d64545); }
+
+.status-detail {
+    font-size: 11px;
+    opacity: 0.85;
+    max-width: 420px;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+}
+
+#systemStatus.degraded strong { color: var(--color-alert, #d9a406); }
+#systemStatus.offline  strong { color: var(--color-drop, #d64545); }
+
 /* Common Card */
 .card {
     background-color: var(--bg-card);
