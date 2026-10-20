@@ -63,7 +63,7 @@
   {
    "check": "offline: the CPU chart actually drew pixels (was a blank box)",
    "pass": true,
-   "detail": "16259 non-transparent pixels"
+   "detail": "14853 non-transparent pixels"
   },
   {
    "check": "offline: the chart canvas has real size",

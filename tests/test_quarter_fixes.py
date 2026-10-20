@@ -227,6 +227,8 @@ stale = []
 for rel in tracked:
     if not rel.endswith(".py") or rel.startswith("final-results/before-review/"):
         continue
+    if rel == "tests/test_quarter_fixes.py":
+        continue                      # this file contains the patterns it is searching for
     t = io.open(os.path.join(ROOT, rel), encoding="utf-8").read()
     if "from docs import" in t or "from docs." in t or "import docs." in t:
         stale.append(rel)

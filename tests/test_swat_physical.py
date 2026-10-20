@@ -160,6 +160,7 @@ os.unlink(fh.name)
 
 print("\nPIPELINE INTEGRATION WITH AN 'OK' PHYSICAL MODEL")
 import middleware.middleware_server as mw  # noqa: E402
+import middleware.polling as polling  # noqa: E402   (AUDIT A1: the poll path lives here now)
 pipe = MultiModelPipeline(physical_model=PhysicalModel.load(os.path.join(out, "physical_model.joblib")))
 state_regs = {m["name"]: float(m["initial"]) for m in MACHINE_BY_NAME.values()}
 for i in range(WINDOW + 2):
@@ -177,23 +178,23 @@ except Exception as exc:
 
 print("\nUPSTREAM ENVELOPE ALERT (middleware)")
 calls = []
-_orig_decide = mw.orchestrator.decide
-mw.orchestrator.decide = lambda cv, pv, st=None: calls.append((cv, pv)) or {}
+_orig_decide = polling.orchestrator.decide
+polling.orchestrator.decide = lambda cv, pv, st=None: calls.append((cv, pv)) or {}
 try:
-    mw._last_envelope_alert.clear()
+    polling._last_envelope_alert.clear()
     tele = {m["name"]: m["initial"] for m in MACHINE_BY_NAME.values()}
-    mw._check_upstream_envelope(dict(tele), 1000.0)
+    polling._check_upstream_envelope(dict(tele), 1000.0)
     check("nominal telemetry raises no upstream alert", calls == [])
     bad_t = dict(tele, LIT301=5000.0)
-    mw._check_upstream_envelope(dict(bad_t), 1000.0)
+    polling._check_upstream_envelope(dict(bad_t), 1000.0)
     check("an out-of-envelope sensor raises ONE upstream DROP decision (cyber verdict None = upstream path)",
           len(calls) == 1 and calls[0][0] is None and calls[0][1]["pass"] is False and "LIT301" in calls[0][1]["reason"])
-    mw._check_upstream_envelope(dict(bad_t), 1010.0)
+    polling._check_upstream_envelope(dict(bad_t), 1010.0)
     check("the same sensor is rate-limited (no second alert within the interval)", len(calls) == 1)
-    mw._check_upstream_envelope(dict(bad_t), 1000.0 + mw.ENVELOPE_ALERT_INTERVAL + 1)
+    polling._check_upstream_envelope(dict(bad_t), 1000.0 + polling.ENVELOPE_ALERT_INTERVAL + 1)
     check("...and alerts again after the interval", len(calls) == 2)
 finally:
-    mw.orchestrator.decide = _orig_decide
+    polling.orchestrator.decide = _orig_decide
 
 print("\nALL PASS" if fails == 0 else f"\n{fails} CHECK(S) FAILED")
 raise SystemExit(1 if fails else 0)

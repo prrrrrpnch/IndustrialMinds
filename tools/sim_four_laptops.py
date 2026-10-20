@@ -214,6 +214,12 @@ def cross_check(out: str, snapshot: Dict[str, Any]) -> Dict[str, Any]:
         if os.path.exists(plc_tsv):
             bypass = [r for r in wc._rows(plc_tsv) if r["src"] not in (MW, PLC) and r["func"] in ("6", "16")]
             res["bypass_writes_on_plc_leg"] = bypass
+    # AUDIT S1: the PLC now refuses a write from anything but the middleware, so the bypass frame is on the wire AND
+    # refused at the plant. Read that from the PLC's own log - it is the fourth record this cross-check can compare.
+    plc_log = os.path.join(out, "plc.log")
+    if os.path.exists(plc_log):
+        refusals = [l.strip() for l in open(plc_log, errors="replace") if "REFUSED direct write" in l]
+        res["plc_refused_writes"] = {"count": len(refusals), "lines": refusals[:5]}
     log_path = os.path.join(out, "blocked_attacks.jsonl")
     if os.path.exists(log_path):
         recs = [json.loads(l) for l in open(log_path) if l.strip()]
@@ -263,8 +269,20 @@ def render(snapshot: Dict[str, Any], checks: Dict[str, Any], out: str) -> str:
               (f"{len(bp)} write(s) reached the PLC from an address that is neither the middleware nor the PLC itself: "
                + ", ".join(f"frame {b['frame']} from {b['src']} (func {b['func']}, register {b['reference']})" for b in bp)
                if bp else "No direct-to-PLC writes in this run."), "",
-              "An inline control only protects the path through it. This write never appears on the middleware leg, so no rule could "
-              "have stopped it; it shows up afterwards in the plant's own behaviour and in the sensor-envelope rule.", ""]
+              "An inline control only protects the path through it: this write never appears on the middleware leg, so no "
+              "rule in the middleware could have seen it, let alone stopped it.", ""]
+        ref = checks.get("plc_refused_writes") or {}
+        if ref.get("count"):
+            L += [f"**The PLC refused it (AUDIT S1).** {ref['count']} direct write(s) were rejected at the plant because the "
+                  f"source is not an allowed writer, so the frame is on the wire but the plant never moved:", ""]
+            L += [f"    {line}" for line in ref["lines"]] + [""]
+            L += ["This is defence in depth, not a replacement for segmentation - a writer that can spoof the middleware's "
+                  "source address still gets through, and the physical model and the sensor-envelope rule remain the "
+                  "after-the-fact detection for that case. Set `IM_PLC_ALLOWED_WRITERS=any` to demonstrate the "
+                  "unprotected behaviour.", ""]
+        else:
+            L += ["The PLC did **not** refuse it: `IM_PLC_ALLOWED_WRITERS` is off or allows this source. The write shows up "
+                  "afterwards in the plant's own behaviour and in the sensor-envelope rule, not inline.", ""]
     bl = checks.get("blocked_log")
     if bl:
         L += ["## Cross-check: the blocked-attack log", "",

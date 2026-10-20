@@ -186,8 +186,8 @@ replay protection.
 
 | # | Smell | Location | Verdict |
 |---|---|---|---|
-| A1 | **God module** — 1,229 LOC owning server, datastore hook, pipeline, PLC client, poll loop, logging, CLI | `middleware_server.py` | split: `transport/`, `forwarding/`, `polling/` |
-| A2 | **Business logic in a storage hook** — the entire security pipeline runs as a side effect of `setValues()` | `:260` | the write handler should enqueue, not decide |
+| A1 | **God module** — 1,229 LOC owning server, datastore hook, pipeline, PLC client, poll loop, logging, CLI | `middleware_server.py` | split: `transport/`, `forwarding/`, `polling/` — **DONE**, see below |
+| A2 | **Business logic in a storage hook** — the entire security pipeline runs as a side effect of `setValues()` | `:260` | the write handler should enqueue, not decide — **DONE**, see below |
 | A3 | **Shared mutable client across threads** — one sync `ModbusTcpClient` used by the poll thread and the event loop | `:212, 616, 897` | safe *only* via pymodbus's internal `RLock`. Undocumented dependency on a third-party implementation detail. Give each a client, or own the lock |
 | A4 | **State in the view layer** — traces/incidents/investigations exist only in the Flask process | `dashboard/app.py` | restart = total forensic loss |
 | A5 | **2¹¹ configurations, 1 tested** — eleven opt-in env flags, all off by default | everywhere | the shipped default has *no* security controls active |
@@ -221,7 +221,8 @@ evidence is right. Keeping it on the import path of a control system is not.
 
 Each stated as an exploit, not a category.
 
-**S1 — CRITICAL — Bypass the middleware entirely.** *I am on the OT segment. I open a TCP socket to the PLC on :5020 and write
+**S1 — CRITICAL — Bypass the middleware entirely.** *(RESOLVED — see item 12 in the roadmap; the PLC now refuses writes
+from anything but the middleware, by default, and logs the attempt.)* *I am on the OT segment. I open a TCP socket to the PLC on :5020 and write
 FC6 register 0 = 0. The inlet valve slams shut.* No signature, no rule, no log, no trace — the middleware never saw it.
 Demonstrated: frame 2018 in `system_flow_verification.md`. **Mitigation:** the PLC must refuse writes from anything but the
 middleware's address, or sit on a segment only the middleware can route to. Currently neither.
@@ -245,7 +246,8 @@ proposition is **visibility**, an unauthenticated write channel into the view is
 > middleware, and `config/lab.env.example` + `GETTING_STARTED.md` say the token is required, not optional, off loopback.
 > Pinned by `tests/test_sprint_fixes.py`.
 
-**S4 — MEDIUM — Spoof your way past the whitelist, then weaponise the response.** Trust is source-IP based. On a flat L2 lab,
+**S4 — MEDIUM — Spoof your way past the whitelist, then weaponise the response.** *(RESOLVED — see item 13; strikes are
+only ever recorded for commands that passed HMAC verification, and the quarantine check moved after authentication.)* Trust is source-IP based. On a flat L2 lab,
 ARP spoofing gets me SCADA's address. Worse: *with `IM_QUARANTINE` on, I spoof the operator's address, send six forged
 frames, and the middleware quarantines **the real SCADA** for 60 s — doubling on repeat.* The response mechanism becomes a
 denial-of-service lever against the legitimate operator. **Mitigation:** quarantine on authenticated identity (per-device key),
@@ -370,12 +372,36 @@ event loop, which is item 6 below.
 Evidence: `tests/test_sprint_fixes.py` (40 operator-level checks), `final-results/_verify_fixes.py` (14/14 live, including
 the new "the middleware cannot reach the PLC" signal and recovery), and the re-measured C2 table above.
 
-**Do next quarter (architectural):**
-10. Split `middleware_server.py`; move the pipeline out of the datastore hook.
-11. Move `research/` out of `models/` and `swat/`; rename `docs/` to `core/` (it is source).
-12. S1 — bind the PLC to accept writes only from the middleware.
-13. S4 — key quarantine to authenticated identity, not source address.
-14. Persist traces and incidents outside the UI process.
+**Do next quarter (architectural):** — **all five DONE**.
+
+10. ~~Split `middleware_server.py`; move the pipeline out of the datastore hook.~~ **DONE.**
+    `middleware_server.py` 1,478 -> **424 lines**, now the SCADA-facing transport and the CLI only. The rest is
+    `runtime.py` (159: config, shared state, conversion — the bottom layer, imports no sibling), `forwarding.py` (200:
+    PLC client, I/O lock, forward queue + worker), `ingest.py` (458: the decision path), `polling.py` (509: the PLC read
+    path). No module is over 600 lines.
+    **A2:** `MiddlewareDataBlock.setValues` now calls `ingest.submit()` and returns. The pipeline no longer runs as a side
+    effect of a storage call on the asyncio event loop. One decision worker, because the rate limit, the replay window and
+    the cross-register rules are all order-dependent; a bounded queue that fails **closed** and is counted.
+    The arrival time is captured at `submit()` and threaded through, so moving the decision off the hot path cannot change
+    what the decision IS — that is the trap in this refactor, and it is pinned by a test.
+    The old names are re-exported from `middleware_server`, with a comment saying a re-export is a snapshot of a binding
+    (patch the owning module, not the facade) — because that is exactly the kind of quiet divergence a facade invites.
+11. ~~Move `research/` out of `models/` and `swat/`; rename `docs/` to `core/` (it is source).~~ **DONE**, with one
+    deliberate change to the instruction: `docs/` was not renamed, because it is not all source. The four source modules
+    moved to `core/` and `docs/` kept the documentation (and stopped being a package). `swat/cyber_events.py` also stayed:
+    the audit listed it, but `models/cyber_model.py` imports it live, and this same audit credits shared train/serve
+    feature code as the best defence against skew.
+12. ~~S1 — bind the PLC to accept writes only from the middleware.~~ **DONE** — proven live: the bypass write is refused
+    and the plant does not move.
+13. ~~S4 — key quarantine to authenticated identity, not source address.~~ **DONE** — 40 forged frames spoofing an address
+    now quarantine nobody, and the spoofed device's next signed command passes.
+14. ~~Persist traces and incidents outside the UI process.~~ **DONE** — JSONL under `IM_LOG_DIR`, replayed at startup;
+    verified by killing the dashboard process and demanding the record back, UNDELIVERED corrections included.
+
+Evidence: `tests/test_quarter_fixes.py` (56 checks), the rewritten quarantine sections of `tests/test_response_layer.py`
+and `benchmark/evidence_pack.py`, the A1/A2 section of `tests/test_sprint_fixes.py`, `final-results/_verify_fixes.py`
+(14/14 live) and a full `tools.sim_four_laptops` run after the split: **24 signed frames captured, 24 consistent with the
+tracer, 0 mismatches**, plus the PLC's own refusal of the bypass frame as a fourth cross-checked record.
 
 ## 7. Metrics verdict
 

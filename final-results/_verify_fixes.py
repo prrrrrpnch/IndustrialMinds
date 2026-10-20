@@ -12,7 +12,9 @@ import urllib.request
 ROOT = "/home/user/IndustrialMinds"
 OUT = os.path.join(ROOT, "final-results", "after-fixes")
 SHOTS = os.path.join(OUT, "screenshots")
-RUN = os.path.join(OUT, "_run")
+# A FRESH run directory each time. The dashboard now replays its forensic record from IM_LOG_DIR at startup (AUDIT A4),
+# so reusing one directory would make this run start with the previous run's UNDELIVERED commands already counted.
+RUN = os.path.join(OUT, "_run", time.strftime("%Y%m%d-%H%M%S"))
 for d in (OUT, SHOTS, RUN):
     os.makedirs(d, exist_ok=True)
 ENV = dict(os.environ, PYTHONPATH=ROOT, PYTHONUNBUFFERED="1", IM_LOG_DIR=RUN,
