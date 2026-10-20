@@ -20,6 +20,7 @@ import time
 os.environ.setdefault("IM_LOG_DIR", tempfile.mkdtemp(prefix="im-audit-"))
 
 from core.interfaces import MACHINES  # noqa: E402
+from middleware import forwarding as fwd  # noqa: E402
 from middleware import middleware_server as mw  # noqa: E402
 from middleware import orchestrator  # noqa: E402
 
@@ -43,7 +44,11 @@ check("the middleware has a channel to correct an already-published PASS",
 check("the correction names the command and says it was not delivered",
       sent[0][1]["delivered"] is False and sent[0][1]["tx_id"] == "tx-abc" and sent[0][1]["command"] == "P101")
 
-src = io.open(os.path.join(ROOT, "middleware", "middleware_server.py")).read()
+# AUDIT A1 split the middleware into runtime/forwarding/ingest/polling + the transport. These checks are about what the
+# MIDDLEWARE does, not about which file it is in, so they read the package.
+import glob  # noqa: E402
+MW_FILES = sorted(glob.glob(os.path.join(ROOT, "middleware", "*.py")))
+src = "\n".join(io.open(f).read() for f in MW_FILES)
 check("the forward's return value is used, not discarded", "success = _forward_to_plc(" in src and "if not success:" in src)
 check("a failed forward logs UNDELIVERED with the transaction id",
       "UNDELIVERED" in src and "forward_delivery_failure(" in src)
@@ -82,9 +87,9 @@ check("reset clears the undelivered counter too", c.get("/api/dashboard").get_js
 
 print("\nC2 - PLC I/O must be bounded, so one dead PLC cannot stall the proxy")
 check("the PLC client has an explicit timeout, not the 3 s library default",
-      "timeout=PLC_IO_TIMEOUT_S" in src and mw.PLC_IO_TIMEOUT_S <= 1.0, f"{mw.PLC_IO_TIMEOUT_S}s")
+      "timeout=PLC_IO_TIMEOUT_S" in src and fwd.PLC_IO_TIMEOUT_S <= 1.0, f"{fwd.PLC_IO_TIMEOUT_S}s")
 check("retries are pinned, so a timeout cannot be multiplied by the library default of 3",
-      "retries=PLC_IO_RETRIES" in src and mw.PLC_IO_RETRIES <= 2, f"{mw.PLC_IO_RETRIES}")
+      "retries=PLC_IO_RETRIES" in src and fwd.PLC_IO_RETRIES <= 2, f"{fwd.PLC_IO_RETRIES}")
 check("both are tunable for a slow link", "IM_PLC_TIMEOUT_S" in src and "IM_PLC_RETRIES" in src)
 
 print("\nC3 - a library must not be able to flood the operator's log")

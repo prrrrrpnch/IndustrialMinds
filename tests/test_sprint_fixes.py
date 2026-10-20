@@ -26,7 +26,11 @@ os.environ.setdefault("IM_LOG_DIR", tempfile.mkdtemp(prefix="im-sprint-"))
 from core import hmac_auth# noqa: E402
 from core.interfaces import MACHINE_BY_NAME  # noqa: E402
 from middleware import cyber_agent  # noqa: E402
+from middleware import forwarding as fwd  # noqa: E402
+from middleware import ingest  # noqa: E402
 from middleware import middleware_server as mw  # noqa: E402
+from middleware import polling  # noqa: E402
+from middleware import runtime  # noqa: E402
 
 fails = 0
 
@@ -38,7 +42,13 @@ def check(name: str, cond: bool, detail: str = "") -> None:
 
 
 ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
-MW_SRC = io.open(os.path.join(ROOT, "middleware", "middleware_server.py")).read()
+# AUDIT A1 split the middleware; these checks are about what the MIDDLEWARE does, so they read the package, and name the
+# owning module where the point of a check is where the code lives.
+import glob  # noqa: E402
+MW_SRC = "\n".join(io.open(f).read() for f in sorted(glob.glob(os.path.join(ROOT, "middleware", "*.py"))))
+FWD_SRC = io.open(os.path.join(ROOT, "middleware", "forwarding.py")).read()
+ING_SRC = io.open(os.path.join(ROOT, "middleware", "ingest.py")).read()
+SRV_SRC = io.open(os.path.join(ROOT, "middleware", "middleware_server.py")).read()
 CY_SRC = io.open(os.path.join(ROOT, "middleware", "cyber_agent.py")).read()
 
 # =============================================================================
@@ -107,35 +117,35 @@ check("there is a forwarder thread, not an inline blocking write in the handler"
       "_forward_worker" in MW_SRC and "name=\"plc-forwarder\"" in MW_SRC)
 check("the handler enqueues and returns", "_forward_queue.put_nowait(job)" in MW_SRC)
 check("the handler no longer calls _forward_to_plc itself",
-      "success = _forward_to_plc(" in MW_SRC.split("def _forward_job")[1].split("def ")[0]
-      and "_forward_to_plc(" not in MW_SRC.split("Register the pending command BEFORE")[1].split("def _report_undelivered")[0])
+      "success = _forward_to_plc(" in FWD_SRC.split("def _forward_job")[1].split("\ndef ")[0]
+      and "_forward_to_plc(" not in ING_SRC.split("Register the pending command BEFORE")[1].split("\ndef ")[0])
 check("ONE worker, so writes to the same register keep their order",
-      MW_SRC.count('target=_forward_worker') == 1 and "ThreadPoolExecutor" not in MW_SRC)
+      FWD_SRC.count('target=_forward_worker') == 1 and "ThreadPoolExecutor" not in FWD_SRC)
 check("the queue is bounded, so a dead PLC cannot grow the backlog without limit",
-      "queue.Queue(maxsize=FORWARD_QUEUE_MAX)" in MW_SRC and mw.FORWARD_QUEUE_MAX > 0,
-      f"max {mw.FORWARD_QUEUE_MAX}")
+      "queue.Queue(maxsize=FORWARD_QUEUE_MAX)" in FWD_SRC and fwd.FORWARD_QUEUE_MAX > 0,
+      f"max {fwd.FORWARD_QUEUE_MAX}")
 check("every call on the shared PLC client is serialised by OUR lock, not a library internal",
-      "_plc_io_lock" in MW_SRC and "with _plc_io_lock:" in MW_SRC.split("def _forward_to_plc")[1].split("def ")[0])
+      "_plc_io_lock" in FWD_SRC and "with _plc_io_lock:" in FWD_SRC.split("def _forward_to_plc")[1].split("\ndef ")[0])
 
 # A full queue must still reach the operator as an undelivered command.
 reported = []
-_real_report = mw.orchestrator.forward_delivery_failure
-mw.orchestrator.forward_delivery_failure = lambda **kw: reported.append(kw)
+_real_report = fwd.orchestrator.forward_delivery_failure
+fwd.orchestrator.forward_delivery_failure = lambda **kw: reported.append(kw)
 try:
-    before = mw.health_snapshot()["dropped_forwards"]
+    before = runtime.health_snapshot()["dropped_forwards"]
     job = {"register": 1, "register_name": "P101", "value": 72.0, "tx_id": "tx-full", "report": {}, "alert": False}
-    mw._report_undelivered(job, "FORWARD_QUEUE_FULL: test")
+    fwd._report_undelivered(job, "FORWARD_QUEUE_FULL: test")
     check("a command the forwarder could not even accept is reported, never dropped in silence",
           reported and reported[0]["tx_id"] == "tx-full" and "QUEUE_FULL" in reported[0]["reason"], str(reported[:1]))
 finally:
-    mw.orchestrator.forward_delivery_failure = _real_report
+    fwd.orchestrator.forward_delivery_failure = _real_report
 
 # The worker must survive a job that blows up, or every later command is stranded.
 boom = {"register": 1, "register_name": "P101", "value": 1.0, "tx_id": "tx-boom", "report": None, "alert": False}
 done = []
-mw._forward_queue.put(boom)
-mw._forward_queue.put(None)
-t = threading.Thread(target=lambda: (mw._forward_worker(), done.append(True)))
+fwd._forward_queue.put(boom)
+fwd._forward_queue.put(None)
+t = threading.Thread(target=lambda: (fwd._forward_worker(), done.append(True)))
 t.start()
 t.join(timeout=10)
 check("the forwarder survives a job that raises and keeps draining the queue", done == [True] and not t.is_alive())
@@ -146,26 +156,26 @@ print("\nC4 - a dead PLC must not be retried 5x a second forever")
 
 
 def with_failures(n: int) -> float:
-    with mw._state_lock:
-        mw._health["consecutive_poll_failures"] = n
-    return mw._poll_delay()
+    with runtime._state_lock:
+        runtime._health["consecutive_poll_failures"] = n
+    return polling._poll_delay()
 
 
-check("a healthy PLC keeps the normal cadence", with_failures(0) == mw.POLL_INTERVAL, f"{with_failures(0)}s")
-check("a brief blip is not punished", with_failures(mw.POLL_BACKOFF_AFTER) == mw.POLL_INTERVAL)
-check("a sustained outage backs off", with_failures(mw.POLL_BACKOFF_AFTER + 3) > mw.POLL_INTERVAL,
-      f"{with_failures(mw.POLL_BACKOFF_AFTER + 3)}s")
+check("a healthy PLC keeps the normal cadence", with_failures(0) == runtime.POLL_INTERVAL, f"{with_failures(0)}s")
+check("a brief blip is not punished", with_failures(runtime.POLL_BACKOFF_AFTER) == runtime.POLL_INTERVAL)
+check("a sustained outage backs off", with_failures(runtime.POLL_BACKOFF_AFTER + 3) > runtime.POLL_INTERVAL,
+      f"{with_failures(runtime.POLL_BACKOFF_AFTER + 3)}s")
 check("the backoff is capped, so recovery is still noticed within seconds",
-      with_failures(999) == mw.POLL_BACKOFF_MAX and mw.POLL_BACKOFF_MAX <= 10.0, f"{mw.POLL_BACKOFF_MAX}s")
-hourly = 3600.0 / mw.POLL_BACKOFF_MAX
+      with_failures(999) == runtime.POLL_BACKOFF_MAX and runtime.POLL_BACKOFF_MAX <= 10.0, f"{runtime.POLL_BACKOFF_MAX}s")
+hourly = 3600.0 / runtime.POLL_BACKOFF_MAX
 check("an hour of outage costs hundreds of attempts, not ~18,000", hourly < 1500, f"{hourly:.0f} attempts/hour")
-mw._note_poll_success()
-check("one good read resets it to the normal cadence", mw._poll_delay() == mw.POLL_INTERVAL)
-check("health tracks the PLC leg", mw.health_snapshot()["plc_connected"] is True)
-mw._note_poll_failure()
-check("and a failed poll flips it", mw.health_snapshot()["plc_connected"] is False
-      and mw.health_snapshot()["consecutive_poll_failures"] == 1)
-mw._note_poll_success()
+polling._note_poll_success()
+check("one good read resets it to the normal cadence", polling._poll_delay() == runtime.POLL_INTERVAL)
+check("health tracks the PLC leg", runtime.health_snapshot()["plc_connected"] is True)
+polling._note_poll_failure()
+check("and a failed poll flips it", runtime.health_snapshot()["plc_connected"] is False
+      and runtime.health_snapshot()["consecutive_poll_failures"] == 1)
+polling._note_poll_success()
 
 # =============================================================================
 print("\nS3 - an unauthenticated dashboard must never be put on a network")
@@ -231,8 +241,8 @@ check("the middleware actually sends the heartbeat", "forward_middleware_health(
       and "def forward_middleware_health" in io.open(os.path.join(ROOT, "middleware", "orchestrator.py")).read())
 check("it sends it from the poll loop, on a timer", "_report_health_if_due()" in MW_SRC)
 check("the snapshot carries what health() needs",
-      set(mw.health_snapshot()) >= {"plc_connected", "consecutive_poll_failures", "dropped_forwards",
-                                    "undelivered", "forward_backlog"})
+      set(runtime.health_snapshot()) >= {"plc_connected", "consecutive_poll_failures", "dropped_forwards",
+                                         "undelivered", "forward_backlog"})
 
 html = io.open(os.path.join(ROOT, "dashboard", "templates", "index.html")).read()
 js = io.open(os.path.join(ROOT, "dashboard", "static", "script.js")).read()
@@ -243,6 +253,55 @@ check("it is driven by /api/health", 'fetch("/api/health")' in js and "refreshHe
 check("it refreshes on its own", "setInterval(refreshHealth" in js)
 check("it can render a degraded state", "DEGRADED" in js and ".status-dot.degraded" in css)
 check("it says WHY, on the page and not only in a tooltip", "systemStatusDetail" in js and "status-detail" in css)
+
+# =============================================================================
+print("\nA1/A2 - the god module is split, and the storage hook no longer decides")
+# =============================================================================
+
+import os.path as _p  # noqa: E402
+
+sizes = {m: sum(1 for _ in io.open(_p.join(ROOT, "middleware", f"{m}.py")))
+         for m in ("middleware_server", "runtime", "forwarding", "ingest", "polling")}
+check("middleware_server is no longer a 1,478-line god module", sizes["middleware_server"] < 600, str(sizes))
+check("no middleware module is over 600 lines", max(sizes.values()) < 600, str(sizes))
+check("the four responsibilities the audit named each have a home",
+      all(_p.exists(_p.join(ROOT, "middleware", f"{m}.py")) for m in ("runtime", "forwarding", "ingest", "polling")))
+
+hook = SRV_SRC.split("def setValues")[1].split("\ndef ")[0]
+check("THE STORAGE HOOK ENQUEUES, IT DOES NOT DECIDE (AUDIT A2)",
+      "ingest.submit(" in hook and "process_command" not in hook and "_handle_downstream_write" not in hook, hook[:120])
+check("there is a bounded decision queue with one worker",
+      "queue.Queue(maxsize=DECISION_QUEUE_MAX)" in ING_SRC and ING_SRC.count("target=_decision_worker") == 1)
+check("one worker, because the rate limit, the replay window and the cross-register rules are order-dependent",
+      "ThreadPoolExecutor" not in ING_SRC)
+check("a write the queue cannot accept is reported and fails CLOSED (nothing forwarded)",
+      "DECISION QUEUE FULL" in ING_SRC and "dropped_writes" in ING_SRC)
+
+# The arrival time must survive the queue, or moving the decision off the hot path would change the decision.
+check("the arrival time is captured at submit, not at dequeue",
+      '"arrival": time.time()' in ING_SRC and "arrival=job[\"arrival\"]" in ING_SRC)
+check("...and _handle_downstream_write uses it as start_time",
+      "time.time() if arrival is None else arrival" in ING_SRC)
+
+# Behavioural: a write submitted now and decided later must be timestamped now.
+seen = []
+_real_hdw = ingest._handle_downstream_write
+ingest._handle_downstream_write = lambda *a, **k: seen.append(k.get("arrival"))
+try:
+    t_submit = time.time()
+    ingest._process_write(0, [700], {"source_ip": "127.0.0.1", "function_code": 6}, arrival=t_submit)
+    check("the decision is stamped with when the write ARRIVED", seen and seen[0] == t_submit, str(seen))
+finally:
+    ingest._handle_downstream_write = _real_hdw
+
+check("runtime imports no middleware sibling at module level (it is the bottom layer)",
+      not [l for l in io.open(_p.join(ROOT, "middleware", "runtime.py")).read().split("def ")[0].splitlines()
+           if l.startswith("from middleware") or l.startswith("import middleware")])
+check("middleware_server still re-exports the old names, so existing callers keep working",
+      all(hasattr(mw, n) for n in ("_poll_once", "_forward_to_plc", "_process_write", "_pending_commands",
+                                   "_state_lock", "health_snapshot", "_publish_trace")))
+check("and it SAYS a re-export is a snapshot, so patch the owning module",
+      "SNAPSHOTS of a binding" in SRV_SRC)
 
 print("\nALL PASS" if fails == 0 else f"\n{fails} CHECK(S) FAILED")
 raise SystemExit(1 if fails else 0)

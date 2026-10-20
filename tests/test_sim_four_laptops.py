@@ -106,6 +106,13 @@ check("the per-command table says where each command stopped and whether it reac
       "| stopped at | reached the PLC |" in md and "OUT_OF_BOUNDS:P101=999.00" in md)
 check("the correlation result is stated with its counts", "2 signed frames captured, 2 consistent with the tracer, 0 mismatches" in md)
 check("the bypass is reported, with the frame and the source", "## The bypass, seen on the wire" in md and "frame 31 from 127.0.0.4" in md)
+# AUDIT S1: the report must also say what the PLC did about it - the fourth record in the cross-check.
+md_ref = S.render(snapshot, dict(c, plc_refused_writes={"count": 1, "lines": ["[PLC] REFUSED direct write from 127.0.0.4: MV101=0.00"]}), OUT)
+check("when the PLC refused the bypass, the report says so and quotes the PLC's own line",
+      "The PLC refused it (AUDIT S1)" in md_ref and "REFUSED direct write from 127.0.0.4" in md_ref)
+check("...and still says segmentation is the real control, not this",
+      "not a replacement for segmentation" in md_ref)
+check("when it did NOT refuse, the report says that instead", "The PLC did **not** refuse it" in md)
 check("the blocked-attack log and the incidents are both quoted", "blocked_attacks.jsonl" in md and "INC-0001" in md)
 check("the model that was running is named, with its held-out result and its advisory role",
       "PhysicalModelV2" in md and "F1 0.485" in md and "never DROP" in md)

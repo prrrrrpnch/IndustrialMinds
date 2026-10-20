@@ -69,6 +69,21 @@ Reference files are listed by path below; none are auto-loaded.
   (A6/N6) middleware `health_snapshot()` -> `orchestrator.forward_middleware_health()` -> dashboard `POST /api/middleware-health`
   every 5 s; GET /api/health reports the PLC leg (connected/unreachable/unknown/not reported) and degrades on dropped forwards or a
   heartbeat older than 20 s. The header badge was the hardcoded word ONLINE; `refreshHealth()` in script.js now drives it.
+- MIDDLEWARE IS NOW FIVE MODULES (AUDIT A1/A2, pinned by tests/test_sprint_fixes.py):
+  `middleware/runtime.py` (config + shared state + raw conversion + _dashboard_headers; the BOTTOM layer, imports no sibling),
+  `middleware/forwarding.py` (PLC client, _plc_io_lock, forward queue/worker), `middleware/ingest.py` (decision queue/worker,
+  _process_write, _handle_downstream_write, _log_blocked, _publish_trace/_publish_model_card),
+  `middleware/polling.py` (poll loop, telemetry, PLC->SCADA responses, envelope alerts), `middleware/middleware_server.py`
+  (transport + CLI only; 1,478 -> 424 lines).
+  (A2) `MiddlewareDataBlock.setValues` now calls `ingest.submit()` and RETURNS - the pipeline no longer runs as a side effect
+  of a storage call on the event loop. ONE decision worker (order matters: rate limit, replay window, cross-register), bounded
+  IM_DECISION_QUEUE (500), a full queue fails CLOSED and is logged + counted (`ingest.dropped_writes()`).
+  The arrival time is captured at submit() and threaded through as `arrival=`, so queueing cannot change what the rate limiter,
+  the replay window or the reported latency measure.
+  GOTCHAS: `middleware_server` re-exports the old names, but a re-export is a SNAPSHOT of a binding - monkeypatching
+  `mw._plc_client` does NOT change what forwarding uses; patch `forwarding._plc_client`. Two late bindings break the import
+  cycle: `polling._internal_sync_write` (set by middleware_server) and `forwarding._publish_trace` (set by ingest, with a
+  late-import fallback). `runtime.health_snapshot()` imports forwarding lazily for the same reason.
 - NEXT-QUARTER AUDIT FIXES (final-results/AUDIT.md, verified by tests/test_quarter_fixes.py):
   (S1) the PLC now applies a write only from an allowed writer: `IM_PLC_ALLOWED_WRITERS` (core/netconfig.PLC_ALLOWED_WRITERS),
   DEFAULT = the middleware's host, so the one-laptop demo is unchanged (everything is 127.0.0.1) but the 4-laptop lab refuses the
@@ -154,7 +169,11 @@ Reference files are listed by path below; none are auto-loaded.
 | `core/forensics.py` | AUDIT A4: append-only JSONL store (traces/incidents/investigations/events) under IM_LOG_DIR, replayed by the dashboard at startup so the record outlives the Flask process |
 | `research/__init__.py` | what each rejected experiment was, what it measured, and why it is NOT on the live import path |
 | `docs/register_map.md` | register table, ports, contract notes |
-| `middleware/middleware_server.py` | Modbus proxy, downstream/upstream handling, poll loop |
+| `middleware/middleware_server.py` | SCADA-facing Modbus transport + CLI entry point ONLY (AUDIT A1 split); the datastore hook enqueues, it does not decide |
+| `middleware/runtime.py` | config, shared plant state, health snapshot, raw<->engineering conversion (the bottom layer) |
+| `middleware/ingest.py` | the decision path: queue + worker, routing a write, building the command, running the pipeline, blocked-attack log, trace publishing |
+| `middleware/forwarding.py` | the PLC write path: client, I/O lock, bounded forward queue + single worker, UNDELIVERED reporting |
+| `middleware/polling.py` | the PLC read path: poll loop with backoff, pending-command settling, telemetry, upstream envelope alerts |
 | `middleware/cyber_agent.py` | rule checks: whitelist, quarantine, FC, register, rate, HMAC, replay, authorization (policy) |
 | `middleware/physical_agent.py` | rule checks: bounds, rate-of-change, cross-register, feedback |
 | `middleware/trace.py` | Phase 9 packet-tracer: builds the per-tx hop-by-hop trace from the REAL verdicts/model reports/decision (checks after the first failure = NOT_RUN); dashboard `/api/trace(s)`; panel at the bottom of the dashboard; tests/test_trace.py |
