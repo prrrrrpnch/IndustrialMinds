@@ -1,0 +1,30 @@
+/* dashboard/static/vendor/icons.css - the ten glyphs this dashboard uses, as Unicode.
+ *
+ * Replaces a CDN stylesheet plus ~1.5 MB of webfonts that fetched Font Awesome for ten decorative icons. The lab network has
+ * no internet, so every one of them silently failed to render. These are plain Unicode characters in the system font: no
+ * download, no fallback, nothing to fail.
+ *
+ * Markup is unchanged - `<i class="fa-solid fa-route"></i>` still works - so this is a drop-in replacement. To add an icon,
+ * add a rule below; do not reintroduce the CDN.
+ */
+
+.fa-solid,
+[class^="fa-"],
+[class*=" fa-"] {
+    font-style: normal;
+    font-variant: normal;
+    line-height: 1;
+    display: inline-block;
+    text-rendering: auto;
+}
+
+.fa-route::before            { content: "\21C9"; }  /* ⇉  packet tracer */
+.fa-diagram-project::before  { content: "\2317"; }  /* ⌗  network flow */
+.fa-triangle-exclamation::before { content: "\26A0"; }  /* ⚠  incidents */
+.fa-circle-info::before      { content: "\2139"; }  /* ℹ  model card */
+.fa-magnifying-glass::before { content: "\2315"; }  /* ⌕  investigations */
+.fa-ban::before              { content: "\20E0"; }  /* ⃠  blocked */
+.fa-rotate::before           { content: "\21BB"; }  /* ↻  reset / refresh */
+.fa-arrow-right::before      { content: "\2192"; }  /* →  SCADA to PLC */
+.fa-arrow-left::before       { content: "\2190"; }  /* ←  PLC to SCADA */
+.fa-xmark::before            { content: "\2715"; }  /* ✕  close */

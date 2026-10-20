@@ -380,12 +380,13 @@ function updateCpuChart(history) {
         return;
     }
 
-    if (typeof Chart === "undefined") {
-
-        console.error(
-            "Chart.js is not loaded."
+    // MicroLineChart ships with the dashboard (static/vendor/microchart.js). It cannot fail to load from a CDN, because
+    // there is no CDN; if it is ever missing that is a packaging bug and should be loud, not a silent empty panel.
+    if (typeof MicroLineChart === "undefined") {
+        canvas.insertAdjacentHTML(
+            "afterend",
+            '<p class="chart-missing">CPU chart unavailable: static/vendor/microchart.js did not load.</p>'
         );
-
         return;
     }
 
@@ -400,97 +401,23 @@ function updateCpuChart(history) {
                 Number(point.value)
         );
 
-    if (cpuChart) {
+    if (!cpuChart) {
 
-        cpuChart.data.labels =
-            labels;
-
-        cpuChart.data.datasets[0].data =
-            values;
-
-        cpuChart.update(
-            "none"
-        );
-
-        return;
+        cpuChart =
+            new MicroLineChart(
+                canvas,
+                {
+                    min: 0,
+                    max: 100,
+                    suffix: "%"
+                }
+            );
     }
 
-    const ctx =
-        canvas.getContext(
-            "2d"
-        );
-
-    cpuChart =
-        new Chart(
-            ctx,
-            {
-                type: "line",
-
-                data: {
-
-                    labels: labels,
-
-                    datasets: [
-                        {
-                            label:
-                                "CPU Load (%)",
-
-                            data: values,
-
-                            borderWidth: 2,
-
-                            fill: true,
-
-                            tension: 0.3,
-
-                            pointRadius: 0
-                        }
-                    ]
-                },
-
-                options: {
-
-                    responsive: true,
-
-                    maintainAspectRatio:
-                        false,
-
-                    animation: false,
-
-                    scales: {
-
-                        x: {
-                            ticks: {
-                                maxTicksLimit: 8
-                            }
-                        },
-
-                        y: {
-
-                            beginAtZero: true,
-
-                            min: 0,
-
-                            max: 100,
-
-                            ticks: {
-
-                                callback:
-                                    value =>
-                                        `${value}%`
-                            }
-                        }
-                    },
-
-                    plugins: {
-
-                        legend: {
-                            display: false
-                        }
-                    }
-                }
-            }
-        );
+    cpuChart.update(
+        labels,
+        values
+    );
 }
 
 
@@ -543,6 +470,12 @@ function verdictClass(verdict) {
 
     if (value === "pass") {
         return "pass";
+    }
+
+    // AUDIT C1: approved by the agents, but the PLC never took it. Not a success and not a block - its own state, so the
+    // operator cannot mistake it for a setpoint that was applied.
+    if (value === "undelivered") {
+        return "undelivered";
     }
 
     if (

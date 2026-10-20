@@ -11,17 +11,13 @@
         Industrial Mind — Security Operations Dashboard
     </title>
 
-    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <!-- No CDN assets. The lab runs on an isolated network, so anything fetched from the internet is a guaranteed
+         failure, not a dependency. Fonts are the system stack, icons are Unicode, and the one chart is 100 lines of
+         canvas. See final-results/AUDIT.md finding N2. -->
 
-    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link rel="stylesheet" href="{{ url_for('static', filename='vendor/icons.css') }}">
 
-    <link
-        href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=JetBrains+Mono:wght@400;600&display=swap"
-        rel="stylesheet">
-
-    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
-
-    <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js"></script>
+    <script src="{{ url_for('static', filename='vendor/microchart.js') }}"></script>
 
     <link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}">
 
@@ -148,6 +144,7 @@
                 <span><i class="dot dot-pass"></i>PASS: forwarded</span>
                 <span><i class="dot dot-alert"></i>ALERT: forwarded, flagged</span>
                 <span><i class="dot dot-drop"></i>DROP: stopped in the middleware</span>
+                <span><i class="dot dot-undelivered"></i>UNDELIVERED: approved, but the PLC never took it</span>
                 <span><i class="dot dot-untrusted"></i>untrusted source</span>
             </div>
             <ul class="flow-ticker" id="flow-ticker"></ul>

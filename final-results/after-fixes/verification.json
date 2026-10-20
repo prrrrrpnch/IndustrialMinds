@@ -1,0 +1,74 @@
+{
+ "checks": [
+  {
+   "check": "healthy: commands are PASS",
+   "pass": true,
+   "detail": "['PASS', 'PASS']"
+  },
+  {
+   "check": "healthy: no undelivered counted",
+   "pass": true,
+   "detail": ""
+  },
+  {
+   "check": "healthy: /api/health says ok",
+   "pass": true,
+   "detail": "ok"
+  },
+  {
+   "check": "PLC down: the command is reported UNDELIVERED, not PASS",
+   "pass": true,
+   "detail": "['UNDELIVERED', 'UNDELIVERED']"
+  },
+  {
+   "check": "PLC down: the reason says why",
+   "pass": true,
+   "detail": "PLC_UNREACHABLE: approved, but the PLC did not accept the write"
+  },
+  {
+   "check": "PLC down: undelivered counter moved",
+   "pass": true,
+   "detail": "2 counted, 2 sent"
+  },
+  {
+   "check": "PLC down: /api/health degrades instead of saying ok",
+   "pass": true,
+   "detail": "degraded ['2 command(s) approved but never delivered to the PLC']"
+  },
+  {
+   "check": "PLC down: the middleware logs UNDELIVERED with the tx id",
+   "pass": true,
+   "detail": "2 line(s)"
+  },
+  {
+   "check": "pymodbus does not flood the log (baseline was 99 lines in 30 s)",
+   "pass": true,
+   "detail": "2 pymodbus line(s)"
+  },
+  {
+   "check": "recovery: commands are PASS again",
+   "pass": true,
+   "detail": "['PASS', 'PASS']"
+  },
+  {
+   "check": "offline: no external request is even attempted beyond the blocked ones",
+   "pass": true,
+   "detail": "0 external request(s) blocked by the test harness"
+  },
+  {
+   "check": "offline: zero console errors",
+   "pass": true,
+   "detail": "[]"
+  },
+  {
+   "check": "offline: the CPU chart actually drew pixels (was a blank box)",
+   "pass": true,
+   "detail": "6108 non-transparent pixels"
+  },
+  {
+   "check": "offline: the chart canvas has real size",
+   "pass": true,
+   "detail": "{'x': 39, 'y': 2212.8125, 'width': 300, 'height': 150}"
+  }
+ ]
+}

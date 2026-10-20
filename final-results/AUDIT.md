@@ -300,7 +300,12 @@ Verifiability: **2/10** (reproducible on exactly one laptop in the world).
 
 ## 6. Refactor roadmap
 
-**Do immediately (fires):**
+**Do immediately (fires):** — **ALL FOUR DONE**, verified by `final-results/_verify_fixes.py` (14/14) and pinned by
+`tests/test_audit_fixes.py`. Measured after: UNDELIVERED now reported instead of PASS; black-hole stall 2,002 ms -> 504 ms;
+pymodbus log flood 99 lines -> 1 in a 30 s outage; dashboard renders with every external host blocked, zero console errors,
+CPU chart drawing 6,108 pixels where it used to draw none. C2 is MITIGATED, not eliminated: the forward still runs on the
+event loop, which is item 6 below.
+
 1. C1 — check `_forward_to_plc`'s return value; publish `UNDELIVERED`. *(~20 lines, 1 hour)*
 2. C2 — set `timeout=0.5` on the PLC client. *(1 line, cuts the stall 6×)*
 3. C3 — pymodbus logger to CRITICAL or a rate-limiting filter; correct the claim in `CLAUDE.md`. *(2 lines)*
