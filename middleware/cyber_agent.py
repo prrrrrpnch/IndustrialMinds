@@ -24,6 +24,7 @@ from __future__ import annotations
 
 import ipaddress
 import os
+import threading
 from typing import Any, Deque, Dict, List, Tuple, Union
 import time
 from collections import defaultdict, deque
@@ -64,6 +65,16 @@ _TRUSTED_NETWORKS = _parse_whitelist(TRUSTED_SOURCES_ENV)
 SOURCE_WHITELIST = {str(n.network_address) for n in _TRUSTED_NETWORKS if n.num_addresses == 1}
 
 # ---- Internal state ----
+#
+# AUDIT C5: every table below is read-then-written by a check (_check_nonce is the worst: `if nonce in _seen_nonces` then
+# `_seen_nonces[nonce] = now`). Until now that was safe only by accident - pymodbus calls setValues from the single asyncio
+# event loop, so there was exactly one caller. Nothing documented that and no test asserted it, so the first worker thread
+# anywhere upstream (moving the PLC forward off the loop, a second listener, a thread-pool handler) would have turned replay
+# protection into a race: two copies of the same signed frame arriving together both see an empty nonce table and both pass.
+# The lock removes the assumption instead of relying on it. It is held only across the table operations - never across the
+# HMAC verification or the policy lookup - so it does not serialise the expensive part of a check.
+_state_lock = threading.RLock()
+
 _request_timestamps = defaultdict(deque)   # source_ip -> timestamps
 _recent_payloads = defaultdict(deque)      # source_ip -> (payload, timestamp)
 _seen_nonces = {}                          # nonce -> first-seen time
@@ -78,13 +89,14 @@ _last_sweep = 0.0
 
 def _sweep_idle_sources(now: float) -> None:
     global _last_sweep
-    if now - _last_sweep < _SWEEP_INTERVAL_SECONDS:
-        return
-    _last_sweep = now
-    horizon = max(RATE_WINDOW_SECONDS, REPLAY_WINDOW_SECONDS)
-    for table in (_request_timestamps, _recent_payloads):
-        for src in [s for s, dq in table.items() if not dq or now - _last_time(dq) > horizon]:
-            del table[src]
+    with _state_lock:
+        if now - _last_sweep < _SWEEP_INTERVAL_SECONDS:
+            return
+        _last_sweep = now
+        horizon = max(RATE_WINDOW_SECONDS, REPLAY_WINDOW_SECONDS)
+        for table in (_request_timestamps, _recent_payloads):
+            for src in [s for s, dq in table.items() if not dq or now - _last_time(dq) > horizon]:
+                del table[src]
 
 
 def _last_time(dq: Deque[Any]) -> float:
@@ -103,36 +115,43 @@ def is_trusted_source(source_ip: object) -> bool:
 
 
 def _check_rate(source_ip: str, now: float) -> bool:
-    dq = _request_timestamps[source_ip]
-    dq.append(now)
-    while dq and now - dq[0] > RATE_WINDOW_SECONDS:
-        dq.popleft()
-    return len(dq) <= RATE_LIMIT_PER_SEC
+    with _state_lock:
+        dq = _request_timestamps[source_ip]
+        dq.append(now)
+        while dq and now - dq[0] > RATE_WINDOW_SECONDS:
+            dq.popleft()
+        return len(dq) <= RATE_LIMIT_PER_SEC
 
 
 def _check_replay(command: Dict[str, Any], now: float) -> bool:
     source_ip = command["source_ip"]
     payload_key = (command["function_code"], command["register"], command["value"])
-    dq = _recent_payloads[source_ip]
-    while dq and now - dq[0][1] > REPLAY_WINDOW_SECONDS:
-        dq.popleft()
-    is_replay = any(p == payload_key for p, _ in dq)
-    dq.append((payload_key, now))
-    return not is_replay
+    with _state_lock:
+        dq = _recent_payloads[source_ip]
+        while dq and now - dq[0][1] > REPLAY_WINDOW_SECONDS:
+            dq.popleft()
+        is_replay = any(p == payload_key for p, _ in dq)
+        dq.append((payload_key, now))
+        return not is_replay
 
 
 def _check_nonce(auth: Dict[str, Any], now: float) -> bool:
-    """Authenticated nonce must never be seen twice inside the freshness window."""
-    # Expire from the oldest end only - amortised O(1) per command.
-    while _nonce_order and now - _nonce_order[0][0] > _NONCE_RETENTION_SECONDS:
-        _, old = _nonce_order.popleft()
-        _seen_nonces.pop(old, None)
-    nonce = auth.get("nonce")
-    if nonce in _seen_nonces:
-        return False
-    _seen_nonces[nonce] = now
-    _nonce_order.append((now, nonce))
-    return True
+    """Authenticated nonce must never be seen twice inside the freshness window.
+
+    The expiry, the membership test and the insert are ONE atomic step (AUDIT C5): split across threads, two copies of the
+    same captured frame can both find the nonce absent and both be accepted, which is exactly the replay this check exists
+    to stop."""
+    with _state_lock:
+        # Expire from the oldest end only - amortised O(1) per command.
+        while _nonce_order and now - _nonce_order[0][0] > _NONCE_RETENTION_SECONDS:
+            _, old = _nonce_order.popleft()
+            _seen_nonces.pop(old, None)
+        nonce = auth.get("nonce")
+        if nonce in _seen_nonces:
+            return False
+        _seen_nonces[nonce] = now
+        _nonce_order.append((now, nonce))
+        return True
 
 
 def check(command: Dict[str, Any]) -> Dict[str, Any]:
@@ -208,10 +227,11 @@ def check(command: Dict[str, Any]) -> Dict[str, Any]:
 
 def reset_state() -> None:
     """Clears rate/replay tracking — call this between test runs."""
-    _request_timestamps.clear()
-    _recent_payloads.clear()
-    _seen_nonces.clear()
-    _nonce_order.clear()
-    quarantine.reset()
     global _last_sweep
-    _last_sweep = 0.0
+    with _state_lock:
+        _request_timestamps.clear()
+        _recent_payloads.clear()
+        _seen_nonces.clear()
+        _nonce_order.clear()
+        _last_sweep = 0.0
+    quarantine.reset()

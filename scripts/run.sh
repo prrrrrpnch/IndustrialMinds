@@ -32,6 +32,14 @@ PY="python3"; command -v python3 >/dev/null 2>&1 || PY="python"
 : "${SCADA_IP:=127.0.0.1}"
 : "${ATTACKER_IP:=127.0.0.1}"
 : "${DASHBOARD_BIND_HOST:=127.0.0.1}"
+: "${DASHBOARD_TOKEN:=}"
+
+# The dashboard refuses to start on a network address without a token, so pass it through to both ends that need it.
+dash_token() {
+    if [[ -n "$DASHBOARD_TOKEN" ]]; then
+        export IM_DASHBOARD_TOKEN="$DASHBOARD_TOKEN"
+    fi
+}
 
 need_secret() {
     if [[ -z "${HMAC_SECRET:-}" ]]; then
@@ -50,6 +58,7 @@ case "$ROLE" in
         ;;
     dashboard)
         export IM_DASHBOARD_BIND_HOST="$DASHBOARD_BIND_HOST"
+        dash_token
         exec $PY dashboard/app.py "$@"
         ;;
     middleware)
@@ -58,6 +67,7 @@ case "$ROLE" in
         export IM_HOST_LABELS="$SCADA_IP=SCADA operator,$ATTACKER_IP=Attacker laptop"
         # auto-quarantine: ON for a multi-laptop run, switched OFF by itself when every address is loopback (one-laptop demo)
         export IM_QUARANTINE="${IM_QUARANTINE:-auto}"
+        dash_token
         need_secret
         exec $PY -m middleware.middleware_server "$@"
         ;;

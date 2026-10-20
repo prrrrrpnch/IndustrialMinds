@@ -101,6 +101,23 @@ the dashboard stays green. The presenter has no idea why.
 **Fix:** move the forward off the event loop (`asyncio.to_thread` or a dedicated forward queue), and set an explicit short
 timeout (`ModbusTcpClient(..., timeout=0.5)`). Both are small changes; the timeout alone cuts the damage 6×.
 
+> **RESOLVED (sprint).** Both halves are now done. The timeout/retries fix landed first (`timeout=0.5`, `retries=1`):
+> 2,002 ms -> 504 ms. The structural fix followed: the handler now puts the approved command on a bounded FIFO queue
+> (`_forward_queue`, 200) drained by **one** dedicated thread (`plc-forwarder`), so the event loop returns as soon as the
+> verdict is published. One worker, not a pool, because writes to the same register must keep their order. Every call on
+> the shared client is serialised by our own `_plc_io_lock` rather than by a pymodbus internal.
+>
+> Re-measured against the same black-hole PLC (10 rule-passing commands, `scratchpad/measure_c2.py`):
+>
+> | | before any fix | after the timeout fix | after the structural fix |
+> |---|---|---|---|
+> | Latency seen by SCADA | 2,002 ms | 504 ms | **1.9 ms** (median 1.9, max 2.3) |
+> | Throughput ceiling | 0.5/s | ~2/s | **~520/s** (the 5/s rate limit binds first) |
+>
+> All 10 commands were still reported `UNDELIVERED` once the forwarder's own writes timed out, so the C1 guarantee holds
+> across the async boundary. A full queue is also reported `UNDELIVERED` (`FORWARD_QUEUE_FULL`) and counted in
+> `dropped_forwards`, never dropped in silence. Pinned by `tests/test_sprint_fixes.py`.
+
 ## HIGH — C3: the documented log rate-limit does not work
 
 **`middleware_server.py:216-219, 1057-1063` (the project's limiter) vs `:1201`
@@ -122,6 +139,11 @@ noisiest device on the network.
 
 **Fix:** exponential backoff capped at ~5 s, reset on first success. ~10 lines.
 
+> **RESOLVED (sprint).** `_poll_delay()` keeps the 0.2 s cadence for the first `IM_POLL_BACKOFF_AFTER` (3) consecutive
+> failures, then doubles to a ceiling of `IM_POLL_BACKOFF_MAX_S` (5 s), and the first successful read resets it. An hour of
+> outage now costs **720 attempts instead of ~18,000**, and recovery is still detected within 5 s - verified live in
+> `_verify_fixes.py` ("recovery: commands are PASS again").
+
 ## MEDIUM — C5: five unsynchronised globals guard a security control
 
 **`middleware/cyber_agent.py:67-76`** — `_request_timestamps`, `_recent_payloads`, `_seen_nonces`, `_nonce_order`,
@@ -138,6 +160,15 @@ internally inconsistent about its own threading model. One `asyncio.to_thread` (
 replay protection.
 
 **Fix:** add the lock before fixing C2, not after. Five lines.
+
+> **RESOLVED (sprint), and done first as the finding required.** `cyber_agent._state_lock` (an `RLock`, matching
+> `incidents.py` / `quarantine.py`) now covers `_check_nonce`, `_check_rate`, `_check_replay`, `_sweep_idle_sources` and
+> `reset_state`. It is held only across the table operations - never across the HMAC verification or the policy lookup - so
+> the expensive part of a check is still concurrent.
+>
+> The test is behavioural, not structural: 12 threads replay **one** nonce simultaneously, 25 times over, and exactly one
+> acceptance is required each time; 6 threads then hammer the rate/replay tables and the sweep concurrently and must raise
+> nothing. `tests/test_sprint_fixes.py`.
 
 ## Correct, and worth crediting
 
@@ -207,6 +238,13 @@ fiction.* Worse, `POST /api/reset` is equally open: *one request wipes the entir
 proposition is **visibility**, an unauthenticated write channel into the view is the most damaging finding in this pass.
 **Mitigation:** make the token mandatory whenever the bind host is not loopback. Refuse to start otherwise.
 
+> **RESOLVED (sprint).** `dashboard.check_bind_is_safe(host)` runs at startup: a bind address that is not provably loopback
+> with no `IM_DASHBOARD_TOKEN` aborts the process (exit 2) with a message naming the two ways out. A hostname that cannot be
+> resolved to loopback is treated as exposed. Loopback with no token is unchanged, so the one-laptop demo is untouched. The
+> launchers (`scripts/run.sh` / `run.ps1`) now pass `DASHBOARD_TOKEN` from `config/lab.env` to both the dashboard and the
+> middleware, and `config/lab.env.example` + `GETTING_STARTED.md` say the token is required, not optional, off loopback.
+> Pinned by `tests/test_sprint_fixes.py`.
+
 **S4 — MEDIUM — Spoof your way past the whitelist, then weaponise the response.** Trust is source-IP based. On a flat L2 lab,
 ARP spoofing gets me SCADA's address. Worse: *with `IM_QUARANTINE` on, I spoof the operator's address, send six forged
 frames, and the middleware quarantines **the real SCADA** for 60 s — doubling on repeat.* The response mechanism becomes a
@@ -251,6 +289,16 @@ nobody wrote down.
 investigation, Chart.js, undelivered PASS). Each is individually defensible. Together they mean the dashboard can be
 arbitrarily wrong with no indicator. **Correct mental model:** graceful degradation requires *announcing* the degradation.
 One `dropped_forwards` counter on `/api/health` fixes most of this.
+
+> **RESOLVED (sprint).** The middleware keeps a health snapshot (`plc_connected`, `consecutive_poll_failures`,
+> `dropped_forwards`, `undelivered`, `forward_backlog`) and posts it to `POST /api/middleware-health` every 5 s. `GET
+> /api/health` reports the PLC leg from it - `connected` / `unreachable` / `unknown` / `not reported` - degrades on an
+> unreachable PLC, on dropped forwards, and on a middleware that has stopped reporting at all (a missing heartbeat is
+> itself a degraded state, not silence).
+>
+> The header badge was the literal string `<strong>ONLINE</strong>` in the markup; it is now driven by `/api/health` every
+> 3 s, renders DEGRADED in amber with the reason on the page (not only in a tooltip), and reads UNREACHABLE if the
+> dashboard itself stops answering. Pinned by `tests/test_sprint_fixes.py`.
 
 ---
 
@@ -311,13 +359,16 @@ event loop, which is item 6 below.
 3. C3 — pymodbus logger to CRITICAL or a rate-limiting filter; correct the claim in `CLAUDE.md`. *(2 lines)*
 4. N2 — vendor Chart.js, Font Awesome and the fonts into `dashboard/static/`. *(~600 KB, 1 hour, removes a demo-day failure)*
 
-**Do this sprint (structural):**
-5. C5 — add the lock to `cyber_agent` *before* touching threading anywhere else.
-6. C2 proper — move the forward off the event loop.
-7. S3 — require `IM_DASHBOARD_TOKEN` whenever the bind host is not loopback; refuse to start otherwise.
-8. C4 — exponential backoff in the poll loop.
-9. A6/N6 — a `dropped_forwards` counter and a degradation badge; make `/api/health` report PLC reachability and model status,
-   or rename it `/api/alive`.
+**Do this sprint (structural):** — **all five DONE**, see the RESOLVED notes on each finding above.
+5. ~~C5 — add the lock to `cyber_agent` *before* touching threading anywhere else.~~ **DONE, first, as the finding required.**
+6. ~~C2 proper — move the forward off the event loop.~~ **DONE** — black-hole PLC: 504 ms -> **1.9 ms** per command.
+7. ~~S3 — require `IM_DASHBOARD_TOKEN` whenever the bind host is not loopback; refuse to start otherwise.~~ **DONE** — refuses to start.
+8. ~~C4 — exponential backoff in the poll loop.~~ **DONE** — ~18,000 -> **720** attempts/hour against a dead PLC.
+9. ~~A6/N6 — a `dropped_forwards` counter and a degradation badge; make `/api/health` report PLC reachability and model status.~~
+   **DONE** — `/api/health` reports the PLC leg from a 5 s middleware heartbeat; the header badge is no longer hardcoded.
+
+Evidence: `tests/test_sprint_fixes.py` (40 operator-level checks), `final-results/_verify_fixes.py` (14/14 live, including
+the new "the middleware cannot reach the PLC" signal and recovery), and the re-measured C2 table above.
 
 **Do next quarter (architectural):**
 10. Split `middleware_server.py`; move the pipeline out of the datastore hook.

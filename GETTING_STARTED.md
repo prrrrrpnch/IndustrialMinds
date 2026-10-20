@@ -197,10 +197,12 @@ none of them on leaves the demo exactly as described.
   a key stolen from one device cannot be used from another address, and a source
   with no registered key is rejected `UNKNOWN_DEVICE`. A JSON file works too:
   `IM_HMAC_KEYS_FILE=/path/to/keys.json`.
-- **Dashboard token** (when the dashboard is on the network). If you set
-  `IM_DASHBOARD_BIND_HOST=0.0.0.0` so another laptop can view the dashboard, also
-  set the same `IM_DASHBOARD_TOKEN=<token>` on **both the dashboard and the
-  middleware**. The dashboard then rejects any POST to `/api/*` that doesn't carry
+- **Dashboard token** (REQUIRED when the dashboard is on the network). If you set
+  `IM_DASHBOARD_BIND_HOST=0.0.0.0` so another laptop can view the dashboard, you must
+  also set the same `IM_DASHBOARD_TOKEN=<token>` on **both the dashboard and the
+  middleware** — the dashboard refuses to start otherwise, and tells you so, because
+  an unauthenticated `/api/reset` on a lab network lets anyone erase the operator's
+  record of an attack. Loopback needs no token and is unchanged. The dashboard then rejects any POST to `/api/*` that doesn't carry
   the token, so only the middleware can push data to it. `GET /api/health` stays
   open as a liveness probe.
 - **Authorization policy** (who may write which register). Copy

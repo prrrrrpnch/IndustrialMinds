@@ -54,6 +54,21 @@ Reference files are listed by path below; none are auto-loaded.
   (N2) NO CDN assets: `dashboard/static/vendor/microchart.js` (one canvas line chart, replaces Chart.js) and
   `vendor/icons.css` (Unicode glyphs, replaces Font Awesome); fonts are the system stack. The lab is air-gapped, so a CDN
   asset is a guaranteed failure - the CPU panel used to render as a blank box and said so only in the browser console.
+- SPRINT AUDIT FIXES (final-results/AUDIT.md, verified by tests/test_sprint_fixes.py, 43 checks):
+  (C5) `cyber_agent._state_lock` (RLock) now guards `_check_nonce`/`_check_rate`/`_check_replay`/`_sweep_idle_sources`/`reset_state`.
+  `_check_nonce` was a read-then-write TOCTOU, safe ONLY because setValues ran on one asyncio thread - which C2's fix changed. Done FIRST.
+  (C2 structural) the PLC forward no longer runs on the event loop: the handler puts the job on a bounded FIFO `_forward_queue`
+  (IM_FORWARD_QUEUE, 200) drained by ONE `plc-forwarder` thread (one, not a pool: same-register writes must keep their order);
+  `_forward_job`/`_report_undelivered` publish the trace and the UNDELIVERED correction. `_plc_io_lock` serialises every call on the
+  shared client instead of relying on a pymodbus internal RLock. Black-hole PLC: 2,002 ms -> 504 ms (timeout) -> 1.9 ms (structural).
+  A full queue is reported UNDELIVERED `FORWARD_QUEUE_FULL` and counted in `dropped_forwards` - never silent.
+  (C4) `_poll_delay()`: 0.2 s for the first IM_POLL_BACKOFF_AFTER (3) failures, then doubling to IM_POLL_BACKOFF_MAX_S (5 s), reset by
+  the first good read. ~18,000 -> 720 attempts/hour against a dead PLC.
+  (S3) `dashboard.check_bind_is_safe()` ABORTS startup (exit 2) if the bind host is not provably loopback and IM_DASHBOARD_TOKEN is
+  unset - an open /api/reset on a lab network lets anyone erase the attack record. run.sh/run.ps1 pass DASHBOARD_TOKEN from lab.env.
+  (A6/N6) middleware `health_snapshot()` -> `orchestrator.forward_middleware_health()` -> dashboard `POST /api/middleware-health`
+  every 5 s; GET /api/health reports the PLC leg (connected/unreachable/unknown/not reported) and degrades on dropped forwards or a
+  heartbeat older than 20 s. The header badge was the hardcoded word ONLINE; `refreshHealth()` in script.js now drives it.
 - `docs/` holds code (`interfaces.py`, `hmac_auth.py`, `attack_log.py`), not only docs.
   `docs/interfaces.py: MACHINES` is the single source of truth for registers/bounds (sensor ranges/nominals are
   MEASURED from SWaT: docs/swat_bounds.json). plc/twin.py derives ALL its physics constants from MACHINES `initial`.

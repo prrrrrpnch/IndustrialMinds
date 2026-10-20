@@ -1085,11 +1085,56 @@ async function refreshTracer() {
     } catch (e) { /* dashboard keeps running without the tracer */ }
 }
 
+// =========================================================
+// SYSTEM HEALTH BADGE  (AUDIT N6)
+//
+// The header used to read "System Status: ONLINE" as static markup - it said ONLINE with the PLC unreachable and approved
+// commands never delivered. It now reflects GET /api/health, which the middleware feeds with PLC reachability.
+// =========================================================
+async function refreshHealth() {
+
+    const dot = document.getElementById("systemStatusDot");
+    const text = document.getElementById("systemStatusText");
+    const detail = document.getElementById("systemStatusDetail");
+    const box = document.getElementById("systemStatus");
+    if (!dot || !text) { return; }
+
+    let health;
+    try {
+        const r = await fetch("/api/health");
+        health = await r.json();
+    } catch (e) {
+        // The dashboard itself is unreachable from this page: say so rather than leaving a stale green dot.
+        box.className = "status-indicator offline";
+        dot.className = "status-dot offline";
+        text.textContent = "UNREACHABLE";
+        detail.textContent = "the dashboard did not answer";
+        return;
+    }
+
+    const degraded = health.degraded || [];
+    const state = health.status === "ok" ? "" : "degraded";
+
+    box.className = "status-indicator" + (state ? " " + state : "");
+    dot.className = "status-dot" + (state ? " " + state : "");
+    text.textContent = health.status === "ok" ? "ONLINE" : "DEGRADED";
+
+    const bits = [];
+    if (health.plc) { bits.push("PLC " + health.plc); }
+    if (degraded.length) { bits.push(degraded.join("; ")); }
+    detail.textContent = bits.join(" - ");
+    box.title = degraded.length ? degraded.join("\n") : "all reported subsystems healthy";
+}
+
+
 document.addEventListener(
     "DOMContentLoaded",
     () => {
 
         setupButtons();
+
+        refreshHealth();
+        setInterval(refreshHealth, 3000);
 
         refreshTracer();
         setInterval(refreshTracer, 1000);
