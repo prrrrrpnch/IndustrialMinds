@@ -79,6 +79,11 @@ def forward_trace_to_dashboard(trace: dict) -> None:
     _enqueue("/api/trace", trace)
 
 
+def forward_investigation_to_dashboard(finding: dict) -> None:
+    """Publish an investigator finding. It is an analysis for a human, never an instruction to any component."""
+    _enqueue("/api/investigation", finding)
+
+
 def forward_model_card_to_dashboard(card: dict) -> None:
     """Publish the live physical model's card once at startup, so the dashboard can state what the model is and what it cannot do."""
     _enqueue("/api/model", card)

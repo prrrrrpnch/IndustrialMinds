@@ -126,6 +126,30 @@ response layer and quotes the held-out REAL SWaT results, **kept in separate sec
 `--no-live` skips the live campaign. First recorded run: 15 of 26 attack-phase commands flagged, 0 of 40 legitimate commands flagged,
 9 of 9 attack campaigns that pass through the middleware detected (`false-injection` bypasses it by design).
 
+### The investigator: an LLM agent beside the pipeline, never inside it
+
+Enforcement stays deterministic. Authentication, access control and the hard safety limits are code, run in microseconds, and
+decide PASS / DROP / ALERT on their own. What an LLM adds is the layer above them: the investigation, which is not a fixed chain
+of if/else statements. When an incident reaches high severity, `middleware/investigator.py` reads the evidence a human analyst
+would - the incident, the hop-by-hop trace of individual commands, the plant state, the rule catalogue, the live policy and
+quarantine settings, the model card, the blocked-attack log - choosing what to look at next based on what the last answer showed,
+and writes up what happened, how confident it is, and what it would do about it.
+
+It is bounded by code, not by its prompt:
+
+| Guarantee | How |
+|---|---|
+| Cannot change a verdict | It runs after the decision is published, in a worker thread |
+| Cannot act | Recommendations come from a fixed allow-list; anything invented is dropped before the finding is stored |
+| Cannot reach the plant | Every tool is a read-only getter over records this process already holds |
+| Cannot block the middleware | Hard caps on turns, tool calls and tokens |
+| Cannot be required | No SDK, no key, no network, or any failure -> a deterministic engine writes the same finding shape |
+| Does not trust what it reads | Evidence is attacker-influenced, so it is wrapped and labelled as data, never as instructions |
+
+Opt in with `IM_INVESTIGATOR=1` and an API key, or run it by hand from the analyst's laptop:
+`python -m tools.investigate --incident INC-0001`. Findings appear in a dashboard panel with no Apply button - a person makes
+every change. Tests: `tests/test_investigator.py`.
+
 ### Verifying the whole flow in one command
 
 `python -m tools.sim_four_laptops` runs all four roles on one machine, each on its own loopback address, over real Modbus/TCP:

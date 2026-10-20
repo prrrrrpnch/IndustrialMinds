@@ -28,11 +28,12 @@ import logging
 import os
 import threading
 import time
+from collections import OrderedDict
 from concurrent.futures import Future, ThreadPoolExecutor
 from typing import Any, Callable, Dict, Mapping, Optional, Tuple, Union
 
 from docs.interfaces import make_verdict
-from middleware import cyber_agent, incidents, orchestrator, physical_agent, quarantine, trace as tracer
+from middleware import cyber_agent, incidents, investigator, orchestrator, physical_agent, quarantine, trace as tracer
 from models.cyber_model import CyberModel
 from models.physical_model import PhysicalModel
 from models.physical_model_v2 import load_physical_model
@@ -125,8 +126,6 @@ class MultiModelPipeline:
             decision = {"tx_id": tx_id, "verdict": "DROP", "reason": "AGENT_ERROR:orchestrator",
                         "latency_ms": round((time.time() - start_time) * 1000, 3), "direction": "downstream"}
 
-        incident = self._respond(command, decision)
-
         total_ms = (time.perf_counter() - t0) * 1000.0
         timings = {"branches": round((t_branches - t0) * 1000.0, 4), "cyber_model": cyber_ml.get("latency_ms"),
                    "physical_model": phys_ml.get("latency_ms"), "total": round(total_ms, 4)}
@@ -137,6 +136,10 @@ class MultiModelPipeline:
         except Exception:
             log.exception("trace build failed on tx=%s (decision unaffected)", tx_id)
             hop_trace = None
+
+        self._remember(command, current_state, hop_trace)
+        incident = self._respond(command, decision)
+
         return {
             "trace": hop_trace,
             "tx_id": tx_id,
@@ -170,6 +173,29 @@ class MultiModelPipeline:
 
     # ------------------------------------------------------------ response
     _incident_sent: Dict[str, Tuple[float, str, bool]] = {}
+    _recent_traces: "OrderedDict[str, Dict[str, Any]]" = OrderedDict()
+    _last_registers: Dict[Any, Any] = {}
+    MAX_KEPT_TRACES = 60
+
+    def _remember(self, command: Dict[str, Any], state: Dict[str, Any], hop_trace: Optional[Dict[str, Any]]) -> None:
+        """Keep a small, bounded ring of recent traces and the last plant snapshot, so an investigation has something to read.
+        In memory, read-only to everything else, and never consulted by a decision."""
+        try:
+            self._last_registers = dict(state.get("registers") or {})
+            if hop_trace:
+                self._recent_traces[str(command.get("tx_id"))] = hop_trace
+                while len(self._recent_traces) > self.MAX_KEPT_TRACES:
+                    self._recent_traces.popitem(last=False)
+        except Exception:
+            pass
+
+    def _investigation_context(self) -> Dict[str, Any]:
+        """Evidence an investigation may read. Gathered in the worker thread, after the decision has already been returned."""
+        model = self.physical_model.assess()
+        suspect = [s for s in ([model.get("suspect_stage")] + [d.get("stage") for d in (model.get("top_deviations") or [])]) if s]
+        return {"traces": dict(self._recent_traces),
+                "plant_state": {"registers": dict(self._last_registers), "physical_model": model,
+                                "suspect_stages": sorted(set(suspect))}}
 
     def _respond(self, command: Dict[str, Any], decision: Dict[str, Any]) -> Optional[Dict[str, Any]]:
         """Strikes for the quarantine, incident correlation, dashboard notification. Never raises, never changes the decision."""
@@ -185,6 +211,9 @@ class MultiModelPipeline:
                                 started["offence"], started["trigger"])
             inc = incidents.record(command, decision, started)
             if inc is not None:
+                # OPT-IN (IM_INVESTIGATOR=1), strictly off the decision path: a worker thread investigates the incident and
+                # publishes an analysis. The decision below has already been made and cannot be changed by it.
+                investigator.investigate_async(inc, self._investigation_context, orchestrator.forward_investigation_to_dashboard)
                 last = self._incident_sent.get(inc["id"])
                 now = time.time()
                 if last is None or now - last[0] >= 0.5 or last[1] != inc["severity"] or last[2] != inc["quarantined"]:
