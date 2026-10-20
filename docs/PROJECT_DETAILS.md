@@ -645,3 +645,19 @@ threshold 0.7880, measured 1.17 alerts/h, 8/10 segments, F1 0.485) and `sensitiv
 F1 0.468), selected with `IM_PHYSICAL_SENSITIVITY`; `IM_PHYSICAL_THRESHOLD` still overrides with a raw number. `model_card()` and
 `docs/MODEL_CARD.md` state what the model is, its measured performance and its known limits; the middleware publishes the card to the
 dashboard at startup (`/api/model`) so the panel describes the model that is actually running. Tests: `tests/test_physical_explain.py`.
+
+## End-to-end system-flow verification (four laptops, simulated and captured)
+
+`tools/sim_four_laptops.py` runs the complete demo on a single machine with each role on its own loopback address, so the cyber agent
+genuinely sees four distinct peers: 127.0.0.1 middleware + dashboard, 127.0.0.2 PLC twin, 127.0.0.3 SCADA operator (trusted),
+127.0.0.4 attacker (trusted segment, malicious), 127.0.0.9 rogue (untrusted). Nine phases run over real Modbus/TCP while tshark
+captures both legs to TSV and to a pcapng. The tool then cross-checks four independent records of the same traffic - packet capture,
+Packet Tracer, blocked-attack log, dashboard flow - matching wire frames to tracer entries by the 64-bit frame nonce (the tx_id is
+generated inside the middleware and never appears on the wire).
+
+Recorded result (docs/reports/system_flow_verification.md): 24 signed frames captured, 24 consistent with the tracer, 0 mismatches.
+Every DROP (forged HMAC, out-of-bounds, replay, five rate-limit frames, unsigned, untrusted source, cross-register) is present on the
+middleware leg and absent from the PLC leg; every PASS and ALERT is present on both. The single direct-to-PLC write from the attacker
+appears on the PLC leg only, confirming the documented limit of an inline control. Each DROP produces exactly one blocked-attack-log
+record and the events correlate into per-source incidents. A Modbus-level response is still returned to the sender on a DROP (the
+frame write itself is accepted by the datastore); what does not happen is the forward to the PLC, so no PLC response follows.

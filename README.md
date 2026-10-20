@@ -126,6 +126,18 @@ response layer and quotes the held-out REAL SWaT results, **kept in separate sec
 `--no-live` skips the live campaign. First recorded run: 15 of 26 attack-phase commands flagged, 0 of 40 legitimate commands flagged,
 9 of 9 attack campaigns that pass through the middleware detected (`false-injection` bypasses it by design).
 
+### Verifying the whole flow in one command
+
+`python -m tools.sim_four_laptops` runs all four roles on one machine, each on its own loopback address, over real Modbus/TCP:
+operator commands from the SCADA address, every attack from the attacker address, one from a host outside the trusted list, and a
+write that bypasses the middleware entirely. It captures both legs with tshark (and a `capture.pcapng` for the Wireshark GUI), then
+cross-checks four independent records of the same traffic - the capture, the Packet Tracer, the blocked-attack log and the dashboard
+flow - matching wire frames to tracer entries by the frame nonce, which is the only shared identifier on the wire.
+
+Last run (`docs/reports/system_flow_verification.md`): 24 signed frames captured, **24 consistent with the tracer, 0 mismatches**;
+every DROP absent from the PLC leg, every PASS present; the one direct-to-PLC write visible on the PLC leg and on no other record,
+which is the documented bypass.
+
 ### Reading the physical model's verdict
 
 Every flag says **where**, not just how likely. The 18 live channels are grouped by plant stage; the window is rescored once per
