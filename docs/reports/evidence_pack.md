@@ -44,8 +44,10 @@ Reading the table honestly: attacks that are slow and stay inside normal bounds 
 
 RESPONSE LAYER: deterministic in-process demonstration (constructed scenario, virtual clock)
 
-- **Quarantine:** 40 forged commands from one source were sent; the source was quarantined after command **2**, 38 later commands were refused at the first check, and another source still worked: **True**.
-- **Incident:** severity `critical` - 127.0.0.2: 40 event(s) in 12 s - Blocked While Quarantined, Tampered / Forged HMAC - source quarantined
+- **Spoof resistance (AUDIT S4):** 40 forged commands claiming to come from a trusted address were all dropped, and the quarantine did **not** fire (`quarantined_after_command` = None). The device whose address was spoofed could still command the plant afterwards: **True**. An unauthenticated refusal is forgeable by anyone who can put a packet on the wire, so it can never cut a real device off - otherwise the response mechanism is a denial-of-service lever against the operator. Incident severity `high`: it is still detected, logged and correlated.
+
+- **Quarantine:** 10 commands that the device PROVABLY signed but was not authorised to send; it was quarantined after command **2**, 8 later commands were refused, and another source still worked: **True**.
+- **Incident:** severity `critical` - 127.0.0.2: 10 event(s) in 3 s - Blocked While Quarantined, Unauthorized Write (Policy) - source quarantined
 
 | policy case | result | reason |
 |---|---|---|

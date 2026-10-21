@@ -1,6 +1,6 @@
 # IndustrialMind benchmark report
 
-_Generated 2026-10-15 08:05:35 UTC by `python -m benchmark.run_all` at commit `f0031de`. Every number below comes from `benchmarks/latest.json`; nothing is typed by hand._
+_Generated 2026-10-20 16:40:57 UTC by `python -m benchmark.run_all` at commit `371ce53`. Every number below comes from `benchmarks/latest.json`; nothing is typed by hand._
 
 Four sections, deliberately separate because they answer different questions and have different evidential weight:
 
@@ -36,24 +36,22 @@ Three-class decision matrix of the rule layers on constructed commands (rows = t
 
 **What this is.** In-process decision latency of the real pipeline on a constructed workload (no sockets). 3000 commands x 3 repeats after 300 warm-up, seed 7; 70% legitimate, 30% attacks (tamper, unsigned, replay, out-of-bounds, untrusted source, cross-register).
 
-Measured on Linux-6.18.44-fc-v114-x86_64-with-glibc2.39, Python 3.13.16, 4 CPUs, scikit-learn 1.9.1, commit `f0031de`. Latency depends on the machine: re-run `python -m benchmark.run_all` on yours.
+Measured on Linux-6.18.44-fc-v139-x86_64-with-glibc2.39, Python 3.13.16, 4 CPUs, scikit-learn 1.9.1, commit `371ce53`. Latency depends on the machine: re-run `python -m benchmark.run_all` on yours.
 
 | Hop | mean (ms) | p50 (ms) | p95 (ms) | p99 (ms) |
 |---|---|---|---|---|
-| Cyber Agent rules | 0.0655 | 0.0611 | 0.1024 | 0.2082 |
-| Cyber model (NO_MODEL stub) | 0.0136 | 0.0122 | 0.0205 | 0.0513 |
-| Physical Agent rules | 0.0371 | 0.0334 | 0.0581 | 0.1086 |
-| Physical model (assess; includes window refresh) | 0.3283 | 0.0065 | 1.3771 | 1.9165 |
-| Orchestrator fusion | 0.0193 | 0.0160 | 0.0317 | 0.0602 |
-| Packet-trace build | 0.0630 | 0.0579 | 0.0988 | 0.1539 |
-| Both branches (concurrent, wall time) | 0.7022 | 0.3972 | 1.7721 | 2.5993 |
-| TOTAL per command | 0.8088 | 0.5042 | 1.9020 | 2.8407 |
+| Cyber Agent rules | 0.0635 | 0.0588 | 0.1043 | 0.1377 |
+| Cyber model (NO_MODEL stub) | 0.0100 | 0.0087 | 0.0146 | 0.0406 |
+| Physical Agent rules | 0.0310 | 0.0283 | 0.0466 | 0.0698 |
+| Physical model (assess; includes window refresh) | 0.3300 | 0.0089 | 1.3773 | 2.1452 |
+| Orchestrator fusion | 0.0158 | 0.0138 | 0.0268 | 0.0440 |
+| Packet-trace build | 0.0711 | 0.0668 | 0.1111 | 0.1394 |
+| Both branches (concurrent, wall time) | 0.6397 | 0.3419 | 1.7245 | 2.5686 |
+| TOTAL per command | 0.8011 | 0.5012 | 1.9723 | 2.7970 |
 
 ![Per-hop latency](figures/latency_per_hop.png)
 
-Spread of the total across repeats: mean 0.7339-0.9045 ms, p95 1.7691-2.0807 ms. The two branches overlap, so hops do not sum to the total.
-
-Live Modbus round trip: NOT RUN: no middleware reachable at the configured address.
+Spread of the total across repeats: mean 0.7835-0.8132 ms, p95 1.8759-2.0592 ms. The two branches overlap, so hops do not sum to the total.
 
 ## 2. Held-out SWaT (real data)
 
