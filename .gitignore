@@ -19,3 +19,6 @@ config/lab.env
 # Audit raw evidence (large); the written baseline in final-results/before-review/*.md is committed
 final-results/before-review/_raw/
 final-results/after-fixes/_run/
+
+# intermediates written by docs/guide_review/build_report.py (regenerated on every build)
+docs/guide_review/_*.html
