@@ -55,8 +55,11 @@ Python 3.13 or 3.14 on every laptop. From the repository root: `pip install -r r
 ### Windows A: PLC twin (`<PLC_IP>`)
 
 ```powershell
-# nothing to set: the PLC listens on all interfaces, port 5020, by default
+# The PLC listens on all interfaces, port 5020. It accepts plant writes ONLY from the middleware (AUDIT S1), and it
+# learns who that is from IM_MIDDLEWARE_HOST. Forget this and it refuses the middleware's own writes.
+$env:IM_MIDDLEWARE_HOST = "<MW_IP>"
 python -m plc.plc
+# (the launcher does this for you:  .\scripts\run.ps1 plc   - it reads MW_IP from config\lab.env)
 ```
 Firewall (PowerShell as Administrator): allow only the middleware (add `<ATTACKER_IP>` as well only for the false-injection demo).
 ```powershell

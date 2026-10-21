@@ -124,7 +124,8 @@ def _record_refusal(source_ip: str, register: int, value: float) -> None:
         log.warning(
             f"[PLC] REFUSED direct write from {source_ip}: {entry['name']}={value:.2f} - "
             f"not an allowed writer (IM_PLC_ALLOWED_WRITERS={ALLOWED_WRITERS_ENV}). "
-            f"This is a middleware bypass attempt; {total} refused so far."
+            f"This is a middleware bypass attempt; {total} refused so far. "
+            f"(If {source_ip} IS your middleware, set IM_MIDDLEWARE_HOST or IM_PLC_ALLOWED_WRITERS to it on this laptop.)"
         )
 
 

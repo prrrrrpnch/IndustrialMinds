@@ -65,6 +65,9 @@ function Set-Secret {
 
 switch ($Role) {
     'plc' {
+        # AUDIT S1: the PLC only accepts plant writes from the middleware. Its allow-list defaults to IM_MIDDLEWARE_HOST,
+        # so the PLC laptop must be told where the middleware is - otherwise it would refuse the middleware's own writes.
+        $env:IM_MIDDLEWARE_HOST = $MW_IP
         & $py -m plc.plc @Rest
     }
     'dashboard' {

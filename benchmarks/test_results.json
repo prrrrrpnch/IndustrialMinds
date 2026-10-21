@@ -1,24 +1,24 @@
 {
-  "started_utc": "2026-10-20 16:32:48",
-  "total_seconds": 232.1,
+  "started_utc": "2026-10-21 06:16:31",
+  "total_seconds": 262.9,
   "environment": {
-    "generated_utc": "2026-10-20 16:36:41",
+    "generated_utc": "2026-10-21 06:20:55",
     "python": "3.13.16",
-    "platform": "Linux-6.18.44-fc-v139-x86_64-with-glibc2.39",
+    "platform": "Linux-6.18.44-fc-v140-x86_64-with-glibc2.39",
     "machine": "x86_64",
     "cpu_count": 4,
     "numpy": "2.5.4",
     "pandas": "3.0.6",
     "scikit_learn": "1.9.1",
     "joblib": "1.6.0",
-    "git_commit": "116903c",
+    "git_commit": "ca347b1",
     "git_dirty": true
   },
   "summary": {
     "PASS": 33,
     "FAIL": 0,
     "SKIPPED": 2,
-    "check_lines_passed": 849,
+    "check_lines_passed": 855,
     "check_lines_failed": 0
   },
   "results": [
@@ -31,7 +31,7 @@
       "status": "PASS",
       "exit_code": 0,
       "script": "test_attacker_randomization",
-      "seconds": 1.8,
+      "seconds": 1.7,
       "checks_passed": 31,
       "checks_failed": 0,
       "last_line": "ALL PASS"
@@ -49,7 +49,7 @@
       "status": "PASS",
       "exit_code": 0,
       "script": "test_benchmark",
-      "seconds": 6.1,
+      "seconds": 7.4,
       "checks_passed": 23,
       "checks_failed": 0,
       "last_line": "ALL PASS"
@@ -58,7 +58,7 @@
       "status": "PASS",
       "exit_code": 0,
       "script": "test_bounds_alignment",
-      "seconds": 0.6,
+      "seconds": 0.8,
       "checks_passed": 34,
       "checks_failed": 0,
       "last_line": "ALL PASS"
@@ -68,7 +68,7 @@
       "exit_code": 0,
       "script": "test_check_topology",
       "seconds": 0.1,
-      "checks_passed": 9,
+      "checks_passed": 15,
       "checks_failed": 0,
       "last_line": "ALL PASS"
     },
@@ -76,7 +76,7 @@
       "status": "PASS",
       "exit_code": 0,
       "script": "test_cyber_agent",
-      "seconds": 0.1,
+      "seconds": 0.0,
       "checks_passed": null,
       "checks_failed": null,
       "last_line": "All cyber agent checks passed"
@@ -94,7 +94,7 @@
       "status": "PASS",
       "exit_code": 0,
       "script": "test_environment",
-      "seconds": 1.5,
+      "seconds": 2.0,
       "checks_passed": 5,
       "checks_failed": 0,
       "last_line": "ALL PASS"
@@ -103,7 +103,7 @@
       "status": "PASS",
       "exit_code": 0,
       "script": "test_evidence_pack",
-      "seconds": 0.8,
+      "seconds": 0.9,
       "checks_passed": 19,
       "checks_failed": 0,
       "last_line": "ALL PASS"
@@ -112,7 +112,7 @@
       "status": "PASS",
       "exit_code": 0,
       "script": "test_fusion_scenarios",
-      "seconds": 16.1,
+      "seconds": 18.9,
       "checks_passed": 21,
       "checks_failed": 0,
       "last_line": "ALL PASS"
@@ -121,7 +121,7 @@
       "status": "PASS",
       "exit_code": 0,
       "script": "test_investigator",
-      "seconds": 1.5,
+      "seconds": 1.7,
       "checks_passed": 75,
       "checks_failed": 0,
       "last_line": "ALL PASS"
@@ -171,7 +171,7 @@
       "status": "PASS",
       "exit_code": 0,
       "script": "test_physical_agent",
-      "seconds": 0.1,
+      "seconds": 0.0,
       "checks_passed": null,
       "checks_failed": null,
       "last_line": "============================================================"
@@ -180,7 +180,7 @@
       "status": "PASS",
       "exit_code": 0,
       "script": "test_physical_explain",
-      "seconds": 1.9,
+      "seconds": 2.2,
       "checks_passed": 67,
       "checks_failed": 0,
       "last_line": "ALL PASS"
@@ -189,7 +189,7 @@
       "status": "PASS",
       "exit_code": 0,
       "script": "test_physical_v2",
-      "seconds": 100.3,
+      "seconds": 113.3,
       "checks_passed": 23,
       "checks_failed": 0,
       "last_line": "ALL PASS"
@@ -198,7 +198,7 @@
       "status": "PASS",
       "exit_code": 0,
       "script": "test_physical_v2_live",
-      "seconds": 1.7,
+      "seconds": 2.0,
       "checks_passed": 19,
       "checks_failed": 0,
       "last_line": "ALL PASS"
@@ -207,7 +207,7 @@
       "status": "PASS",
       "exit_code": 0,
       "script": "test_physical_v3",
-      "seconds": 20.9,
+      "seconds": 23.8,
       "checks_passed": 53,
       "checks_failed": 0,
       "last_line": "ALL PASS"
@@ -216,7 +216,7 @@
       "status": "PASS",
       "exit_code": 0,
       "script": "test_physical_v3_live",
-      "seconds": 18.3,
+      "seconds": 21.9,
       "checks_passed": 33,
       "checks_failed": 0,
       "last_line": "ALL PASS"
@@ -225,7 +225,7 @@
       "status": "PASS",
       "exit_code": 0,
       "script": "test_pipeline",
-      "seconds": 1.5,
+      "seconds": 1.7,
       "checks_passed": 24,
       "checks_failed": 0,
       "last_line": "All 24 pipeline checks passed"
@@ -234,7 +234,7 @@
       "status": "PASS",
       "exit_code": 0,
       "script": "test_quarter_fixes",
-      "seconds": 7.9,
+      "seconds": 8.0,
       "checks_passed": 56,
       "checks_failed": 0,
       "last_line": "ALL PASS"
@@ -243,7 +243,7 @@
       "status": "PASS",
       "exit_code": 0,
       "script": "test_response_layer",
-      "seconds": 1.7,
+      "seconds": 1.9,
       "checks_passed": 87,
       "checks_failed": 0,
       "last_line": "ALL PASS"
@@ -252,7 +252,7 @@
       "status": "PASS",
       "exit_code": 0,
       "script": "test_sim_four_laptops",
-      "seconds": 0.1,
+      "seconds": 0.4,
       "checks_passed": 27,
       "checks_failed": 0,
       "last_line": "ALL PASS"
@@ -261,7 +261,7 @@
       "status": "PASS",
       "exit_code": 0,
       "script": "test_sprint_fixes",
-      "seconds": 0.8,
+      "seconds": 0.7,
       "checks_passed": 56,
       "checks_failed": 0,
       "last_line": "ALL PASS"
@@ -270,7 +270,7 @@
       "status": "PASS",
       "exit_code": 0,
       "script": "test_swat_cyber",
-      "seconds": 11.5,
+      "seconds": 12.8,
       "checks_passed": 30,
       "checks_failed": 0,
       "last_line": "ALL PASS"
@@ -279,7 +279,7 @@
       "status": "PASS",
       "exit_code": 0,
       "script": "test_swat_fixture",
-      "seconds": 10.4,
+      "seconds": 11.0,
       "checks_passed": 19,
       "checks_failed": 0,
       "last_line": "ALL PASSED"
@@ -288,7 +288,7 @@
       "status": "PASS",
       "exit_code": 0,
       "script": "test_swat_physical",
-      "seconds": 20.5,
+      "seconds": 23.0,
       "checks_passed": 32,
       "checks_failed": 0,
       "last_line": "ALL PASS"
@@ -297,7 +297,7 @@
       "status": "PASS",
       "exit_code": 0,
       "script": "test_test_runner",
-      "seconds": 1.6,
+      "seconds": 1.8,
       "checks_passed": 8,
       "checks_failed": 0,
       "last_line": "ALL PASS"
@@ -306,7 +306,7 @@
       "status": "PASS",
       "exit_code": 0,
       "script": "test_trace",
-      "seconds": 1.3,
+      "seconds": 1.5,
       "checks_passed": 28,
       "checks_failed": 0,
       "last_line": "ALL PASS"
@@ -324,7 +324,7 @@
       "status": "PASS",
       "exit_code": 0,
       "script": "test_wire_correlate",
-      "seconds": 1.5,
+      "seconds": 1.7,
       "checks_passed": 9,
       "checks_failed": 0,
       "last_line": "ALL PASS"
