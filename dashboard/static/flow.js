@@ -62,7 +62,8 @@
         const plc = el("g", {}, svg);
         el("rect", { x: BOX.plc.x, y: BOX.plc.y, width: BOX.plc.w, height: BOX.plc.h, rx: 12, class: "flow-plc", id: "flow-box-plc" }, plc);
         text(plc, BOX.plc.x + BOX.plc.w / 2, BOX.plc.y + 26, "PLC (twin)", "flow-title");
-        text(plc, BOX.plc.x + BOX.plc.w / 2, BOX.plc.y + 46, ":5020", "flow-sub");
+        const plcSub = text(plc, BOX.plc.x + BOX.plc.w / 2, BOX.plc.y + 46, ":5020", "flow-sub");
+        if (plcSub && plcSub.setAttribute) plcSub.setAttribute("id", "flow-plc-sub");
         el("g", { id: "flow-sources" }, svg);
         el("g", { id: "flow-dots" }, svg);
     }
@@ -103,7 +104,7 @@
         const path = [[280, src.y], P.entry, P.cyber];
         if (ev.stopped_at !== "cyber") path.push(P.physical);
         if (!ev.stopped_at) path.push(P.orch, P.exit, P.plc);
-        const colour = ev.verdict === "DROP" ? "dot-drop" : ev.verdict === "ALERT" ? "dot-alert" : "dot-pass";
+        const colour = ev.verdict === "DROP" || ev.verdict === "UNDELIVERED" ? "dot-drop" : ev.verdict === "ALERT" ? "dot-alert" : "dot-pass";
         const c = el("circle", { r: 7, cx: path[0][0], cy: path[0][1], class: `flow-dot ${src.trusted === false ? "dot-untrusted" : colour}` },
             svg.querySelector("#flow-dots"));
         dots.push({ c, path, t0: performance.now(), ev, colour });
@@ -116,7 +117,15 @@
             const seg = Math.floor(k);
             if (seg >= d.path.length - 1) {
                 const end = d.ev.stopped_at || "plc";
-                flash(end, d.ev.verdict === "DROP" ? "hit-drop" : d.ev.verdict === "ALERT" ? "hit-alert" : "hit-pass");
+                flash(end, d.ev.verdict === "DROP" || d.ev.verdict === "UNDELIVERED" ? "hit-drop" : d.ev.verdict === "ALERT" ? "hit-alert" : "hit-pass");
+                if (end === "plc") {
+                    // A command that reached the PLC marks it up; one the PLC never took marks it DOWN (and says so on the node).
+                    const down = d.ev.verdict === "UNDELIVERED";
+                    const box = svg.querySelector("#flow-box-plc");
+                    if (box) box.classList.toggle("plc-down", down);
+                    const sub = svg.querySelector("#flow-plc-sub");
+                    if (sub) sub.textContent = down ? ":5020 unreachable" : ":5020";
+                }
                 d.c.remove();
                 dots.splice(i, 1);
                 continue;
@@ -134,7 +143,7 @@
     function addTicker(ev) {
         const li = document.createElement("li");
         const who = labels[ev.source_ip] || ev.source_ip;
-        const where = ev.stopped_at ? ` · stopped at the ${ev.stopped_at === "cyber" ? "Cyber" : "Physical"} Agent` : ev.forwarded ? " · forwarded to the PLC" : "";
+        const where = ev.stopped_at ? ` · stopped at the ${ev.stopped_at === "cyber" ? "Cyber" : "Physical"} Agent` : ev.forwarded ? " · forwarded to the PLC" : ev.verdict === "UNDELIVERED" ? " · never reached the PLC" : "";
         li.className = `tick tick-${String(ev.verdict).toLowerCase()}`;
         li.innerHTML = `<span class="t-time">${safe(ev.time)}</span><span class="t-src">${safe(who)}</span>` +
             `<span class="t-cmd">${safe(ev.command)}=${safe(ev.value)}</span>` +

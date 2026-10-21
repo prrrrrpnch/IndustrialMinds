@@ -23,7 +23,8 @@ Set-Location $Root
 
 # --- read config\lab.env into a hashtable ----------------------------------
 $cfg = @{}
-$envFile = Join-Path $Root 'config\lab.env'
+# IM_LAB_ENV points the launcher at a different file; unset, it is config\lab.env exactly as before.
+$envFile = if ($env:IM_LAB_ENV) { $env:IM_LAB_ENV } else { Join-Path $Root 'config\lab.env' }
 if (Test-Path $envFile) {
     Get-Content $envFile | ForEach-Object {
         $line = $_.Trim()
@@ -72,6 +73,8 @@ switch ($Role) {
     }
     'dashboard' {
         $env:IM_DASHBOARD_BIND_HOST = $DASH_BIND
+        # The DASHBOARD reads this to name the hosts in the Live Network Flow ("SCADA operator" instead of a bare "host").
+        $env:IM_HOST_LABELS = "$SCADA_IP=SCADA operator,$ATTACKER_IP=Attacker laptop"
         Set-DashToken
         & $py dashboard/app.py @Rest
     }

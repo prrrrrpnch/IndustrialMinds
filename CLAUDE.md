@@ -103,6 +103,20 @@ Reference files are listed by path below; none are auto-loaded.
   `docs/` is no longer a package. Rejected experiments moved to `research/`: physical_model_v3, features_v3, train_physical_v3,
   package_physical_v3, train_fusion_swat, fusion_scenarios, train_cyber_swat. DELIBERATELY NOT moved: `swat/cyber_events.py`
   (models/cyber_model.py imports it live; shared train/serve feature code is the skew defence the audit itself credits).
+- THREE-LAPTOP REHEARSAL (`python -m tools.verify_three_laptops`, ~5 min, writes docs/reports/three_laptop_e2e_verification.md, 65 checks):
+  runs middleware+dashboard / PLC+SCADA (ONE address) / attacker on distinct loopback addresses THROUGH THE REAL LAUNCHERS, with a real
+  tshark capture of both legs and a real browser. `IM_LAB_ENV=<file>` makes run.sh/run.ps1 read that file instead of config/lab.env (the
+  launcher sources the file AFTER the environment, so a stale config/lab.env silently overrides exported MW_IP/SCADA_IP - this bit the first
+  attempt). One disclosed shim: a sitecustomize in the run dir binds a source address for the one process that sets IM_BIND_SOURCE.
+  It found and fixed: (a) the PLC launcher never set IM_MIDDLEWARE_HOST so the PLC refused the real middleware (S1 default); `check plc --multi`
+  now FAILs it; (b) the Network Flow view showed an undelivered command as a plain PASS/ALERT - `_flow_summary` now reports UNDELIVERED for an
+  approved downstream command whose trace has forwarded=False (flow.js turns the PLC node red/dashed + ":5020 unreachable"); (c) /api/health stayed
+  DEGRADED for ever after one undelivered command - it now degrades only for IM_UNDELIVERED_RECENT_S (60 s), the COUNT stays on the overview;
+  (d) the UNDELIVERED badge overflowed its ticker column; (e) the dashboard launcher never set IM_HOST_LABELS so hosts read "host";
+  (f) a red /favicon.ico 404 on every load. Expect on a rehearsal: after attacks the advisory model turns SCADA's own commands ALERT (no cyber drops);
+  rarely a legitimate SCADA command is refused by RATE_OF_CHANGE when an insider ramp just moved the same register (rule compares with the last
+  ACCEPTED value regardless of sender). Not provable on one host: real Wi-Fi/firewalls/NICs/clock skew; the stand-in Laptop 1 is 127.0.0.1 so
+  `--multi` preflight rightly flags it (the tool whitelists exactly that).
 - `docs/` holds DOCUMENTATION ONLY now (the code moved to `core/`; see the next-quarter fixes above).
   `core/interfaces.py: MACHINES` is the single source of truth for registers/bounds (sensor ranges/nominals are
   MEASURED from SWaT: docs/swat_bounds.json). plc/twin.py derives ALL its physics constants from MACHINES `initial`.
@@ -162,6 +176,7 @@ Reference files are listed by path below; none are auto-loaded.
 | `docs/demo_workflow.md` | end-to-end roles/start order/attack/aftermath/recovery (`python -m scada.scada --restore`); dashboard has NO attack controls, Live Network Flow = `/api/flow` + `dashboard/static/flow.js` |
 | `docs/topology.md`, `docs/wireshark_setup.md` | Phase 10: 4-laptop roles, env vars, firewall rules, preflight; capture filters, field names, side-by-side demo (verified on loopback with tshark 4.2.2) |
 | `tools/sim_four_laptops.py`, `docs/reports/system_flow_verification.md` | ONE command (`python -m tools.sim_four_laptops [--no-capture] [--out <dir>]`) runs the whole 4-role demo on loopback (127.0.0.1 mw+dash / .2 PLC / .3 SCADA / .4 attacker / .9 rogue), captures BOTH legs with tshark + a pcapng, runs 9 phases, then cross-checks capture vs tracer (by nonce) vs blocked log vs dashboard flow and writes the verification report. ~6 min (120 s model warm-up). tests/test_sim_four_laptops.py |
+| `tools/verify_three_laptops.py`, `docs/three_laptop_demo.md`, `docs/reports/three_laptop_e2e_verification.md` | the three-laptop layout (middleware+dashboard / PLC+SCADA / attacker): the guide to set it up and present it, the one-machine rehearsal through the real launchers, and its generated evidence report; tests/test_verify_three_laptops.py |
 | `tools/check_topology.py`, `tools/wire_correlate.py` | per-laptop preflight (`--role ... --multi`, HMAC fingerprint); match tshark frames to tracer entries by nonce and cross-check PLC leg (tests: test_check_topology, test_wire_correlate) |
 | `core/interfaces.py` | machines/registers/bounds, verdict/decision dict shapes, cross-register rules |
 | `core/hmac_auth.py` | signed frame format, HMAC build/verify |
