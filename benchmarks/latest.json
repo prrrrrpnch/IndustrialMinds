@@ -10,116 +10,116 @@
     },
     "hops": {
       "cyber_rules": {
-        "mean_ms": 0.0655,
+        "mean_ms": 0.0635,
         "mean_ms_min_max_over_repeats": [
-          0.059,
-          0.0751
+          0.0625,
+          0.0649
         ],
-        "p95_ms": 0.1024,
+        "p95_ms": 0.1043,
         "p95_ms_min_max_over_repeats": [
-          0.094,
-          0.1144
+          0.1037,
+          0.105
         ],
-        "p99_ms": 0.2082,
-        "p50_ms": 0.0611
+        "p99_ms": 0.1377,
+        "p50_ms": 0.0588
       },
       "cyber_model": {
-        "mean_ms": 0.0136,
+        "mean_ms": 0.01,
         "mean_ms_min_max_over_repeats": [
-          0.0126,
-          0.015
+          0.0099,
+          0.0101
         ],
-        "p95_ms": 0.0205,
+        "p95_ms": 0.0146,
         "p95_ms_min_max_over_repeats": [
-          0.0189,
-          0.0232
+          0.0144,
+          0.0148
         ],
-        "p99_ms": 0.0513,
-        "p50_ms": 0.0122
+        "p99_ms": 0.0406,
+        "p50_ms": 0.0087
       },
       "physical_rules": {
-        "mean_ms": 0.0371,
+        "mean_ms": 0.031,
         "mean_ms_min_max_over_repeats": [
-          0.0338,
-          0.0404
+          0.0307,
+          0.0312
         ],
-        "p95_ms": 0.0581,
+        "p95_ms": 0.0466,
         "p95_ms_min_max_over_repeats": [
-          0.0547,
-          0.0648
+          0.0461,
+          0.0473
         ],
-        "p99_ms": 0.1086,
-        "p50_ms": 0.0334
+        "p99_ms": 0.0698,
+        "p50_ms": 0.0283
       },
       "physical_model": {
-        "mean_ms": 0.3283,
+        "mean_ms": 0.33,
         "mean_ms_min_max_over_repeats": [
-          0.3165,
-          0.3478
+          0.3207,
+          0.3349
         ],
-        "p95_ms": 1.3771,
+        "p95_ms": 1.3773,
         "p95_ms_min_max_over_repeats": [
-          1.3027,
-          1.4838
+          1.331,
+          1.4198
         ],
-        "p99_ms": 1.9165,
-        "p50_ms": 0.0065
+        "p99_ms": 2.1452,
+        "p50_ms": 0.0089
       },
       "orchestrator": {
-        "mean_ms": 0.0193,
+        "mean_ms": 0.0158,
         "mean_ms_min_max_over_repeats": [
-          0.0174,
-          0.022
+          0.0155,
+          0.016
         ],
-        "p95_ms": 0.0317,
+        "p95_ms": 0.0268,
         "p95_ms_min_max_over_repeats": [
-          0.0279,
-          0.0359
+          0.0263,
+          0.0274
         ],
-        "p99_ms": 0.0602,
-        "p50_ms": 0.016
+        "p99_ms": 0.044,
+        "p50_ms": 0.0138
       },
       "trace_build": {
-        "mean_ms": 0.063,
+        "mean_ms": 0.0711,
         "mean_ms_min_max_over_repeats": [
-          0.0569,
-          0.0703
+          0.0699,
+          0.0734
         ],
-        "p95_ms": 0.0988,
+        "p95_ms": 0.1111,
         "p95_ms_min_max_over_repeats": [
-          0.0875,
-          0.1102
+          0.1107,
+          0.1114
         ],
-        "p99_ms": 0.1539,
-        "p50_ms": 0.0579
+        "p99_ms": 0.1394,
+        "p50_ms": 0.0668
       },
       "branches": {
-        "mean_ms": 0.7022,
+        "mean_ms": 0.6397,
         "mean_ms_min_max_over_repeats": [
-          0.6379,
-          0.7845
+          0.6261,
+          0.6481
         ],
-        "p95_ms": 1.7721,
+        "p95_ms": 1.7245,
         "p95_ms_min_max_over_repeats": [
-          1.6567,
-          1.9328
+          1.6631,
+          1.7992
         ],
-        "p99_ms": 2.5993,
-        "p50_ms": 0.3972
+        "p99_ms": 2.5686,
+        "p50_ms": 0.3419
       },
       "total": {
-        "mean_ms": 0.8088,
+        "mean_ms": 0.8011,
         "mean_ms_min_max_over_repeats": [
-          0.7339,
-          0.9045
+          0.7835,
+          0.8132
         ],
-        "p95_ms": 1.902,
+        "p95_ms": 1.9723,
         "p95_ms_min_max_over_repeats": [
-          1.7691,
-          2.0807
+          1.8759,
+          2.0592
         ],
-        "p99_ms": 2.8407,
-        "p50_ms": 0.5042
+        "p99_ms": 2.797,
+        "p50_ms": 0.5012
       }
     },
     "repeats": [
@@ -129,85 +129,85 @@
         "hops": {
           "cyber_rules": {
             "n": 3167,
-            "mean_ms": 0.0751,
-            "p50_ms": 0.067,
-            "p95_ms": 0.1144,
-            "p99_ms": 0.3099,
-            "max_ms": 4.2074
+            "mean_ms": 0.0625,
+            "p50_ms": 0.0578,
+            "p95_ms": 0.1037,
+            "p99_ms": 0.135,
+            "max_ms": 1.6167
           },
           "cyber_model": {
             "n": 3167,
-            "mean_ms": 0.015,
-            "p50_ms": 0.0132,
-            "p95_ms": 0.0232,
-            "p99_ms": 0.0563,
-            "max_ms": 0.4549
+            "mean_ms": 0.0101,
+            "p50_ms": 0.0088,
+            "p95_ms": 0.0148,
+            "p99_ms": 0.0432,
+            "max_ms": 0.1881
           },
           "physical_rules": {
             "n": 3167,
-            "mean_ms": 0.0404,
-            "p50_ms": 0.0365,
-            "p95_ms": 0.0648,
-            "p99_ms": 0.1503,
-            "max_ms": 1.5029
+            "mean_ms": 0.0312,
+            "p50_ms": 0.0281,
+            "p95_ms": 0.0473,
+            "p99_ms": 0.0719,
+            "max_ms": 1.8537
           },
           "physical_model": {
             "n": 3167,
-            "mean_ms": 0.3478,
-            "p50_ms": 0.0074,
-            "p95_ms": 1.4838,
-            "p99_ms": 2.1002,
-            "max_ms": 7.7747
+            "mean_ms": 0.3343,
+            "p50_ms": 0.009,
+            "p95_ms": 1.4198,
+            "p99_ms": 2.2178,
+            "max_ms": 4.0562
           },
           "orchestrator": {
             "n": 3167,
-            "mean_ms": 0.022,
-            "p50_ms": 0.0191,
-            "p95_ms": 0.0359,
-            "p99_ms": 0.0693,
-            "max_ms": 2.2736
+            "mean_ms": 0.016,
+            "p50_ms": 0.0142,
+            "p95_ms": 0.0268,
+            "p99_ms": 0.0444,
+            "max_ms": 0.1565
           },
           "trace_build": {
             "n": 3167,
-            "mean_ms": 0.0703,
-            "p50_ms": 0.0646,
-            "p95_ms": 0.1102,
-            "p99_ms": 0.1834,
-            "max_ms": 2.9808
+            "mean_ms": 0.0734,
+            "p50_ms": 0.07,
+            "p95_ms": 0.1114,
+            "p99_ms": 0.1397,
+            "max_ms": 2.1547
           },
           "branches": {
             "n": 3167,
-            "mean_ms": 0.7845,
-            "p50_ms": 0.4616,
-            "p95_ms": 1.9328,
-            "p99_ms": 2.9607,
-            "max_ms": 8.4153
+            "mean_ms": 0.645,
+            "p50_ms": 0.3445,
+            "p95_ms": 1.7992,
+            "p99_ms": 2.6103,
+            "max_ms": 4.2596
           },
           "total": {
             "n": 3167,
-            "mean_ms": 0.9045,
-            "p50_ms": 0.5859,
-            "p95_ms": 2.0807,
-            "p99_ms": 3.2228,
-            "max_ms": 8.5304
+            "mean_ms": 0.8132,
+            "p50_ms": 0.5056,
+            "p95_ms": 2.0592,
+            "p99_ms": 2.8749,
+            "max_ms": 5.6407
           }
         },
         "total_by_verdict": {
           "DROP": {
             "n": 936,
-            "mean_ms": 0.858,
-            "p50_ms": 0.5592,
-            "p95_ms": 2.0109,
-            "p99_ms": 3.2458,
-            "max_ms": 6.2204
+            "mean_ms": 0.8784,
+            "p50_ms": 0.5729,
+            "p95_ms": 2.2225,
+            "p99_ms": 3.0787,
+            "max_ms": 5.6407
           },
           "PASS": {
             "n": 2231,
-            "mean_ms": 0.924,
-            "p50_ms": 0.5963,
-            "p95_ms": 2.0972,
-            "p99_ms": 3.1641,
-            "max_ms": 8.5304
+            "mean_ms": 0.7859,
+            "p50_ms": 0.4852,
+            "p95_ms": 1.9919,
+            "p99_ms": 2.7758,
+            "max_ms": 4.4225
           }
         },
         "verdict_counts": {
@@ -221,85 +221,85 @@
         "hops": {
           "cyber_rules": {
             "n": 3158,
-            "mean_ms": 0.059,
-            "p50_ms": 0.0559,
-            "p95_ms": 0.094,
-            "p99_ms": 0.1346,
-            "max_ms": 3.2455
+            "mean_ms": 0.0649,
+            "p50_ms": 0.06,
+            "p95_ms": 0.1042,
+            "p99_ms": 0.1388,
+            "max_ms": 2.0111
           },
           "cyber_model": {
             "n": 3158,
-            "mean_ms": 0.0126,
-            "p50_ms": 0.0112,
-            "p95_ms": 0.0189,
-            "p99_ms": 0.0432,
-            "max_ms": 2.0049
+            "mean_ms": 0.0101,
+            "p50_ms": 0.0089,
+            "p95_ms": 0.0144,
+            "p99_ms": 0.0413,
+            "max_ms": 0.1729
           },
           "physical_rules": {
             "n": 3158,
-            "mean_ms": 0.0338,
-            "p50_ms": 0.0311,
-            "p95_ms": 0.0548,
-            "p99_ms": 0.0828,
-            "max_ms": 1.4664
+            "mean_ms": 0.0307,
+            "p50_ms": 0.029,
+            "p95_ms": 0.0464,
+            "p99_ms": 0.0678,
+            "max_ms": 0.722
           },
           "physical_model": {
             "n": 3158,
-            "mean_ms": 0.3165,
-            "p50_ms": 0.0061,
-            "p95_ms": 1.3027,
-            "p99_ms": 1.7899,
-            "max_ms": 7.2934
+            "mean_ms": 0.3349,
+            "p50_ms": 0.009,
+            "p95_ms": 1.3811,
+            "p99_ms": 2.1905,
+            "max_ms": 3.2686
           },
           "orchestrator": {
             "n": 3158,
-            "mean_ms": 0.0174,
-            "p50_ms": 0.0131,
-            "p95_ms": 0.0279,
-            "p99_ms": 0.0532,
-            "max_ms": 1.9667
+            "mean_ms": 0.0155,
+            "p50_ms": 0.0135,
+            "p95_ms": 0.0263,
+            "p99_ms": 0.0432,
+            "max_ms": 0.2728
           },
           "trace_build": {
             "n": 3158,
-            "mean_ms": 0.0569,
-            "p50_ms": 0.0504,
-            "p95_ms": 0.0875,
-            "p99_ms": 0.1193,
-            "max_ms": 3.7254
+            "mean_ms": 0.0699,
+            "p50_ms": 0.0649,
+            "p95_ms": 0.1107,
+            "p99_ms": 0.1385,
+            "max_ms": 0.3953
           },
           "branches": {
             "n": 3158,
-            "mean_ms": 0.6379,
-            "p50_ms": 0.3448,
-            "p95_ms": 1.6567,
-            "p99_ms": 2.3336,
-            "max_ms": 7.4573
+            "mean_ms": 0.6481,
+            "p50_ms": 0.3412,
+            "p95_ms": 1.7113,
+            "p99_ms": 2.6237,
+            "max_ms": 4.712
           },
           "total": {
             "n": 3158,
-            "mean_ms": 0.7339,
-            "p50_ms": 0.4339,
-            "p95_ms": 1.7691,
-            "p99_ms": 2.6151,
-            "max_ms": 7.5631
+            "mean_ms": 0.8066,
+            "p50_ms": 0.498,
+            "p95_ms": 1.9818,
+            "p99_ms": 2.8282,
+            "max_ms": 4.9263
           }
         },
         "total_by_verdict": {
           "DROP": {
             "n": 953,
-            "mean_ms": 0.6704,
-            "p50_ms": 0.3998,
-            "p95_ms": 1.7439,
-            "p99_ms": 3.3942,
-            "max_ms": 5.077
+            "mean_ms": 0.8014,
+            "p50_ms": 0.5313,
+            "p95_ms": 2.0057,
+            "p99_ms": 2.8444,
+            "max_ms": 4.156
           },
           "PASS": {
             "n": 2205,
-            "mean_ms": 0.7614,
-            "p50_ms": 0.4512,
-            "p95_ms": 1.7846,
-            "p99_ms": 2.4685,
-            "max_ms": 7.5631
+            "mean_ms": 0.8089,
+            "p50_ms": 0.4843,
+            "p95_ms": 1.9794,
+            "p99_ms": 2.8177,
+            "max_ms": 4.9263
           }
         },
         "verdict_counts": {
@@ -313,85 +313,85 @@
         "hops": {
           "cyber_rules": {
             "n": 3167,
-            "mean_ms": 0.0623,
-            "p50_ms": 0.0604,
-            "p95_ms": 0.0988,
-            "p99_ms": 0.1801,
-            "max_ms": 2.3948
+            "mean_ms": 0.0632,
+            "p50_ms": 0.0585,
+            "p95_ms": 0.105,
+            "p99_ms": 0.1393,
+            "max_ms": 1.2555
           },
           "cyber_model": {
             "n": 3167,
-            "mean_ms": 0.0133,
-            "p50_ms": 0.0121,
-            "p95_ms": 0.0195,
-            "p99_ms": 0.0545,
-            "max_ms": 0.7505
+            "mean_ms": 0.0099,
+            "p50_ms": 0.0085,
+            "p95_ms": 0.0146,
+            "p99_ms": 0.0372,
+            "max_ms": 0.5083
           },
           "physical_rules": {
             "n": 3167,
-            "mean_ms": 0.037,
-            "p50_ms": 0.0325,
-            "p95_ms": 0.0547,
-            "p99_ms": 0.0927,
-            "max_ms": 2.1418
+            "mean_ms": 0.0312,
+            "p50_ms": 0.0277,
+            "p95_ms": 0.0461,
+            "p99_ms": 0.0696,
+            "max_ms": 4.6094
           },
           "physical_model": {
             "n": 3167,
-            "mean_ms": 0.3205,
-            "p50_ms": 0.0061,
-            "p95_ms": 1.3448,
-            "p99_ms": 1.8595,
-            "max_ms": 6.8115
+            "mean_ms": 0.3207,
+            "p50_ms": 0.0088,
+            "p95_ms": 1.331,
+            "p99_ms": 2.0273,
+            "max_ms": 3.5241
           },
           "orchestrator": {
             "n": 3167,
-            "mean_ms": 0.0186,
-            "p50_ms": 0.0158,
-            "p95_ms": 0.0314,
-            "p99_ms": 0.0582,
-            "max_ms": 0.8867
+            "mean_ms": 0.0159,
+            "p50_ms": 0.0136,
+            "p95_ms": 0.0274,
+            "p99_ms": 0.0443,
+            "max_ms": 0.6574
           },
           "trace_build": {
             "n": 3167,
-            "mean_ms": 0.0618,
-            "p50_ms": 0.0587,
-            "p95_ms": 0.0988,
-            "p99_ms": 0.1589,
-            "max_ms": 0.924
+            "mean_ms": 0.0701,
+            "p50_ms": 0.0654,
+            "p95_ms": 0.1111,
+            "p99_ms": 0.1401,
+            "max_ms": 1.3265
           },
           "branches": {
             "n": 3167,
-            "mean_ms": 0.6841,
-            "p50_ms": 0.3853,
-            "p95_ms": 1.7269,
-            "p99_ms": 2.5035,
-            "max_ms": 7.2955
+            "mean_ms": 0.6261,
+            "p50_ms": 0.34,
+            "p95_ms": 1.6631,
+            "p99_ms": 2.4719,
+            "max_ms": 4.9711
           },
           "total": {
             "n": 3167,
-            "mean_ms": 0.7879,
-            "p50_ms": 0.4928,
-            "p95_ms": 1.8562,
-            "p99_ms": 2.6841,
-            "max_ms": 7.47
+            "mean_ms": 0.7835,
+            "p50_ms": 0.4999,
+            "p95_ms": 1.8759,
+            "p99_ms": 2.6879,
+            "max_ms": 6.3682
           }
         },
         "total_by_verdict": {
           "DROP": {
             "n": 938,
-            "mean_ms": 0.7457,
-            "p50_ms": 0.4613,
-            "p95_ms": 1.8117,
-            "p99_ms": 2.8288,
-            "max_ms": 7.1395
+            "mean_ms": 0.8063,
+            "p50_ms": 0.5491,
+            "p95_ms": 1.9894,
+            "p99_ms": 2.6034,
+            "max_ms": 6.3682
           },
           "PASS": {
             "n": 2229,
-            "mean_ms": 0.8056,
-            "p50_ms": 0.5058,
-            "p95_ms": 1.8743,
-            "p99_ms": 2.5934,
-            "max_ms": 7.47
+            "mean_ms": 0.7739,
+            "p50_ms": 0.4777,
+            "p95_ms": 1.8424,
+            "p99_ms": 2.736,
+            "max_ms": 4.9169
           }
         },
         "verdict_counts": {
@@ -401,20 +401,17 @@
       }
     ],
     "environment": {
-      "generated_utc": "2026-10-15 08:05:14",
+      "generated_utc": "2026-10-20 16:40:33",
       "python": "3.13.16",
-      "platform": "Linux-6.18.44-fc-v114-x86_64-with-glibc2.39",
+      "platform": "Linux-6.18.44-fc-v139-x86_64-with-glibc2.39",
       "machine": "x86_64",
       "cpu_count": 4,
       "numpy": "2.5.4",
       "pandas": "3.0.6",
       "scikit_learn": "1.9.1",
       "joblib": "1.6.0",
-      "git_commit": "f0031de",
-      "git_dirty": true
-    },
-    "live_modbus_round_trip": {
-      "status": "NOT RUN: no middleware reachable at the configured address"
+      "git_commit": "371ce53",
+      "git_dirty": false
     }
   },
   "rules": {
@@ -1122,16 +1119,16 @@
     "provenance": "reused from benchmarks/swat_accuracy.json (measured earlier on the machine that holds the archive)"
   },
   "environment": {
-    "generated_utc": "2026-10-15 08:05:35",
+    "generated_utc": "2026-10-20 16:40:57",
     "python": "3.13.16",
-    "platform": "Linux-6.18.44-fc-v114-x86_64-with-glibc2.39",
+    "platform": "Linux-6.18.44-fc-v139-x86_64-with-glibc2.39",
     "machine": "x86_64",
     "cpu_count": 4,
     "numpy": "2.5.4",
     "pandas": "3.0.6",
     "scikit_learn": "1.9.1",
     "joblib": "1.6.0",
-    "git_commit": "f0031de",
-    "git_dirty": true
+    "git_commit": "371ce53",
+    "git_dirty": false
   }
 }

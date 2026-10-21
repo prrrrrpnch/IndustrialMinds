@@ -1,6 +1,6 @@
 {
   "environment": {
-    "generated_utc": "2026-10-19 08:18:33",
+    "generated_utc": "2026-10-20 16:41:44",
     "python": "3.13.16",
     "platform": "Linux-6.18.44-fc-v139-x86_64-with-glibc2.39",
     "machine": "x86_64",
@@ -9,7 +9,7 @@
     "pandas": "3.0.6",
     "scikit_learn": "1.9.1",
     "joblib": "1.6.0",
-    "git_commit": "bfc9745",
+    "git_commit": "371ce53",
     "git_dirty": true
   },
   "live": {
@@ -19,7 +19,7 @@
         "name": "legitimate operator traffic",
         "kind": "benign",
         "completed": true,
-        "seconds": 26.3
+        "seconds": 26.2
       },
       {
         "name": "flood",
@@ -83,18 +83,18 @@
       }
     ],
     "ports": {
-      "plc": 49229,
-      "middleware": 52151,
-      "dashboard": 37209
+      "plc": 57863,
+      "middleware": 34511,
+      "dashboard": 44631
     },
     "incidents": [
       {
         "alerts": 0,
         "drops": 15,
         "events": 15,
-        "first_seen": 1792397946.5001366,
+        "first_seen": 1792514537.0996275,
         "id": "INC-0001",
-        "last_seen": 1792398011.9447818,
+        "last_seen": 1792514602.438229,
         "quarantine": null,
         "quarantine_remaining_s": 0.0,
         "quarantined": false,
@@ -111,8 +111,8 @@
           {
             "reason": "RATE_LIMIT_EXCEEDED",
             "register": "MV101",
-            "t": 1792397946.5001366,
-            "tx_id": "777ebc2e-9f83-4e80-b3a4-5c2ed9095540",
+            "t": 1792514537.0996275,
+            "tx_id": "d58fa233-cddd-4b9d-abe8-6a87cb24d188",
             "type": "Flood / Rate Limit",
             "value": 55.6,
             "verdict": "DROP"
@@ -120,8 +120,8 @@
           {
             "reason": "RATE_LIMIT_EXCEEDED",
             "register": "MV101",
-            "t": 1792397946.5546489,
-            "tx_id": "a1d15dd8-0c19-4547-a84e-ca199daf9811",
+            "t": 1792514537.1504061,
+            "tx_id": "55d25691-1894-4df6-8cf8-b192dec91aab",
             "type": "Flood / Rate Limit",
             "value": 55.7,
             "verdict": "DROP"
@@ -129,8 +129,8 @@
           {
             "reason": "RATE_LIMIT_EXCEEDED",
             "register": "MV101",
-            "t": 1792397946.6078467,
-            "tx_id": "74818d91-23e9-4494-967f-2ab5e522f4e5",
+            "t": 1792514537.2014976,
+            "tx_id": "ea4e1f33-947a-47ab-b3e0-75b41b7d57fd",
             "type": "Flood / Rate Limit",
             "value": 55.8,
             "verdict": "DROP"
@@ -138,8 +138,8 @@
           {
             "reason": "RATE_LIMIT_EXCEEDED",
             "register": "MV101",
-            "t": 1792397946.6612442,
-            "tx_id": "7d4bd6ef-62cc-419e-83ca-dc60e7a27df0",
+            "t": 1792514537.2525325,
+            "tx_id": "cae86237-a6ca-460f-8e81-1efeadd67a72",
             "type": "Flood / Rate Limit",
             "value": 55.9,
             "verdict": "DROP"
@@ -147,8 +147,8 @@
           {
             "reason": "RATE_LIMIT_EXCEEDED",
             "register": "MV101",
-            "t": 1792397946.7143137,
-            "tx_id": "1e5a12c0-c6a1-4434-8151-8c41389883d7",
+            "t": 1792514537.3038964,
+            "tx_id": "6f1946b4-f73f-465e-8546-f7380d8c2ac7",
             "type": "Flood / Rate Limit",
             "value": 56.0,
             "verdict": "DROP"
@@ -156,8 +156,8 @@
           {
             "reason": "OUT_OF_BOUNDS",
             "register": "P101",
-            "t": 1792397950.459087,
-            "tx_id": "48e6a5fa-0f90-4334-9297-ed5ebd00f6d4",
+            "t": 1792514541.0692303,
+            "tx_id": "4f887f31-0b59-4abf-a429-bfe265fc4659",
             "type": "Impossible Command (Out of Bounds)",
             "value": 999.0,
             "verdict": "DROP"
@@ -165,8 +165,8 @@
           {
             "reason": "WRITE_TO_SENSOR_REGISTER",
             "register": "LIT101",
-            "t": 1792397954.1557667,
-            "tx_id": "adf00408-b91d-4657-bea7-0fb6a37acd59",
+            "t": 1792514544.7324927,
+            "tx_id": "c342de90-2c51-40c1-a058-82e473d459ba",
             "type": "Write To Sensor Register",
             "value": 500.0,
             "verdict": "DROP"
@@ -174,8 +174,8 @@
           {
             "reason": "REPLAY_DETECTED",
             "register": "MV101",
-            "t": 1792397957.8916996,
-            "tx_id": "91562c34-0c5b-4e3a-9b40-2f2c72527c24",
+            "t": 1792514548.4412642,
+            "tx_id": "7f6918d8-317d-408e-ac7a-05eaba48e471",
             "type": "Replay",
             "value": 56.0,
             "verdict": "DROP"
@@ -183,8 +183,8 @@
           {
             "reason": "HMAC_EXPIRED",
             "register": "MV101",
-            "t": 1792397961.5986521,
-            "tx_id": "43ea93d7-de1a-41f0-b28b-7d2a0410a2c5",
+            "t": 1792514552.1107094,
+            "tx_id": "82959d58-bedc-49e0-8cca-ecab38e2be01",
             "type": "Expired Signature (Delayed Replay)",
             "value": 57.0,
             "verdict": "DROP"
@@ -192,8 +192,8 @@
           {
             "reason": "HMAC_MISSING",
             "register": "MV101",
-            "t": 1792397965.2621553,
-            "tx_id": "44d00db7-18a1-460e-abbe-12ee7db080e9",
+            "t": 1792514555.7789974,
+            "tx_id": "613a9d8e-9e66-4d98-8fe8-183fa96bb5c8",
             "type": "Missing HMAC (Unsigned Command)",
             "value": 57.0,
             "verdict": "DROP"
@@ -201,8 +201,8 @@
           {
             "reason": "HMAC_INVALID",
             "register": "P101",
-            "t": 1792397968.9384985,
-            "tx_id": "55093007-d008-49ce-b686-60efe907f95c",
+            "t": 1792514559.4346433,
+            "tx_id": "e7c9862b-52ce-4a92-b899-b88ee91329df",
             "type": "Tampered / Forged HMAC",
             "value": 95.0,
             "verdict": "DROP"
@@ -210,8 +210,8 @@
           {
             "reason": "HMAC_INVALID",
             "register": "MV101",
-            "t": 1792397972.622977,
-            "tx_id": "b22f6c7c-0ded-4d84-a939-525358ddb677",
+            "t": 1792514563.121293,
+            "tx_id": "7d1a8ee7-9147-4345-83fe-0c4a86623fa3",
             "type": "Tampered / Forged HMAC",
             "value": 57.0,
             "verdict": "DROP"
@@ -219,8 +219,8 @@
           {
             "reason": "CROSS_REGISTER_VIOLATION",
             "register": "MV101",
-            "t": 1792398000.9110744,
-            "tx_id": "a24db6d1-30cc-4964-acbf-6b40314466ad",
+            "t": 1792514591.4068506,
+            "tx_id": "cf6ea131-1a6e-4892-8dd9-4e6ce55dde32",
             "type": "Cross-Register Correlation",
             "value": 6.0,
             "verdict": "DROP"
@@ -228,8 +228,8 @@
           {
             "reason": "CROSS_REGISTER_VIOLATION",
             "register": "MV101",
-            "t": 1792398006.4283848,
-            "tx_id": "e21034d9-0011-48fa-8552-dc062c0d35f1",
+            "t": 1792514596.9251404,
+            "tx_id": "8ae3a0aa-073c-4444-a5a5-8a02134a69ea",
             "type": "Cross-Register Correlation",
             "value": 6.0,
             "verdict": "DROP"
@@ -237,8 +237,8 @@
           {
             "reason": "CROSS_REGISTER_VIOLATION",
             "register": "MV101",
-            "t": 1792398011.9447818,
-            "tx_id": "be34e0c3-78ec-4714-852a-5a9a6d845f55",
+            "t": 1792514602.438229,
+            "tx_id": "8e18fa9a-e583-48f0-be51-00d7438868a2",
             "type": "Cross-Register Correlation",
             "value": 6.0,
             "verdict": "DROP"
@@ -294,7 +294,7 @@
         "reasons": {},
         "detected": false,
         "completed": true,
-        "seconds": 26.3,
+        "seconds": 26.2,
         "traverses_middleware": true,
         "note": "in-bounds signed writes at 1.7/s, below the rate limit"
       },
@@ -496,13 +496,21 @@
   },
   "response": {
     "label": "RESPONSE LAYER: deterministic in-process demonstration (constructed scenario, virtual clock)",
-    "quarantine": {
+    "spoof_resistance": {
       "forged_commands_sent": 40,
+      "all_dropped": true,
+      "quarantined_after_command": null,
+      "spoofed_device_can_still_command": true,
+      "incident_severity": "high",
+      "incident_summary": "127.0.0.2: 40 event(s) in 12 s - Tampered / Forged HMAC"
+    },
+    "quarantine": {
+      "authenticated_violations_sent": 10,
       "quarantined_after_command": 2,
-      "refused_while_quarantined": 38,
+      "refused_while_quarantined": 8,
       "other_source_still_works": true,
       "incident_severity": "critical",
-      "incident_summary": "127.0.0.2: 40 event(s) in 12 s - Blocked While Quarantined, Tampered / Forged HMAC - source quarantined"
+      "incident_summary": "127.0.0.2: 10 event(s) in 3 s - Blocked While Quarantined, Unauthorized Write (Policy) - source quarantined"
     },
     "policy": [
       {
