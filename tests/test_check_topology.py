@@ -35,7 +35,35 @@ check("--multi: loopback IM_MIDDLEWARE_HOST is an error on SCADA and attacker",
 check("--multi: loopback-only IM_TRUSTED_SOURCES is an error on the middleware laptop", status(run_checks("middleware", True, up, free), "IM_TRUSTED_SOURCES lists") == "FAIL")
 check("secret fingerprint is shown for signing roles and never the secret",
       all("fingerprint" in " ".join(n for _, n, _ in run_checks(r, False, up, free)) for r in ("scada", "middleware", "attacker")))
-check("plc and dashboard roles need no peer", all(s != "FAIL" for s, _, _ in run_checks("plc", True, down, free) + run_checks("dashboard", True, down, free)))
+check("the dashboard role needs no peer", all(s != "FAIL" for s, _, _ in run_checks("dashboard", True, down, free)))
+
+# AUDIT S1: the PLC refuses plant writes from anyone but the middleware, and learns who that is from IM_MIDDLEWARE_HOST.
+# On a PLC laptop where that was never set the allow-list is loopback, so the REAL middleware would be refused. That is
+# exactly the failure the preflight must catch before a demo.
+import ipaddress  # noqa: E402
+from core import netconfig  # noqa: E402
+_saved = netconfig.PLC_ALLOWED_WRITERS
+try:
+    netconfig.PLC_ALLOWED_WRITERS = netconfig.LOOPBACK
+    check("--multi: a PLC whose allow-list is still loopback is an ERROR (it would refuse the middleware)",
+          status(run_checks("plc", True, down, free), "allow-list names the middleware") == "FAIL")
+    check("...but on a single-laptop rehearsal (no --multi) it is fine",
+          all(s != "FAIL" for s, _, _ in run_checks("plc", False, down, free)))
+    netconfig.PLC_ALLOWED_WRITERS = str(ipaddress.IPv4Address(0x0A000007))      # a non-loopback address, built at run time
+    check("--multi: a PLC told the middleware's address passes",
+          all(s != "FAIL" for s, _, _ in run_checks("plc", True, down, free)))
+    netconfig.PLC_ALLOWED_WRITERS = "any"
+    check("--multi: an explicit 'any' is not flagged (the operator chose the unprotected demo)",
+          all(s != "FAIL" for s, _, _ in run_checks("plc", True, down, free)))
+finally:
+    netconfig.PLC_ALLOWED_WRITERS = _saved
+
+import os as _os  # noqa: E402
+_root = _os.path.dirname(_os.path.dirname(_os.path.abspath(__file__)))
+check("run.sh tells the PLC laptop who the middleware is",
+      'export IM_MIDDLEWARE_HOST="$MW_IP"' in open(_os.path.join(_root, "scripts", "run.sh")).read().split("dashboard)")[0])
+check("run.ps1 tells the PLC laptop who the middleware is",
+      "$env:IM_MIDDLEWARE_HOST = $MW_IP" in open(_os.path.join(_root, "scripts", "run.ps1")).read().split("    'dashboard' {")[0])
 check("a busy port is a warning, not a failure", status(run_checks("plc", False, up, lambda h, p: (False, "in use")), "not bindable") == "WARN")
 
 print("\nALL PASS" if fails == 0 else f"\n{fails} CHECK(S) FAILED")

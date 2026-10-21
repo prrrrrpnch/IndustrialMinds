@@ -77,6 +77,11 @@ def run_checks(role: str, multi: bool, connect: Callable = can_connect, bind: Ca
 
     if role == "plc":
         serve("PLC", netconfig.PLC_LISTEN_HOST, netconfig.PLC_LISTEN_PORT)
+        add("INFO", "PLC accepts plant writes only from (IM_PLC_ALLOWED_WRITERS / IM_MIDDLEWARE_HOST)", netconfig.PLC_ALLOWED_WRITERS)
+        if multi and (_loopback(netconfig.PLC_ALLOWED_WRITERS) or not netconfig.PLC_ALLOWED_WRITERS.strip()):
+            add("FAIL", "the PLC allow-list names the middleware laptop",
+                "loopback only: the PLC would REFUSE every write from the middleware on another laptop. "
+                "Set IM_MIDDLEWARE_HOST (or IM_PLC_ALLOWED_WRITERS) to the middleware's address on THIS laptop")
     elif role == "middleware":
         serve("middleware", netconfig.LISTEN_HOST, netconfig.LISTEN_PORT)
         need_remote("IM_PLC_HOST", netconfig.PLC_HOST)
