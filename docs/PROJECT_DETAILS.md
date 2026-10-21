@@ -16,7 +16,7 @@
 
 ## 1. Summary (ready to paste as an abstract)
 
-IndustrialMind is an inline security middleware for industrial control systems. It sits between a SCADA operator and a programmable logic controller (PLC) and decides, for every Modbus command, whether to forward it (`PASS`), forward it with a warning (`ALERT`) or block it (`DROP`). Its design separates two kinds of checks. A **Cyber Agent** applies deterministic traffic and authentication rules: a source whitelist, function-code and register allow-lists, a per-source rate limit, HMAC-SHA256 message authentication with a freshness window, and replay detection by nonce and payload. A **Physical Agent** applies deterministic plant-safety rules (value bounds, rate-of-change limits derived from actuator slew rates, and eight cross-register safety rules over a projected plant state) plus one **advisory machine-learning model**: an Isolation Forest and a Random Forest regressor over 30-second telemetry windows, trained only on the SWaT water-treatment dataset. A rule-based **Orchestrator** fuses the verdicts. The plant is a five-stage digital twin calibrated to measured SWaT operating ranges. A per-command **Packet Tracer** exposes every hop's computed values, and Wireshark captures independently confirm that blocked frames are real traffic and never reach the PLC. On the held-out SWaT test block the advisory model reaches ROC-AUC 0.82 (precision 0.37, recall 0.26, 1.79 false-alarm episodes per hour, 6 of 10 attack segments detected); the rule layers pass 4,400 of 4,400 constructed violating commands with no false positives, and catch 83.7 % of constructed attack sessions, missing mainly slow in-bounds drift. Decision latency of the full pipeline is about 0.5 ms per command in-process. Negative results (a weak SWaT-trained cyber model and a learned fusion model that lost to the physical model alone) are reported rather than hidden.
+IndustrialMind is an inline security middleware for industrial control systems. It sits between a SCADA operator and a programmable logic controller (PLC) and decides, for every Modbus command, whether to forward it (`PASS`), forward it with a warning (`ALERT`) or block it (`DROP`). Its design separates two kinds of checks. A **Cyber Agent** applies deterministic traffic and authentication rules: a source whitelist, function-code and register allow-lists, a per-source rate limit, HMAC-SHA256 message authentication with a freshness window, and replay detection by nonce and payload. A **Physical Agent** applies deterministic plant-safety rules (value bounds, rate-of-change limits derived from actuator slew rates, and eight cross-register safety rules over a projected plant state) plus one **advisory machine-learning model** (physical model v2): a gradient-boosted classifier over 117 features of a 120-second telemetry window, trained only on the SWaT water-treatment dataset. A rule-based **Orchestrator** fuses the verdicts. The plant is a five-stage digital twin calibrated to measured SWaT operating ranges. A per-command **Packet Tracer** exposes every hop's computed values, and Wireshark captures independently confirm that blocked frames are real traffic and never reach the PLC. On the held-out SWaT test block the advisory model reaches ROC-AUC 0.836 (precision 0.461, recall 0.513, F1 0.485, 1.17 false-alarm episodes per hour, 8 of 10 attack segments detected); the rule layers pass 4,400 of 4,400 constructed violating commands with no false positives, and catch 83.7 % of constructed attack sessions, missing mainly slow in-bounds drift. Decision latency of the full pipeline is 0.50 ms median (0.80 ms mean, 2.8 ms p99) per command in-process. Negative results (a weak SWaT-trained cyber model and a learned fusion model that lost to the physical model alone) are reported rather than hidden.
 
 ---
 
@@ -480,16 +480,16 @@ Real pipeline, 3,000 commands x 3 repeats after 300 warm-up, seed 7; workload 70
 
 | Hop | mean (ms) | p50 | p95 | p99 |
 |---|---|---|---|---|
-| Cyber Agent rules | 0.041 | 0.039 | 0.071 | 0.092 |
-| Cyber model (NO_MODEL stub) | 0.009 | 0.008 | 0.014 | 0.035 |
-| Physical Agent rules | 0.027 | 0.026 | 0.042 | 0.061 |
-| Physical model assess (includes window refresh) | 0.221 | 0.006 | 0.921 | 1.106 |
-| Orchestrator | 0.011 | 0.009 | 0.023 | 0.036 |
-| Packet-trace build | 0.044 | 0.038 | 0.075 | 0.108 |
-| Both branches (concurrent) | 0.446 | n/a | 1.175 | 1.380 |
-| **Total per command** | **0.518** | n/a | **1.266** | **1.488** |
+| Cyber Agent rules | 0.064 | 0.059 | 0.104 | 0.138 |
+| Cyber model (NO_MODEL stub) | 0.010 | 0.009 | 0.015 | 0.041 |
+| Physical Agent rules | 0.031 | 0.028 | 0.047 | 0.070 |
+| Physical model assess (includes window refresh) | 0.330 | 0.009 | 1.377 | 2.145 |
+| Orchestrator | 0.016 | 0.014 | 0.027 | 0.044 |
+| Packet-trace build | 0.071 | 0.067 | 0.111 | 0.139 |
+| Both branches (concurrent) | 0.640 | 0.342 | 1.724 | 2.569 |
+| **Total per command** | **0.801** | 0.501 | **1.972** | **2.797** |
 
-Live Modbus round trip of a signed write to a running middleware (300 writes, includes sockets): mean **4.17 ms**, p95 4.76 ms, p99 13.2 ms. The hops overlap (two threads), so they do not sum to the total.
+Live Modbus round trip of a signed write to a running middleware (300 writes, includes sockets): mean **4.17 ms**, p95 4.76 ms, p99 13.2 ms. *This figure was measured before the middleware split and the move of the decision onto a worker thread (audit A2); it has not been re-measured since, so quote it as a pre-refactor number.* The hops overlap (two threads), so they do not sum to the total.
 
 ### 8.5 Component-level evidence not in the tables above
 Physical model train / validation / test ROC-AUC 0.907 / 0.901 / 0.826 (the drop to test is calendar drift). Envelope rule on held-out normal rows: false violations 0.04 % (train), 0.13 % (validation); attack-row recall 30 % (train), 83 % (validation), 22 % (test, where 2.24 % of normal rows are also outside the envelope: 0.85 false-alarm episodes per hour). Cyber candidate: test ROC-AUC 0.63. Learned fusion: validation 0.93, test 0.68.
@@ -511,7 +511,7 @@ Physical model train / validation / test ROC-AUC 0.907 / 0.901 / 0.826 (the drop
 
 1. **Single dataset.** SWaT is one testbed over a few days; every learned result and measured bound comes from it. Generalisation to other plants is unknown.
 2. **No network ground truth.** SWaT has no HMAC, replay or traffic data; the cyber rules are evaluated only on constructed scenarios.
-3. **The physical model is weak at its operating point** (recall 0.26, precision 0.37, 1.79 false-alarm episodes per hour versus a 0.5 target) because of calendar drift; it is advisory by design.
+3. **The physical model is weak at its operating point** (recall 0.513, precision 0.461, 1.17 false-alarm episodes per hour versus a 0.5 target, 8 of 10 segments; the v1 model it replaced was 0.26 / 0.37 / 1.79 / 6 of 10) because of calendar drift; it is advisory by design.
 4. **The test block is not pristine** (revised protocol disclosed in 7.5.8).
 5. **Constructed disagreement cases.** The fusion set's `DROP` class was built from deterministic rules paired with real windows; only its PASS-versus-ALERT part is real-data evidence. The learned fusion lost and is not used.
 6. **Synthetic-extension attacks.** Flood, replay and impossible-command are constructions; the SWaT-derived types' parameter ranges are design defaults unless the attack-profile tool has been run (then only the ramp range is calibrated). Stealthy in-bounds attacks (ramp, freeze) are mostly not stopped by the rules.
@@ -572,18 +572,23 @@ Under `docs/reports/figures/` (generated from `benchmarks/latest.json`): `middle
 | Topic | File |
 |---|---|
 | Registers, bounds, slew rates, cross-register rules, message shapes | `core/interfaces.py`, `docs/register_map.md` |
+| Forensic record (append-only JSONL, replayed at dashboard start) | `core/forensics.py` |
 | Addresses and environment variables | `core/netconfig.py` |
 | HMAC frame and verification | `core/hmac_auth.py` |
 | Measured SWaT bounds | `docs/swat_bounds.json` |
 | Cyber rules | `middleware/cyber_agent.py` |
 | Physical rules and envelope | `middleware/physical_agent.py` |
 | Fusion | `middleware/orchestrator.py` |
-| Server, polling, state | `middleware/middleware_server.py` |
+| Transport and entry point | `middleware/middleware_server.py` |
+| Decision path (queue, worker, routing a write) | `middleware/ingest.py` |
+| PLC write path (client, forward queue, worker) | `middleware/forwarding.py` |
+| PLC read path (poll loop, telemetry, settling) | `middleware/polling.py` |
+| Config, shared state, health | `middleware/runtime.py` |
 | Tracer | `middleware/trace.py` |
 | Pipeline | `pipeline/multi_model_pipeline.py` |
 | Physical model, features, fast inference | `models/physical_model.py`, `swat/physical_features.py`, `models/tree_inference.py` |
 | SWaT loader | `swat/loader.py` |
-| Training | `models/train_physical_swat.py` (also `train_cyber_swat.py`, `train_fusion_swat.py` for the negative results) |
+| Training | `models/train_physical_swat.py`, `models/train_physical_v2.py`; negative results (v3, learned fusion, cyber ML) live in `research/` |
 | Twin | `plc/twin.py`, `plc/plc.py` |
 | Attacker | `attacker/attacker.py`, `attacker/scenarios.py`, `tools/swat_attack_profile.py` |
 | Benchmarks and generated report | `benchmark/`, `benchmarks/latest.json`, `docs/reports/benchmark_report.md` |
@@ -688,3 +693,23 @@ which a safety classifier may decline). Opt in with `IM_INVESTIGATOR=1`; tune wi
 and `IM_INVESTIGATOR_MIN_SEVERITY`. `anthropic` is an optional dependency. Run it by hand with
 `python -m tools.investigate --incident INC-0001 [--offline] [--publish]`. Tests: `tests/test_investigator.py`, whose stub client
 exercises the real loop, caps, validation and injection resistance without a network call.
+
+## Adversarial audit and hardening (after the evaluation above)
+
+The system was reviewed adversarially (`final-results/AUDIT.md`); the pre-review state is frozen, never edited, in `final-results/before-review/`. The review found defects that all of the then-passing tests had missed, because they checked components against their own specification, not what an operator needs. Each fix is pinned by an operator-level test (`tests/test_audit_fixes.py`, `test_sprint_fixes.py`, `test_quarter_fixes.py`) and re-verified live (`final-results/_verify_fixes.py`, 14/14).
+
+| Finding | Before | After |
+|---|---|---|
+| C1 approved command never delivered | reported PASS | reported `UNDELIVERED`, moved out of the pass count |
+| C2 unresponsive PLC stalls every client | 2,002 ms per command | 504 ms (bounded timeout), then 1.9 ms (forward moved off the event loop) |
+| C3 library log flood in a 30 s outage | 99 lines | 1 line (filter attached to the handler, not the logger) |
+| C4 poll retries a dead PLC | ~18,000 attempts/hour | 720 (exponential backoff to 5 s) |
+| C5 replay check not atomic | unsynchronised | 12 threads replaying one nonce: exactly 1 accepted |
+| S1 PLC accepts writes from anything | bypass moves the plant | refused at the PLC, logged; default allow-list is the middleware host |
+| S3 open dashboard on a network | POST endpoints unauthenticated | refuses to start off loopback without `IM_DASHBOARD_TOKEN` |
+| S4 quarantine keyed to source address | 2 forged frames quarantine the real operator | strikes only from HMAC-authenticated commands; check runs after authentication |
+| A4 forensic record in UI memory | lost on restart | append-only JSONL, replayed at startup; Reset sets files aside |
+| A1/A2 1,478-line module, pipeline inside the storage hook | decision ran in `setValues` | five modules; the hook enqueues; one ordered decision worker |
+| N2 dashboard CDN assets | blank chart on an air-gapped lab | vendored chart and icons, zero console errors offline |
+
+Code layout after the refactor: source modules live in `core/`, rejected experiments in `research/` (v3 physical model, learned fusion, cyber ML), and `docs/` is documentation only. **Caveats worth stating in a paper:** the PLC allow-list is defence in depth, not a substitute for segmentation (a spoofed source address still passes); the quarantine is spoof-proof only with per-device keys (`IM_HMAC_KEYS`); and the four-laptop deployment is verified on loopback addresses with a real capture, not yet on four physical machines.
