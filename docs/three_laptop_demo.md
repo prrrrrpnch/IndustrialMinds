@@ -135,11 +135,42 @@ SCADA reset: `./scripts/run.sh scada --restore` (on Laptop 2). Remove the firewa
 | Nothing connects across laptops, but each works alone | Client isolation on the Wi-Fi, or a firewall. Use a hotspot or a switch. |
 | The attacker's forged frames never get quarantined | By design (audit S4): only commands that passed HMAC count toward a quarantine, so a spoofed address cannot get the real operator locked out. Forged frames are still dropped, logged and raised as an incident. |
 
+## What you will see that may surprise someone watching
+
+These all came out of the rehearsal, and none is a malfunction. Know them so you are not caught out.
+
+- **SCADA's own commands turn yellow (ALERT) after the attacks.** The physical model judges the *plant*, not the sender. Once an
+  attack has disturbed the plant, it flags the operator's perfectly legitimate commands too. In the rehearsal about a fifth of SCADA's
+  commands were ALERT and none were dropped by a cyber rule. SCADA gets its own low-severity "Advisory Model Alert" incident,
+  separate from the attacker's critical one. Say this out loud: it is the model's documented weakness (about half its alarms
+  are false), and it is why the model is advisory and can never block.
+- **Very occasionally a legitimate SCADA command is refused by a *physical* rule during an insider attack.** Seen once in four runs:
+  the randomised ramp attack had just moved the same register (its commands passed, being signed and in bounds), and SCADA's
+  own command 0.15 s later was refused as `RATE_OF_CHANGE_EXCEEDED` because the rule compares a new value with the last
+  *accepted* one, whoever sent it. It does not happen with the fixed attacks. If it happens live, that is the explanation.
+- **The first copy of a replay passes.** Only the identical second copy is refused. That is correct: the first one was a genuine,
+  signed command.
+- **`flood` lets about half the burst through.** The first 5 requests in a second are within the limit; the rest are cut off.
+- **Forged frames never trigger a quarantine** (audit S4, by design), and on a one-laptop or all-loopback run the quarantine is
+  off anyway.
+- **If you stop the PLC laptop mid-demo:** within seconds the header turns DEGRADED, the PLC box turns red and dashed, and
+  SCADA's commands read UNDELIVERED. Restart the PLC and the header returns to ONLINE by itself about a minute after the last undelivered command (the count of what was lost stays on the record). Nothing else needs a restart.
+- **Reset on the dashboard** sets the recorded evidence aside in `.cleared-<time>` files; it does not destroy it.
+
+## Rehearse it first (5 minutes, one laptop)
+
+`python -m tools.verify_three_laptops` runs this whole layout on one machine through the same launchers, with a real packet
+capture and a real browser, and writes `docs/reports/three_laptop_e2e_verification.md`. Its last run passed 65 of 65 checks.
+It was how the PLC-refuses-the-middleware bug, the "undelivered looks like a PASS in the flow view" bug, the sticky DEGRADED
+badge, the overlapping UNDELIVERED label and the missing host names were found and fixed before you got near a real laptop.
+It cannot tell you about real Wi-Fi, real firewalls, real NICs or clock skew: that is what section 3's preflight is for.
+
 ## What was verified
 
-On one machine, with each role on a distinct loopback address (middleware, PLC+SCADA sharing one address, attacker on its own):
-a signed command from the SCADA address passed and moved the plant; the attacker CLI's `impossible-command` was dropped as
-`OUT_OF_BOUNDS`, `hmac-tamper` as `HMAC_INVALID`, and `replay` as `REPLAY_DETECTED`; and the attacker's direct write was
-`REFUSED` by the PLC and did not move the plant. Running it also exposed a real bug, now fixed and tested: the PLC laptop was
-never told who the middleware was, so on separate machines it would have refused the middleware's own writes.
-What this does **not** prove: behaviour on real Wi-Fi, real firewalls, or macOS/Windows differences.
+The full rehearsal above: 65 checks across startup through the launchers, the preflight, normal operation, every attack
+(impossible-command, sensor-write, hmac-missing, hmac-tamper, hmac-forged, replay, delayed-replay, flood, cross-register,
+a randomised ramp, a stranger host, and the bypass), a PLC outage and recovery, a dashboard restart, and a real capture of both
+legs cross-checked against the dashboard and the logs. For example, 166 writes reached the PLC from the middleware and the
+middleware logged exactly 166 `FORWARDED`; the attacker's 35 frames on the wire were exactly the 35 decisions the middleware
+made for that address; and the only attacker frame that ever reached the PLC was the one bypass attempt, which was refused.
+What this does **not** prove: behaviour on real Wi-Fi, real firewalls, real NICs, macOS/Windows differences, or clock skew.

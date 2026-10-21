@@ -777,6 +777,9 @@ body {
 #flow-svg .flow-mw { fill: rgba(14, 165, 233, 0.06); stroke: var(--color-primary); stroke-width: 1.5; }
 #flow-svg .flow-layer { fill: var(--bg-card); stroke: var(--border-color); stroke-width: 1.5; transition: fill .2s, stroke .2s; }
 #flow-svg .flow-plc { fill: var(--bg-card); stroke: var(--color-pass); stroke-width: 1.5; transition: fill .2s; }
+/* The PLC stops answering: the node must say so, not sit there green while the header reads DEGRADED. */
+#flow-svg .flow-plc.plc-down { stroke: var(--color-drop); stroke-width: 3; stroke-dasharray: 7 5; fill: var(--color-drop-bg); }
+.flow-ticker .tick .verdict { white-space: nowrap; }
 #flow-svg .flow-src { fill: var(--bg-card); stroke: var(--border-color); stroke-width: 1.5; }
 #flow-svg .flow-src.trusted { stroke: var(--color-pass); }
 #flow-svg .flow-src.untrusted { stroke: var(--color-drop); stroke-width: 2.5; fill: var(--color-drop-bg); }
@@ -797,9 +800,10 @@ body {
 .flow-legend span { display: inline-flex; align-items: center; gap: 6px; }
 .flow-legend .dot { display: inline-block; width: 11px; height: 11px; border-radius: 50%; }
 .flow-ticker { list-style: none; margin: 0; padding: 0; font-size: 0.8rem; }
-.flow-ticker .tick { display: grid; grid-template-columns: 70px minmax(90px, 160px) minmax(90px, 140px) 64px 1fr; gap: 8px; align-items: center;
+.flow-ticker .tick { display: grid; grid-template-columns: 70px minmax(90px, 160px) minmax(90px, 140px) minmax(64px, max-content) 1fr; gap: 8px; align-items: center;
     padding: 5px 8px; border-left: 3px solid var(--color-pass); border-bottom: 1px solid var(--border-color); }
 .flow-ticker .tick-alert { border-left-color: #eab308; }
+.flow-ticker .tick-undelivered { border-left-color: #eab308; }
 .flow-ticker .tick-drop { border-left-color: var(--color-drop); }
 .flow-ticker .t-time, .flow-ticker .t-cmd { font-family: var(--font-mono); color: var(--text-sub); }
 .flow-ticker .t-src { color: var(--text-main); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }

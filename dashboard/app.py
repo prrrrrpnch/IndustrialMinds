@@ -120,9 +120,10 @@ def health() -> Response:
         mw = dict(_middleware_health)
     status = "ok"
     degraded = []
-    if undelivered:
+    if undelivered and (time.time() - _last_undelivered_at) < UNDELIVERED_RECENT_S:
         status = "degraded"
-        degraded.append(f"{undelivered} command(s) approved but never delivered to the PLC")
+        degraded.append(f"{undelivered} command(s) approved but never delivered to the PLC "
+                        f"(latest {time.time() - _last_undelivered_at:.0f}s ago)")
     if model and model.get("status") not in (None, "OK"):
         status = "degraded"
         degraded.append(f"physical model status {model.get('status')}")
@@ -166,6 +167,12 @@ def health() -> Response:
         "auth": "token" if _DASHBOARD_TOKEN else "open",
     })
 
+
+# AUDIT (found by the three-laptop rehearsal): health must describe the system NOW. An undelivered command is a permanent
+# entry in the record (the count stays on the overview and survives a restart), but it must not keep the header on DEGRADED
+# for ever after the PLC has come back - the audience would watch a healthy system say "degraded" until someone pressed Reset.
+UNDELIVERED_RECENT_S = float(os.environ.get("IM_UNDELIVERED_RECENT_S", "60"))
+_last_undelivered_at = 0.0
 
 # How long a middleware health report stays meaningful. The middleware posts one every
 # MIDDLEWARE_HEALTH_INTERVAL (5 s), so three missed reports means something is wrong with the middleware itself.
@@ -281,9 +288,16 @@ def _flow_summary(t: Dict[str, Any]) -> Dict[str, Any]:
         stopped = "cyber" if hop.get("cyber_rules", {}).get("outcome") == "FAIL" else "physical"
     out_vals = hop.get("outcome", {}).get("values") or {}
     arr = hop.get("arrival", {}).get("values") or {}
+    verdict, reason = t.get("verdict"), t.get("reason")
+    # AUDIT C1, in THIS view too. A downstream command the agents approved but the PLC never took used to show here as a
+    # plain PASS/ALERT with no sign it never arrived - only the events table had been corrected. The trace is published by the
+    # forwarder AFTER the write was attempted, so forwarded=False on an approved command means exactly "never reached the PLC".
+    if verdict in ("PASS", "ALERT") and t.get("direction", "downstream") == "downstream" and not out_vals.get("forwarded_to_plc"):
+        reason = f"PLC_UNREACHABLE: approved ({verdict}) but the PLC did not accept the write"
+        verdict = "UNDELIVERED"
     return {"seq": t.get("seq"), "tx": t.get("short_id"), "time": _format_time(t.get("time")), "source_ip": ip,
             "trusted": None if "source_whitelist" not in checks else checks["source_whitelist"] == "PASS",
-            "verdict": t.get("verdict"), "reason": t.get("reason"), "stopped_at": stopped,
+            "verdict": verdict, "reason": reason, "stopped_at": stopped,
             "forwarded": bool(out_vals.get("forwarded_to_plc")), "command": arr.get("register"), "value": arr.get("requested_value"),
             "model_flag": bool((hop.get("physical_model", {}).get("values") or {}).get("threat_flag"))}
 
@@ -627,6 +641,8 @@ def post_delivery() -> Response:
                 if event["verdict"] in ("PASS", "ALERT"):
                     _metrics["pass"] = max(0, _metrics["pass"] - 1)
                 _metrics["undelivered"] += 1
+                global _last_undelivered_at
+                _last_undelivered_at = time.time()
                 event["verdict"] = "UNDELIVERED"
                 event["reason"] = reason
                 # A NEW line, not an edit: the record keeps both the PASS and its correction, with timestamps.
@@ -883,6 +899,11 @@ def blocked_ip_detail(ip: str) -> Response:
 # RESET
 # =========================================================
 
+def _last_undelivered_at_reset() -> None:
+    global _last_undelivered_at
+    _last_undelivered_at = 0.0
+
+
 @app.route(
     "/api/reset",
     methods=["POST"]
@@ -903,6 +924,7 @@ def reset_dashboard() -> Response:
         _metrics["pass"] = 0
         _metrics["drop"] = 0
         _metrics["undelivered"] = 0
+        _last_undelivered_at_reset()
 
         for m in MACHINES:
             _telemetry[m["name"]] = float(m["initial"])

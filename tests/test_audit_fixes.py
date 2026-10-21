@@ -77,10 +77,38 @@ check("a correction is not applied twice",
       c.post("/api/delivery", json={"tx_id": "uuid-1", "delivered": False}).status_code == 404
       and c.get("/api/dashboard").get_json()["overview"]["undelivered"] == 1)
 
+# The Network Flow view reads TRACES, not the events table, so it needs the same correction.
+# (No reset here: the A5 section below still needs the undelivered counter from the C1 checks above.)
+def _trace(tx, verdict, forwarded):
+    return {"tx_id": tx, "verdict": verdict, "reason": "OK", "direction": "downstream", "time": 1.0, "hops": [
+        {"hop": "arrival", "values": {"source": "127.0.0.4:5555", "register": "P101", "requested_value": 72.0}},
+        {"hop": "cyber_rules", "outcome": "PASS", "checks": [{"check": "source_whitelist", "result": "PASS"}]},
+        {"hop": "outcome", "values": {"forwarded_to_plc": forwarded, "dropped": False}}]}
+c.post("/api/trace", json=_trace("tx-delivered", "PASS", True))
+c.post("/api/trace", json=_trace("tx-lost", "PASS", False))
+c.post("/api/trace", json=_trace("tx-lost-alert", "ALERT", False))
+flow = {e["tx"]: e for e in c.get("/api/flow").get_json()["events"]}
+check("flow view: a delivered command stays PASS", [e["verdict"] for e in flow.values()][0] == "PASS", str([e["verdict"] for e in flow.values()]))
+check("FLOW VIEW: an approved command the PLC never took is UNDELIVERED, not a green PASS",
+      sorted(e["verdict"] for e in flow.values()) == ["PASS", "UNDELIVERED", "UNDELIVERED"], str([e["verdict"] for e in flow.values()]))
+check("...for an advisory ALERT too, and the reason says why", any("PLC_UNREACHABLE" in str(e["reason"]) for e in flow.values()))
+flow_js = io.open(os.path.join(ROOT, "dashboard", "static", "flow.js")).read()
+check("the ticker says it never reached the PLC", "never reached the PLC" in flow_js)
+
 print("\nA5 - /api/health must be able to report ill health")
 h = c.get("/api/health").get_json()
 check("health degrades when commands went undelivered", h["status"] == "degraded" and h["degraded"], str(h["status"]))
 check("health says how many", h["undelivered_commands"] == 1)
+# Health describes the system NOW: once the PLC has been back for a while, an old undelivered command stays in the record
+# (the count) but must stop holding the header on DEGRADED.
+c.post("/api/middleware-health", json={"plc_connected": True, "consecutive_poll_failures": 0, "dropped_forwards": 0})   # the PLC is back
+dash._last_undelivered_at = time.time() - (dash.UNDELIVERED_RECENT_S + 5)
+h_old = c.get("/api/health").get_json()
+check("AN OLD undelivered command no longer holds health on DEGRADED (the system recovered)",
+      h_old["status"] == "ok" and not any("never delivered" in d for d in h_old["degraded"]), f"{h_old['status']} {h_old['degraded']}")
+check("...but the record keeps the count", h_old["undelivered_commands"] == 1 and c.get("/api/dashboard").get_json()["overview"]["undelivered"] == 1)
+dash._last_undelivered_at = time.time()
+check("a RECENT one still degrades it", c.get("/api/health").get_json()["status"] == "degraded")
 c.post("/api/reset")
 check("health is ok again once the record is cleared", c.get("/api/health").get_json()["status"] == "ok")
 check("reset clears the undelivered counter too", c.get("/api/dashboard").get_json()["overview"]["undelivered"] == 0)
@@ -133,6 +161,7 @@ used = {t for t in __import__("re").findall(r"fa-[a-z-]+", html)} - {"fa-solid"}
 missing = sorted(t for t in used if f".{t}::before" not in icons)
 check("every icon the page uses has a glyph", not missing, f"missing: {missing}")
 css = io.open(os.path.join(ROOT, "dashboard", "static", "style.css")).read()
+check("the page declares an icon, so the browser does not 404 /favicon.ico on every load", 'rel="icon"' in html)
 check("fonts are the system stack, not a Google Fonts download",
       "Inter'" not in css and "JetBrains Mono" not in css and "system-ui" in css)
 check("the chart canvas is sized by CSS (microchart reads its CSS box)", "#cpuLoadChart" in css and "width: 100%" in css)

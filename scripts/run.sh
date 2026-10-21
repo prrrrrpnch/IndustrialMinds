@@ -18,7 +18,9 @@ shift || true
 ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
 cd "$ROOT"
 
-ENV_FILE="config/lab.env"
+# IM_LAB_ENV points the launcher at a different file (used by tools/verify_three_laptops.py to rehearse a lab without touching
+# the real config/lab.env). Unset, it is config/lab.env, exactly as before.
+ENV_FILE="${IM_LAB_ENV:-config/lab.env}"
 if [[ -f "$ENV_FILE" ]]; then
     # shellcheck disable=SC1090
     set -a; source "$ENV_FILE"; set +a
@@ -61,6 +63,8 @@ case "$ROLE" in
         ;;
     dashboard)
         export IM_DASHBOARD_BIND_HOST="$DASHBOARD_BIND_HOST"
+        # The DASHBOARD reads these to name the hosts in the Live Network Flow ("SCADA operator" instead of a bare "host").
+        export IM_HOST_LABELS="$SCADA_IP=SCADA operator,$ATTACKER_IP=Attacker laptop"
         dash_token
         exec $PY dashboard/app.py "$@"
         ;;
