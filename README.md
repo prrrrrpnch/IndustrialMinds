@@ -11,7 +11,8 @@ layer computed for any single command. Wireshark/tshark on the same traffic is t
  signs every command  --->   |  Cyber Agent    (RULES: whitelist, FC, register, rate, HMAC, replay)  |
    Modbus FC16, :5021        |  Physical Agent (RULES: bounds, rate-of-change, cross-register)       | --->     Modbus :5020
  ATTACKER (separate)  --->   |                 (+ MODEL: SWaT-trained, ADVISORY only)                |  only    5 stages x 4 points
-   same port                 |  Orchestrator   (RULE-BASED four-branch fusion -> PASS / ALERT / DROP)|  PASS/   10 actuators, 10 sensors
+   same port                 |                 (+ INVARIANTS: normal-data consistency, ADVISORY)    |          10 actuators, 10 sensors
+                             |  Orchestrator   (RULE-BASED four-branch fusion -> PASS / ALERT / DROP)|  PASS/
                              +------------------------------------------------------------------------+  ALERT
                                               |  decisions + per-hop traces (HTTP)
                                               v
@@ -108,6 +109,24 @@ Upstream (PLC to SCADA telemetry) the agent also applies a **sensor-envelope rul
 becomes 117 features (the last 30 s as 67 drift-robust window statistics, 120 s long-context slopes/changes/toggles, and cross-sensor consistency residuals from ridge regressions fitted on normal data); a gradient-boosted classifier trained on SWaT train + validation windows gives an attack probability.
 Above 0.788 the model raises `threat_flag` (operating point: 0.5 false-alarm episodes per benign hour on out-of-fold development data; measured on the held-out block: 1.17/h). It is **advisory**: it can
 turn a pass into an `ALERT` but never into a `DROP`. Inference is packed (`PackedHistGB`, identical to sklearn to 1e-15) so an assessment costs about 0.6 ms.
+
+### Physical invariants: consistency rules learned from normal data (advisory, opt-in)
+
+`IM_INVARIANTS=1` adds a fourth kind of check that needs **no attack labels at all**. An invariant is a relationship that holds in normal
+operation because of physics or control logic, learned from normal data only, and a violation means *these readings cannot all be true at
+once* — a spoofed, frozen or failed sensor. Four families over the same 18 signals: **rate** (a sensor cannot move faster than it ever did),
+**state** (while an actuator holds a state, a sensor stays in the band it always had), **balance** (a tank's level change is explained by the
+flows around it), and **flat** (a sensor that carries measurement noise cannot go perfectly flat). Like the model they are **advisory**:
+a violation raises `ALERT`, never `DROP`.
+
+Rules are proposed on the first 75 % of the normal data and **validated on the last 25 %, held out in time**; anything that already misfires
+on unseen normal data is dropped with its reason recorded. A fitted file describes one plant, so the demo uses its own
+(`python -m tools.fit_invariants --twin` writes `config/invariants_twin.json`); `--data-dir <SWaT archive>` fits and measures on real data.
+`python -m tools.live_invariants_check` proves the whole path on the running stack in about two minutes.
+
+Measured on the twin (`python -m benchmark.invariants_ab`, `docs/reports/invariants_ab_report.md`): adding them took sensor-tampering
+detection from **10/25 to 25/25** runs with **no change in false alarms** (0 episodes per hour over 9 healthy hours) and no measurable
+decision-latency cost. Their **real-SWaT numbers are not measured yet**. Full description: `docs/INVARIANTS.md`.
 
 ### Physical model v3 (candidate, opt-in, not promoted)
 
@@ -476,6 +495,32 @@ _Regenerate: `python -m benchmark.run_all [--data-dir <SWaT archive>]`. Full tab
 Four sections with different evidential weight, always reported separately: **latency** (real code, constructed workload); **held-out SWaT** (the only real-data detection result, physical side only);
 **rule-based checks on constructed scenarios** (a regression check that each deterministic rule fires, not a detection claim); **twin measurements** (synthetic plant). Latency depends on the machine; the report names it.
 
+## Assurance: seven dimensions in one command
+
+`python -m benchmark.assurance` (about 7 minutes) writes `docs/reports/assurance_report.md`: **functional accuracy** (accuracy, precision,
+recall, F1, ROC-AUC and PR-AUC per alarm source on the twin, with healthy runs pooled in so precision is not trivially perfect, against the
+never-alarm baseline), **robustness** (malformed and tampered commands, degraded telemetry, a sensor-noise sweep, concurrent load),
+**bias and fairness** as equal treatment across source addresses, registers and plant stages, **consistency** (determinism, order
+invariance, live-versus-offline parity), **explainability** (reason and trace coverage, plus whether the explanation names the stage that
+was actually perturbed), **drift** (PSI with a same-seed control, slow degradation, alarm creep over a long healthy run) and **safety**
+(fault injection into each decision stage, advisory-never-blocks, every documented unsafe state, bounded queues).
+
+Two findings from it belong in any write-up: stage coverage is uneven at small perturbations (pH is weakest, its measured spread being
+close to the wire's 0.1 resolution), and alarm counts rise over a long healthy twin run as the twin's fouling cycle develops.
+
+## How the SWaT numbers are scored, and what is still unmeasured
+
+Published SWaT scores of 0.8–0.9 mostly use **point-adjust** scoring, where one flagged second credits a whole attack, and often pick the
+threshold on the test labels. This project scores every window strictly and fixes the threshold on validation data before the test block is
+touched. `python -m benchmark.swat_protocol --from-report docs/reports/physical_training_report_v2_swat.json` re-scores the *same alarms*
+every way, with no data needed (`docs/reports/swat_scoring_comparison.md`): strict F1 **0.485**, composite 0.585, PA%K(50) 0.618,
+point-adjust **0.685**. Identical model, identical alarms; only the counting changes.
+
+With the archive in hand, `python -m benchmark.swat_protocol --data-dir <archive>` goes further: rolling blocked cross-validation over **all
+35 attacks** with per-fold thresholds, cluster-bootstrap confidence intervals, and baselines on the same folds including chance alarms matched
+to the model's own alarm rate. **That run and the real-SWaT invariant fit have not been done yet**; both are listed as NOT MEASURED in
+`CHECKLIST_VERIFICATION.txt`, which is generated from the artefacts by `python -m tools.verification_record` and therefore cannot go stale.
+
 ## Tests
 
 Plain scripts, each ends with `ALL PASS` or an error (run from the project root, with the venv active). **To run them all and save a dated record:**
@@ -495,6 +540,9 @@ number of individual `[PASS]`/`[FAIL]` checks, last line; plus environment and c
 | `python -m tests.test_wire_correlate`, `test_check_topology` | wire correlation and the per-laptop preflight |
 | `python -m tests.test_benchmark`, `test_environment` | benchmarks run; README numbers equal the JSON; version pin and clean model load |
 | `python -m tests.test_swat_physical`, `test_swat_cyber`, `test_swat_fixture`, `test_fusion_scenarios` | the SWaT code paths on a synthetic SWaT-shaped fixture (code paths only, never real metrics) |
+| `python -m tests.test_invariants`, `test_invariants_ab` | the invariant engine on a plant with exactly known physics, the live monitor, and the before/after harness |
+| `python -m tests.test_swat_protocol` | the scoring schemes, the cross-validation folds and the bootstrap, on hand-checked numbers |
+| `python -m tests.test_assurance` | the assurance harness: its statistics, its attack injectors and one small real run of each section |
 | `python -m tests.pipeline_test` | end to end; **needs a running PLC** (`python -m plc.plc`) |
 | `python -m tests.test_middleware_efficiency` | stress test: 2400 messages at 300 per second plus a capacity run; writes `logs/middleware_benchmark_*.json` (can flake on a single host stall: re-run) |
 
