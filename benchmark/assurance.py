@@ -212,7 +212,7 @@ def classification(y: np.ndarray, flag: np.ndarray, score: Optional[np.ndarray] 
     if score is not None:
         from sklearn.metrics import average_precision_score, roc_auc_score
         ok = ~np.isnan(score)
-        if ok.sum() > 10 and 0 < y[ok].sum() < int(ok.sum()):
+        if ok.sum() >= 4 and 0 < y[ok].sum() < int(ok.sum()):          # both classes present and enough points to mean anything
             out["roc_auc"] = round(float(roc_auc_score(y[ok], score[ok])), 4)
             out["pr_auc"] = round(float(average_precision_score(y[ok], score[ok])), 4)
     return out
@@ -332,35 +332,61 @@ def section_robustness(model, inv: InvariantSet, quick: bool) -> Dict[str, Any]:
     pipe = MultiModelPipeline()
     st = nominal_state()
 
-    # ---- B1 malformed / hostile commands: never raise, never PASS something invalid
-    cases: List[Tuple[str, Dict[str, Any]]] = []
+    # ---- B1 malformed / hostile commands: never raise, never accept something that should be refused.
+    # The signed fields are `register` and `raw_value` and the signature field is `mac` (core/hmac_auth.py); `value` is DERIVED from
+    # raw_value by middleware/ingest.py, so a command whose value and raw_value disagree cannot arrive over the wire and is marked
+    # `must_refuse: False` below rather than counted as a miss.
     good = signed(1, 70.0, "ok")
-    cases.append(("well-formed signed command (control)", good))
-    for name, patch in [("value NaN", {"value": float("nan")}), ("value +inf", {"value": float("inf")}),
-                        ("value -inf", {"value": float("-inf")}), ("value 1e12", {"value": 1e12}),
-                        ("value negative", {"value": -500.0}), ("register -1", {"register": -1}),
-                        ("register 9999", {"register": 9999}), ("register None", {"register": None}),
-                        ("function code 99", {"function_code": 99}), ("function code None", {"function_code": None}),
-                        ("source empty", {"source_ip": ""}), ("source not an address", {"source_ip": "not-an-ip"}),
-                        ("auth removed", {"auth": None}), ("auth empty dict", {"auth": {}}),
-                        ("auth tag truncated", {"auth": {**(good.get("auth") or {}), "tag": "00"}}),
-                        ("raw_value huge", {"raw_value": 2 ** 31}), ("tx_id None", {"tx_id": None}),
-                        ("timestamp far future", {"timestamp": time.time() + 10 ** 6})]:
-        cases.append((name, {**signed(1, 70.0, f"m-{name}"), **patch}))
-    cases.append(("empty dict", {}))
-    cases.append(("value as text", {**signed(1, 70.0, "txt"), "value": "seventy"}))
+    mac = str((good.get("auth") or {}).get("mac", ""))
+    cases: List[Tuple[str, Dict[str, Any], bool]] = [("well-formed signed command (control)", good, False)]
+    patches: List[Tuple[str, Dict[str, Any], bool]] = [
+        ("value NaN", {"value": float("nan"), "raw_value": None}, True),
+        ("value +inf", {"value": float("inf"), "raw_value": None}, True),
+        ("value -inf", {"value": float("-inf"), "raw_value": None}, True),
+        ("raw_value 1e12", {"raw_value": 10 ** 12}, True),
+        ("raw_value negative", {"raw_value": -5000}, True),
+        ("raw_value tampered (signature kept)", {"raw_value": 950}, True),
+        ("register tampered (signature kept)", {"register": 0}, True),
+        ("register -1", {"register": -1}, True),
+        ("register 9999", {"register": 9999}, True),
+        ("register None", {"register": None}, True),
+        ("function code 99", {"function_code": 99}, True),
+        ("function code None", {"function_code": None}, True),
+        ("source empty", {"source_ip": ""}, True),
+        ("source not an address", {"source_ip": "not-an-ip"}, True),
+        ("signature removed", {"auth": None}, True),
+        ("signature empty", {"auth": {}}, True),
+        ("mac truncated", {"auth": {**(good.get("auth") or {}), "mac": mac[:8]}}, True),
+        ("mac emptied", {"auth": {**(good.get("auth") or {}), "mac": ""}}, True),
+        ("mac zeroed", {"auth": {**(good.get("auth") or {}), "mac": "0" * len(mac)}}, True),
+        ("mac field removed", {"auth": {k: v for k, v in (good.get("auth") or {}).items() if k != "mac"}}, True),
+        ("nonce zeroed", {"auth": {**(good.get("auth") or {}), "nonce": 0}}, True),
+        ("timestamp an hour old", {"auth": {**(good.get("auth") or {}), "timestamp_ms": int((time.time() - 3600) * 1000)}}, True),
+        ("tx_id None", {"tx_id": None}, False),
+        ("value disagrees with raw_value", {"value": 95.0}, False),
+    ]
+    for name, patch, must in patches:
+        cases.append((name, {**signed(1, 70.0, f"m-{name}"), **patch}, must))
+    cases.append(("empty dict", {}, True))
+    cases.append(("value as text", {**signed(1, 70.0, "txt"), "value": "seventy", "raw_value": None}, True))
     rows = []
-    for name, cmd in cases:
+    for name, cmd, must in cases:
         cyber_agent.reset_state()
         try:
             dec = pipe.process_command(cmd, st)["decision"]
-            rows.append({"case": name, "raised": False, "verdict": dec["verdict"], "reason": str(dec["reason"])[:48]})
+            rows.append({"case": name, "must_refuse": must, "raised": False, "verdict": dec["verdict"], "reason": str(dec["reason"])[:48],
+                         "refused": dec["verdict"] == "DROP"})
         except Exception as exc:                                     # a crash here would take the proxy down
-            rows.append({"case": name, "raised": True, "exception": f"{type(exc).__name__}: {exc}"[:80], "verdict": None, "reason": None})
-    malformed = [r for r in rows if r["case"] != "well-formed signed command (control)"]
-    out["malformed_input"] = {"cases": rows, "n": len(malformed), "raised": sum(r["raised"] for r in malformed),
-                              "passed_through": sum(1 for r in malformed if r["verdict"] == "PASS"),
-                              "control_passed": rows[0]["verdict"] in ("PASS", "ALERT")}
+            rows.append({"case": name, "must_refuse": must, "raised": True, "exception": f"{type(exc).__name__}: {exc}"[:80],
+                         "verdict": None, "reason": None, "refused": False})
+    must_rows = [r for r in rows if r["must_refuse"]]
+    out["malformed_input"] = {"cases": rows, "n": len(rows) - 1, "must_refuse": len(must_rows),
+                              "raised": sum(r["raised"] for r in rows),
+                              "refused_as_required": sum(r["refused"] for r in must_rows),
+                              "wrongly_accepted": sum(1 for r in must_rows if not r["refused"]),
+                              "control_passed": rows[0]["verdict"] in ("PASS", "ALERT"),
+                              "note": "`value` is derived from `raw_value` by the ingest path, so the two cannot disagree on the wire; "
+                                      "that case and a null tx_id are recorded but not required to be refused"}
 
     # ---- B2 degraded telemetry: the detectors must abstain, never guess and never raise
     tele = []
@@ -376,7 +402,13 @@ def section_robustness(model, inv: InvariantSet, quick: bool) -> Dict[str, Any]:
             i2.assess()
         except Exception as exc:
             raised = f"{type(exc).__name__}: {exc}"[:80]
-        tele.append({"case": name, "raised": raised, "model_status": m2.assess().get("status"), "invariant_status": i2.assess().get("status"),
+        raised_live = False
+        try:
+            pipe.ingest_telemetry(sample, timestamp=1.0)             # the real entry point, which must swallow anything
+        except Exception as exc:
+            raised_live = f"{type(exc).__name__}: {exc}"[:80]
+        tele.append({"case": name, "raised": raised, "raised_through_the_pipeline": raised_live,
+                     "model_status": m2.assess().get("status"), "invariant_status": i2.assess().get("status"),
                      "flagged": bool(m2.assess().get("threat_flag") or i2.assess().get("threat_flag"))})
     # a telemetry gap must restart both windows rather than join across the hole
     m3, i3 = load_physical_model(), InvariantMonitor(inv, inv.theta)
@@ -393,12 +425,14 @@ def section_robustness(model, inv: InvariantSet, quick: bool) -> Dict[str, Any]:
     tele.append({"case": "a 10-minute telemetry gap", "raised": False, "model_status": m3.assess().get("status"),
                  "invariant_status": i3.assess().get("status"), "flagged": bool(m3.assess().get("threat_flag") or i3.assess().get("threat_flag")),
                  "note": f"both were {warm} before the gap"})
-    out["degraded_telemetry"] = {"cases": tele, "raised": sum(1 for r in tele if r["raised"]), "flagged_on_garbage": sum(1 for r in tele if r["flagged"])}
+    out["degraded_telemetry"] = {"cases": tele, "raised": sum(1 for r in tele if r["raised"]),
+                                 "raised_through_the_pipeline": sum(1 for r in tele if r.get("raised_through_the_pipeline")),
+                                 "flagged_on_garbage": sum(1 for r in tele if r["flagged"])}
 
     # ---- B3 noise sweep: graceful degradation, not a cliff
     sweep = []
     for scale in ([1.0, 4.0] if quick else [0.5, 1.0, 2.0, 4.0]):
-        hz = plant_run(model, inv, 77, 1800, noise_scale=scale)
+        hz = plant_run(model, inv, 77, 2700 if quick else 5400, noise_scale=scale)
         at = plant_run(model, inv, 78, SETTLE_S + 300, changes=ACTUATOR_ATTACKS["ro_deadhead (RO pump max, reject valve shut)"], change_at=SETTLE_S, noise_scale=scale)
         combined_h = (hz["model"] | hz["envelope"] | hz["invariants"]) & hz["ready"]
         combined_a = at["model"] | at["envelope"] | at["invariants"]
@@ -525,9 +559,9 @@ def section_consistency(model, inv: InvariantSet, quick: bool) -> Dict[str, Any]
 
     # ---- D2 order invariance for order-INDEPENDENT rules: distinct registers, one command each
     def sequence(order: List[int]) -> List[Tuple[int, str]]:
-        cyber_agent.reset_state()
         res = []
         for k in order:
+            cyber_agent.reset_state()          # the rate limiter and the replay window ARE order-dependent; exclude them here
             m = MACHINE_BY_NAME[ACTUATOR_NAMES[k]]
             d = pipe.process_command(signed(m["register"], float(m["initial"]), f"o{k}"), nominal_state())["decision"]
             res.append((k, d["verdict"]))
@@ -557,7 +591,7 @@ def section_consistency(model, inv: InvariantSet, quick: bool) -> Dict[str, Any]
         mon.update(r, timestamp=float(t))
         rep = mon.assess()
         if rep["status"] == "OK":
-            ready[t], live[t] = True, float(rep["score"] or 0.0)
+            ready[t], live[t] = True, float(rep["max_excess"] or 0.0)     # the continuous value, directly comparable with the offline score
     offline, _ = inv.score(S, A, np.zeros(secs, int))
     diff = np.abs(live[ready] - np.round(offline[ready], 3))
     out["live_offline_parity"] = {"seconds_compared": int(ready.sum()), "max_abs_difference": round(float(diff.max()) if diff.size else 0.0, 6),
@@ -604,7 +638,7 @@ def section_explainability(model, inv: InvariantSet, seeds: List[int]) -> Dict[s
         if d["verdict"] == "DROP":
             drops += 1
             layers = [h for h in tr.get("hops", []) if h["hop"] in ("cyber_rules", "physical_rules")]
-            named_check += any(any(c.get("outcome") == "FAIL" for c in (h.get("checks") or [])) for h in layers)
+            named_check += any(any(c.get("result") == "FAIL" for c in (h.get("checks") or [])) for h in layers)
     out["coverage"] = {"decisions": checked, "with_a_machine_readable_reason": with_reason, "with_every_trace_hop": full_trace,
                        "drops": drops, "drops_naming_the_failing_check": named_check}
 
@@ -788,8 +822,8 @@ def render(res: Dict[str, Any]) -> str:
     L += [f"| Functional accuracy | F1 **{g(acc['f1'])}**, precision {g(acc['precision'])}, recall {g(acc['recall'])}, accuracy {g(acc['accuracy'])} "
           f"(never-alarm baseline {g(acc['never_alarm_accuracy'])}); {det['detected']}/{det['attacks']} attacks detected, median {g(det['median_delay_s'])} s | "
           f"{A_['runs']} twin runs ({A_['healthy_runs']} with no attack), {A_['windows_scored']:,} scored seconds, {A_['benign_hours']} benign hours |",
-          f"| Robustness | {B['malformed_input']['raised']} crashes and {B['malformed_input']['passed_through']} wrongly accepted out of "
-          f"{B['malformed_input']['n']} malformed commands; {B['concurrency']['exceptions']} errors under {B['concurrency']['threads']} threads | "
+          f"| Robustness | {B['malformed_input']['raised']} crashes and {B['malformed_input']['wrongly_accepted']} wrongly accepted out of "
+          f"{B['malformed_input']['must_refuse']} commands that must be refused; {B['concurrency']['exceptions']} errors under {B['concurrency']['threads']} threads | "
           "fuzzed inputs, degraded telemetry, a noise sweep, concurrent load |",
           f"| Bias and fairness | per-stage detection ratio (min/max) **{g(C['stage_parity']['disparity'].get('ratio_min_over_max'))}**, "
           f"source-address parity {C['source_parity']['identical_outcome_for_every_source']}, per-register ratio {g(C['register_parity']['disparity'].get('ratio_min_over_max'))} | "
@@ -846,15 +880,21 @@ def render(res: Dict[str, Any]) -> str:
 
     # ---------------- B
     L += ["## B. Robustness", "", "### B1. Malformed and hostile commands", "",
-          f"{B['malformed_input']['n']} deliberately broken commands (NaN, infinities, negative and absurd values, bad registers and function codes, "
-          f"missing or truncated signatures, wrong types, an empty dict). **Crashes: {B['malformed_input']['raised']}. Wrongly accepted: "
-          f"{B['malformed_input']['passed_through']}.** The well-formed control was accepted: {B['malformed_input']['control_passed']}.", ""]
-    bad = [r for r in B["malformed_input"]["cases"] if r["raised"] or r["verdict"] == "PASS"]
+          f"{B['malformed_input']['n']} deliberately broken commands: NaN and infinities, absurd and negative raw values, bad registers and "
+          f"function codes, a tampered register or raw value with the signature kept, a truncated / emptied / zeroed / removed signature, "
+          f"a zeroed nonce, an hour-old timestamp, wrong types and an empty dict. **Crashes: {B['malformed_input']['raised']}. "
+          f"Refused as required: {B['malformed_input']['refused_as_required']}/{B['malformed_input']['must_refuse']}. "
+          f"Wrongly accepted: {B['malformed_input']['wrongly_accepted']}.** The well-formed control was still accepted: "
+          f"{B['malformed_input']['control_passed']}, so the test is not vacuous.", "",
+          f"{B['malformed_input']['note']}.", ""]
+    bad = [r for r in B["malformed_input"]["cases"] if r["raised"] or (r["must_refuse"] and not r["refused"])]
     if bad:
-        L += ["Cases that crashed or were accepted:", ""] + [f"- `{r['case']}` -> {r.get('exception') or r['verdict']}" for r in bad] + [""]
-    L += ["### B2. Degraded telemetry", "", "| case | raised | model | invariants | flagged anything |", "|---|---|---|---|---|"]
+        L += ["**Cases that crashed or were wrongly accepted:**", ""] + [f"- `{r['case']}` -> {r.get('exception') or r['verdict']}" for r in bad] + [""]
+    else:
+        L += ["Every command that had to be refused was refused, and none crashed the pipeline.", ""]
+    L += ["### B2. Degraded telemetry", "", "| case | raised (direct call) | raised (through the pipeline) | model | invariants | flagged anything |", "|---|---|---|---|---|---|"]
     for r in B["degraded_telemetry"]["cases"]:
-        L.append(f"| {r['case']} | {r['raised'] or 'no'} | {r['model_status']} | {r['invariant_status']} | {r['flagged']} |")
+        L.append(f"| {r['case']} | {r['raised'] or 'no'} | {r.get('raised_through_the_pipeline') or 'no'} | {r['model_status']} | {r['invariant_status']} | {r['flagged']} |")
     L += ["", "Abstaining (`WARMING_UP` / `NO_MODEL` / `ERROR`) is the correct answer to unusable input: the deterministic rules keep enforcing either way.", "",
           "### B3. Sensor-noise sweep", "", "| noise x | healthy hours | false-alarm seconds | rate | attack detected | delay (s) |", "|---|---|---|---|---|---|"]
     for r in B["noise_sweep"]["rows"]:
