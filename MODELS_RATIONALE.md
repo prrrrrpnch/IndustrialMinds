@@ -1,169 +1,146 @@
-> **STALE: describes the pre-rework synthetic-trained models.** Current models and measured results: `docs/reports/` and `docs/reports/benchmark_report.md`. Rewritten in Phase 12.
+# Model rationale
 
-# Industrial Mind - Model Rationale
+Why the learned parts of IndustrialMind are shaped the way they are, what was tried and rejected, and what each piece may and may not
+be trusted for. Numbers here are quoted from generated artefacts; the authoritative, regenerable list is `CHECKLIST_VERIFICATION.txt`
+(`python -m tools.verification_record`), and the full reports are under `docs/reports/`.
 
-> **Status (Phase 5):** section 2 (CyberModel) describes the ORIGINAL synthetic 13-feature Isolation Forest and is
-> superseded: the CyberModel is now trained on SWaT only, with an 8-feature schema derived from actuator state
-> changes plus a supervised head. See `swat/cyber_events.py` (feature provenance) and
-> `models/candidates/cyber_training_report.md` (generated). The physical-model section stays until Phase 6.
+The short version: **the system blocks with deterministic rules and learns only to raise alerts.** Three learned components were
+built and measured; one was promoted as advisory, two were rejected on their own evidence and kept as documented negative results.
 
-This document explains why the two learned models were added the way they
-were, the mathematics behind them, how they meet the sub-10 ms edge budget,
-and what they can and cannot be trusted for.
+---
 
-## 1. Architecture decision: models run alongside the rules, not instead of them
+## 1. The architectural decision: learning never holds the gate
 
 ```
-                      +-- Cyber branch ----------------------------------+
-SCADA command ------> |  Cyber Agent rules (HMAC, whitelist, rate,      | -- gate --+
-(signed FC16 frame)   |  replay)      +  CyberModel anomaly score       | -- info   |
-                      +--------------------------------------------------+           v
-                      +-- Physical branch -------------------------------+     Orchestrator
-PLC telemetry ------> |  Physical Agent rules (bounds, rate-of-change,  | --> PASS / DROP
-(10 machines, 5 Hz)   |  cross-register) + PhysicalModel health / RUL   | -- info
-                      +--------------------------------------------------+
-                         both branches run concurrently in MultiModelPipeline
+SCADA ──signed Modbus write──►  CYBER RULES  ─┬─►  PHYSICAL RULES  ─┬─►  ORCHESTRATOR ──►  PLC
+                                 (block)      │     (block)         │     (rule table)
+                                              │                     │
+                                   advisory:  └──  physical model ──┤  invariant rules  ──► ALERT only
 ```
 
-The deterministic agents remain the hard gate. Reasons:
+A command is refused only by a deterministic check whose reason can be named: source whitelist, function code, register allow-list,
+rate limit, HMAC, replay window, authorization policy; then bounds, rate of change and cross-register safety. Every learned component
+is **advisory**: it can turn a forwarded command into an `ALERT`, never into a `DROP`.
 
-* **Guarantees.** "A command whose HMAC does not verify never reaches the
-  PLC" and "a value outside 0-100 PSI is always dropped" are proofs, not
-  probabilities. A learned model can only make them probabilistic.
-* **No attack corpus.** There is no labelled history of real attacks on this
-  plant. A supervised attack classifier would learn our synthetic attacks,
-  not the next real one.
-* **Safety-of-life.** For a PLC, a model false negative is a physical event.
-  Learned scores are therefore advisory by default (MONITOR mode).
-  `IM_CYBER_MODEL_ENFORCE=1` lets a CyberModel threat flag additionally DROP
-  commands the rules allowed (`ML_ANOMALY`); it can never PASS what the rules
-  dropped.
+Three reasons, in order of weight:
 
-The checklist's "rename agents to models" was deliberately not applied:
-`CyberModel` and `PhysicalModel` are new classes next to the existing agents.
+1. **The measured precision does not support blocking.** The live model's held-out precision on SWaT is 0.461. Blocking on it would
+   refuse roughly one legitimate command in two that it flags. In a water plant a refused legitimate command is itself a safety event.
+2. **A refusal has to be explainable to an operator at 3 a.m.** "`CROSS_REGISTER_VIOLATION:RAW_PUMP_DRY_RUN:P101=65>=60 while MV101=5<=10`"
+   is actionable. "the classifier scored 0.83" is not. The assurance run confirms every refusal names the exact check that failed.
+3. **Fail-closed must mean something specific.** When any stage raises, the command is dropped with `AGENT_ERROR`. That guarantee is
+   only meaningful if the blocking stages are small, deterministic and individually testable.
 
-## 2. CyberModel - Isolation Forest (unsupervised)
+The cost of this choice is real and should be stated: attacks that are physically plausible and individually in-bounds — a slow ramp,
+a frozen sensor — are not blocked. They are detected and alerted, and the operator decides.
 
-**Why Isolation Forest and not XGBoost.** XGBoost is supervised and needs
-labelled attack traffic. Isolation Forest learns only what normal operator
-traffic looks like and scores everything else by how easy it is to isolate,
-which is the right fit when attacks are rare, unlabelled and novel.
+---
 
-**Features (13 per command).** Function code one-hot, register known,
-value position in range, distance outside range, |requested - current| / span,
-signature present, signature age / freshness window, log inter-arrival time
-from the same source, requests in the last 1 s and 10 s from the source, and
-whether the same (register, value) was sent by the source in the last 2 s.
-The HMAC secret is never a feature.
+## 2. The physical model (PROMOTED, advisory) — `models/physical_model_v2.py`
 
-**Mathematics.** Each isolation tree recursively splits on a random feature
-at a random threshold. An anomaly is isolated in few splits. For a sample x
-with average path length E[h(x)] over T trees grown on psi = 256 samples:
+**What it is.** A 120-second window of the 10 sensors and 8 actuators the twin exposes, turned into 117 features and scored by a
+histogram gradient-boosting classifier. It flags when the attack probability exceeds 0.7880. Trained on SWaT only.
 
-    c(n)  = 2 (ln(n-1) + 0.5772) - 2 (n-1)/n          (expected BST search path)
-    s(x)  = 2 ^ ( - E[h(x)] / c(psi) )                 s in (0, 1]
+**Why a window and not an instantaneous reading.** Attacks that matter in a water plant are changes in *dynamics*, not in level: a
+pump that stops still leaves the tank level in range for minutes. The feature set is therefore slopes, standard deviations, ranges and
+actuator toggle counts over 30 s and 120 s, plus cross-sensor consistency residuals.
 
-s near 1 means anomalous; s well below 0.5 means normal. The threat threshold
-is the 99.5th percentile of s on training traffic (0.6485 for the shipped
-weights), so the expected false-positive rate on normal traffic is about 0.5%.
+**Why gradient boosting rather than a deep model.** Cross-validation picked it over a random forest on segment-balanced average
+precision. More importantly, three attempts at more capacity all lost on held-out data (section 4). With 35 attack events in the entire
+dataset, capacity is not the binding constraint — data is.
 
-**Measured (held-out normal traffic, different seed):** false-positive rate
-0.6% on 4,000 commands. A 12-command unsigned burst scores 0.75 (flagged).
-In ENFORCE mode a fast signed burst that stays under the 5 req/s hard limit
-is flagged at 0.67 and dropped as `ML_ANOMALY`.
+**Why "drift-robust" features.** SWaT's absolute sensor levels drift across days (PIT502 and AIT202 noticeably). A model using absolute
+levels can learn *which day a row came from* rather than whether it is an attack. The shipped feature set drops absolute levels and
+keeps dynamics.
 
-## 3. PhysicalModel - sliding-window Random Forest for RUL and health
+**Why the threshold is a false-alarm budget, not an F1 optimum.** The operating point is chosen on validation data as the most sensitive
+threshold that stays within 0.5 false-alarm episodes per benign hour, then frozen before the test block is scored. Optimising F1 on the
+test set is the single most common way these numbers get inflated.
 
-**Window.** A ring buffer shaped `[window_size=60, 10 machines, 3 features]`
-(60 samples x 0.2 s poll = 12 s). Per sample and machine:
+**Measured, held-out SWaT:** precision 0.461, recall 0.513, F1 0.485, ROC-AUC 0.836, 8 of 10 attack segments detected, 1.17 false-alarm
+episodes per hour, median detection 57.5 s. Accuracy is 0.959 against a never-alarm baseline of 0.962 — which is exactly why accuracy
+is not the headline.
 
-    v_t   = (x_t - min) / span                        normalised value
-    d1_t  = v_t - v_{t-1}                             first difference
-    d2_t  = v_t - 2 v_{t-1} + v_{t-2}                 second difference
+---
 
-**Why second differences handle drift and non-stationarity.** Calibration
-drift adds a + b*t to the signal; a setpoint ramp adds a linear segment.
-The second difference of any linear function is exactly zero, so both vanish,
-while vibration noise and impulsive spikes (the wear signature) pass through
-(amplified by sqrt(6) for white noise). Remaining features are robust
-statistics so a single outlier cannot move them:
+## 3. The physical invariants (advisory, opt-in) — `swat/invariants.py`
 
-* scale = 1.4826 * MAD(d2) (consistent estimator of sigma under Gaussian noise)
-* std(d2), 99th percentile |d2|, fraction |d2| > 2% and > 5% of span
-* noise growth = std(d2 second half) / std(d2 first half)
-* kurtosis(d2) (spikiness), log10 of the robust scale
-* mean |d1 - median(d1)| (deviation from the window's own slope, so a steady
-  ramp contributes zero)
+**Why add rules when a model already exists.** The model is trained on attack labels and is locked to its 18 tags. The invariants learn
+from **normal data only**, so they need no attacks to be fitted, and they are plant-agnostic: the learner discovers the rules from
+whatever plant it is given. They answer a different question — not "does this look like a known attack?" but "can these readings all
+be true at once?"
 
-**Why Random Forest and not LSTM.** The project chose scikit-learn only.
-Beyond that: there are ~23k training windows, too few for a sequence model to
-beat engineered robust features; a forest is deterministic for a fixed seed;
-it captures the non-linear, threshold-like relation between noise growth,
-spike rate and remaining life without feature scaling; and it predicts all
-10 machines in well under a millisecond on CPU.
+**The four families.** Rate (a sensor cannot move faster than it ever did), state (while an actuator holds a state, a sensor stays in
+the band it always had), balance (a tank's level change is explained by the flows around it), and flat (a sensor carrying measurement
+noise cannot go perfectly flat). Each produces an excess that is at most 1 inside the normal range; it must persist to count.
 
-**Outputs.** RUL in hours (0-500 h horizon) and a normalised health index:
+**Why validation is part of the method, not an afterthought.** Rules are proposed on the first 75 % of the normal data and checked on
+the last 25 %, held out in time. Anything that already misfires on unseen normal data is dropped with its reason recorded. On a synthetic
+plant with known physics the learner recovers the tank balance and the pump-to-flow coupling and invents no relation between independent
+signals.
 
-    HI = clip(RUL / 500, 0, 1)      1.0 = as new, 0.0 = failure imminent
+**What they cannot see, by construction.** An attack that changes an actuator and leaves the plant internally consistent. On the twin,
+the chlorine-breakthrough scenario is missed for exactly this reason. This is a property of consistency checking, not a bug.
 
-Health states in the pipeline report: HEALTHY (min HI >= 0.6), DEGRADING
-(>= 0.3), CRITICAL (< 0.3).
+**Measured on the twin:** adding them took sensor-tampering detection from 10/25 to 25/25 runs with no change in false alarms
+(0 episodes per hour over 9 healthy hours) and no measurable decision-latency cost. **Their real-SWaT detection and false-alarm rates
+are not measured yet** (`python -m tools.fit_invariants --data-dir <archive>`), and no SWaT claim should be made for them until that runs.
 
-**Measured (held-out trajectories, different seed, 6,960 windows):**
+One disclosure that belongs in any write-up: the flat family was added *after* a before/after run showed a frozen level sensor being
+missed by every layer. That scenario is therefore not independent evidence for the flat rule.
 
-| Metric | Value |
-|---|---|
-| Health-index MAE | 0.12 |
-| Health-index R² | 0.71 |
-| RUL MAE | 59.8 h (of 500 h) |
-| Mean HI, healthy machines | 0.92 (5th percentile 0.78) |
-| Mean HI, near failure (true HI < 0.1) | 0.23 |
+---
 
-Robustness tests (`tests/test_models.py`): strong calibration drift ->
-HI 0.96, non-stationary noise -> 0.91, continuous setpoint ramps -> 0.98,
-near-failure channel -> 0.20, and the single failing machine among 10 is
-ranked lowest.
+## 4. What was built, measured and rejected
 
-## 4. Determinism
+Each of these is reproducible and kept in `research/` precisely so the negative result can be checked rather than taken on trust.
 
-All data is generated by `models/telemetry_generator.py` from fixed seeds
-(training 11 and 101, validation 12 and 202) and both estimators use
-`random_state=42`. `python -m models.train_models` reproduces the same
-weights and the same `models/weights/training_report.json`.
+| Attempt | Why it was tried | Measured on real SWaT | Decision |
+|---|---|---|---|
+| **Cyber ML** (`research/train_cyber_swat.py`) | to score command *payloads* for anomaly, alongside the cyber rules | ROC-AUC 0.631, F1 0.126 on held-out actuator state-change events | **Rejected.** The cyber branch is deterministic rules only. The synthetic weights were deleted, so the model reports `NO_MODEL`. |
+| **Learned fusion** (`research/train_fusion_swat.py`) | to replace the hand-written orchestrator table with a trained combiner | validation AUC 0.93 but **test AUC 0.68**, below the physical model alone (0.83); 4 of 10 segments versus 6 | **Rejected.** The gap between validation and test is the whole lesson: the combiner learned the validation block. |
+| **Physical v3** (`research/physical_model_v3.py`) | multi-scale features, normal-only ridge/PCA heads, stacking | F1 0.352 against the v2 baseline's 0.432; 6 of 10 segments versus 8 | **Not promoted.** Kept opt-in behind `IM_PHYSICAL_MODEL=v3`. |
+| **k-of-m alarm persistence** | to suppress isolated blips | helped on validation, **hurt on the test block** (F1 0.416 versus 0.485) | **Not shipped.** The shipped alarm rule is a single window over the threshold. |
 
-## 5. Latency (edge budget < 10 ms per message)
+A fourth idea, replacing the model with a pre-trained or deep time-series detector, was analysed and not pursued: published SWaT
+scores of 0.8–0.9 mostly rely on point-adjust scoring and test-set thresholds, and three in-house attempts at more capacity had
+already lost on held-out data. The honest expectation was a small, uncertain change at a large cost in dependencies.
 
-scikit-learn's `predict()`/`score_samples()` carry 4-6 ms of fixed overhead
-per call; scoring one command that way would use most of the budget. Both
-models are therefore evaluated through `models/tree_inference.py`, which packs
-the fitted trees into NumPy arrays and walks all trees at once. Output
-equality with sklearn is asserted (max difference 2e-16 for Isolation Forest,
-2e-13 for the forest).
+---
 
-| Path | sklearn | packed |
-|---|---|---|
-| Isolation Forest, 1 command | 6.3 ms | 0.11-0.15 ms |
-| Random Forest, 10 machines | 3.8 ms | 0.45 ms |
+## 5. Why the cyber branch has no model at all
 
-Health is recomputed at most once per second (`IM_HEALTH_REFRESH_SECONDS`),
-because RUL changes over hours, not milliseconds.
+SWaT contains **no network fields**: no addresses, no function codes, no timing, no packet captures. The only cyber-shaped signal
+derivable from it is actuator state-change events, and a model over those scored ROC-AUC 0.631. Meanwhile the properties the cyber
+layer actually enforces — a valid HMAC, a fresh nonce, a known source, a rate under the limit — are *decidable*, not statistical. A
+learned approximation of a decidable property is strictly worse than the property.
 
-Middleware stress test (`tests/test_middleware_efficiency.py`, 40,000
-messages at 400 msg/s, 2-core VM): mean 0.88 ms, p95 1.51 ms, p99 2.36 ms,
-capacity 1,125 msg/s, end-to-end p99 3.8 ms, memory growth 0.13 MB per 1,000
-messages after warm-up, all attack payloads dropped, all legitimate payloads
-passed.
+So the cyber layer is rules, and its evidence is conformance to a specification: 4,400 of 4,400 violating scenarios refused with the
+expected reason, 0 false positives on legitimate traffic, and 24 of 24 malformed or tampered commands refused in the assurance fuzzing
+(including a truncated, emptied, zeroed or removed signature, a zeroed nonce, a stale timestamp, and a tampered register or raw value
+with the signature kept). That is conformance, not detection skill on real attacks, and it must not be quoted as the latter.
 
-## 6. Limitations
+---
 
-* Both models are trained on **synthetic** data. Before trusting the health
-  index on a real plant, retrain `PhysicalModel` on that plant's telemetry and
-  failure history, and recalibrate the CyberModel threshold on its traffic.
-* The PLC simulation has no wear model, so live health stays near 1.0; the
-  degradation path is exercised by tests and the stress test's synthetic
-  telemetry.
-* RUL hours are a relative scale from the synthetic run-to-failure horizon,
-  not calibrated engineering hours.
-* There is no OPC-UA server in this project; the Modbus holding-register map
-  (addresses 0-9 plus the signed-frame window at 100) is the only address
-  space.
+## 6. Cost
+
+The decision path is in-process and bounded: p50 0.501 ms, mean 0.801 ms, p95 1.972 ms, p99 2.797 ms per command, of which the cyber
+rules take about 0.06 ms and the physical rules about 0.03 ms. The model dominates the tail (p95 about 1.4 ms) but not the median,
+because its assessment is cached per telemetry sample rather than recomputed per command. The invariant monitor costs about 1.5 ms per
+telemetry sample at 1 Hz, off the decision path, and about 0.5 µs per decision to merge its cached verdict.
+
+---
+
+## 7. What these models may not be trusted for
+
+* **Blocking.** Neither the model nor the invariants may refuse a command, and the code enforces it: a forced advisory flag yields
+  `ALERT` in every test.
+* **Unattended operation.** Alarm counts rise over a long healthy twin run (18 alarm seconds in the first half of four hours, 695 in the
+  second) as the twin's fouling cycle develops and the model's 95th-percentile probability sits on its threshold. Stage coverage is also
+  uneven: at a 1 σ perturbation, detection is 100 % in stages 1 and 4 but 33 % in stages 2, 3 and 5, with pH the weakest because its
+  measured spread is close to the Modbus wire's 0.1 resolution.
+* **Generalisation to attacks nobody designed.** Every twin and constructed attack is one we wrote.
+* **Any plant but this one.** The model is locked to its 18 SWaT tags and cannot run elsewhere without retraining. The invariant learner
+  is plant-agnostic by design, and validating it on a second real plant (WADI is the natural candidate) is the obvious next step.
+* **Degradation versus attack.** A slowly drifting sensor is reported as an anomaly; the system cannot tell a failing instrument from a
+  slow attack, and an operator must.
