@@ -57,7 +57,7 @@ class InvariantMonitor:
 
     # ---------------------------------------------------------------------------------------- report
     def _empty(self) -> Dict[str, Any]:
-        return {"model": "InvariantMonitor", "status": self.status, "threat_flag": False, "flagged_by": [], "violated": [], "score": None,
+        return {"model": "InvariantMonitor", "status": self.status, "threat_flag": False, "flagged_by": [], "violated": [], "score": None, "max_excess": None,
                 "theta": self.theta, "suspect_stage": None, "explanation": None, "source": self.source,
                 "invariants": 0 if self.inv is None else len(self.inv), "warmup_remaining_s": max(0, self.lookback - len(self._buf))}
 
@@ -94,10 +94,12 @@ class InvariantMonitor:
                     return
                 S = np.stack([b[0] for b in self._buf])
                 A = np.stack([b[1] for b in self._buf])
-            violated = self.inv.violated_at_end(S, A, np.zeros(len(S), dtype=int), self.theta)
+            end = self.inv.assess_end(S, A, np.zeros(len(S), dtype=int), self.theta)
+            violated = end["violated"]
             V = violated[0]["excess"] if violated else 0.0
             rep = self._empty()
-            rep.update(status="OK", score=round(float(V), 3), violated=violated, threat_flag=bool(violated),
+            # `score` is the violation size (0 when nothing is violated); `max_excess` is the continuous headroom measure, always present.
+            rep.update(status="OK", score=round(float(V), 3), max_excess=end["max_excess"], violated=violated, threat_flag=bool(violated),
                        flagged_by=[f"invariant:{v['id']}" for v in violated[:MAX_NAMED]],
                        suspect_stage=violated[0]["stage"] if violated else None,
                        explanation=("physical invariant violated: " + violated[0]["text"]) if violated else None, warmup_remaining_s=0)

@@ -259,14 +259,23 @@ class InvariantSet:
             arg = np.where(better, k, arg)
         return V, arg
 
+    def assess_end(self, S: np.ndarray, A: np.ndarray, chunk: np.ndarray, theta: float = 1.0) -> Dict[str, Any]:
+        """What the invariants say about the LAST row: the largest persistent excess over ALL of them (a continuous score that
+        exists whether or not anything is violated, so it can be tracked for drift and scored with ROC-AUC), and the violations."""
+        worst, violated = 0.0, []
+        for k, v, _ in self.series(S, A, chunk):
+            if not len(v):
+                continue
+            e = float(v[-1])
+            worst = max(worst, e)
+            if e > theta:
+                inv = self.invariants[k]
+                violated.append({"id": inv["id"], "excess": round(e, 3), "text": inv["text"], "stage": inv.get("stage"), "family": inv["family"]})
+        return {"max_excess": round(worst, 3), "violated": sorted(violated, key=lambda r: -r["excess"])}
+
     def violated_at_end(self, S: np.ndarray, A: np.ndarray, chunk: np.ndarray, theta: float = 1.0) -> List[Dict[str, Any]]:
         """Invariants violated at the LAST row, worst first: [{id, excess, text, stage}]."""
-        out = []
-        for k, v, _ in self.series(S, A, chunk):
-            if len(v) and v[-1] > theta:
-                inv = self.invariants[k]
-                out.append({"id": inv["id"], "excess": round(float(v[-1]), 3), "text": inv["text"], "stage": inv.get("stage"), "family": inv["family"]})
-        return sorted(out, key=lambda r: -r["excess"])
+        return self.assess_end(S, A, chunk, theta)["violated"]
 
     # ---------------------------------------------------------------------------- fitting
     @classmethod
