@@ -179,9 +179,16 @@ check("never alarming detects nothing and has F1 0", r["pooled"]["never_alarm"][
 check("a looser budget never alarms LESS than a tighter one (pooled flagged windows)", r["pooled"]["v2"]["2.0"]["tp"] + r["pooled"]["v2"]["2.0"]["fp"] >= r["pooled"]["v2"]["0.5"]["tp"] + r["pooled"]["v2"]["0.5"]["fp"])
 check("the report carries intervals, a chance baseline, per-fold rows and a visibility bound", bool(r["ci_primary_budget"]["v2"]) and r["chance_baseline"]["trials"] == 20 and len(r["per_fold"]) == 3 and "visibility_bound" in r)
 check("realised false-alarm rates are reported per fold next to the budget", all("false_alarm_episodes_per_hour" in f["v2"] for f in r["per_fold"]))
+iv = r["invariants"]
+check("the physical-invariant rules are scored on the same windows, at every theta, with an interval", iv["status"] == "OK" and set(iv["per_theta"]) == {"1.0", "1.5", "2.0", "3.0"} and bool(iv["ci_theta_1"]))
+check("v2 OR invariants detects at least what v2 detects and never fewer false alarms than either alone",
+      iv["union_with_v2"]["segments_detected"] >= r["pooled"]["v2"]["0.5"]["segments_detected"]
+      and iv["union_with_v2"]["tp"] + iv["union_with_v2"]["fp"] >= max(iv["per_theta"]["1.0"]["tp"] + iv["per_theta"]["1.0"]["fp"], r["pooled"]["v2"]["0.5"]["tp"] + r["pooled"]["v2"]["0.5"]["fp"]))
+check("the invariants are fitted on the pre-attack normal period only (train-only rows)", iv["fit_rows"] > 0 and iv["fit_rows"] <= r["protocol"]["windows_total"] * 5 and "pre-attack" in iv["label"])
+check("the per-attack table has an invariants column", all("invariants" in a["detected_by"] for a in r["per_attack"]))
 check("the 'without the largest attack' view drops exactly that segment", r["without_largest_segment"]["v2"]["segments_total"] == 34 and r["largest_segment"]["segment"] > 0)
 md = P.render(r, fixture=True)
-check("the fixture report says its numbers are meaningless and names every section", "meaningless" in md and all(h in md for h in ("## Headline", "## Operating curve", "## Fold by fold", "## Attack by attack", "## Limits that stay", "chance alarms matched")))
+check("the fixture report says its numbers are meaningless and names every section", "meaningless" in md and all(h in md for h in ("## Headline", "## Operating curve", "## Fold by fold", "## Attack by attack", "## Physical-invariant rules", "## Limits that stay", "chance alarms matched")))
 figs = P.figures(r, os.path.join(d, "figs"))
 check("three figures were drawn", len(figs) == 3 and all(os.path.getsize(os.path.join(d, "figs", f)) > 5000 for f in figs))
 check("a fixture run does not touch the real report outputs", before == [os.path.getmtime(p) if os.path.exists(p) else None for p in real_outputs])

@@ -1,0 +1,293 @@
+{
+ "schema": "im-invariants-1",
+ "label": "healthy digital twin, 6.0 h, seed 1",
+ "theta": 1.5,
+ "signals": {
+  "sensors": [
+   "LIT101",
+   "FIT101",
+   "AIT202",
+   "FIT201",
+   "LIT301",
+   "DPIT301",
+   "LIT401",
+   "AIT402",
+   "PIT501",
+   "FIT501"
+  ],
+  "actuators": [
+   "P101",
+   "P203",
+   "P205",
+   "MV302",
+   "P302",
+   "P402",
+   "UV401",
+   "P501"
+  ]
+ },
+ "report": {
+  "label": "healthy digital twin, 6.0 h, seed 1",
+  "rows": 21600,
+  "rows_fit": 16200,
+  "rows_holdout": 5400,
+  "quantile": 0.9999,
+  "blocks": 6,
+  "proposed": {
+   "rate": 20,
+   "state": 0,
+   "balance": 0
+  },
+  "dropped": [
+   {
+    "id": "rate:FIT201:10s",
+    "reason": "misfires on unseen normal rows: violation rate 1.30e-03 > 2e-04"
+   },
+   {
+    "id": "rate:FIT201:60s",
+    "reason": "misfires on unseen normal rows: violation rate 6.93e-03 > 2e-04"
+   },
+   {
+    "id": "rate:AIT402:10s",
+    "reason": "misfires on unseen normal rows: violation rate 1.67e-03 > 2e-04"
+   },
+   {
+    "id": "rate:AIT402:60s",
+    "reason": "misfires on unseen normal rows: violation rate 1.82e-02 > 2e-04"
+   }
+  ],
+  "holdout": {
+   "rate:LIT101:10s": {
+    "valid_rows": 5390,
+    "violation_rate": 0.0
+   },
+   "rate:LIT101:60s": {
+    "valid_rows": 5340,
+    "violation_rate": 0.0
+   },
+   "rate:FIT101:10s": {
+    "valid_rows": 5390,
+    "violation_rate": 0.0
+   },
+   "rate:FIT101:60s": {
+    "valid_rows": 5340,
+    "violation_rate": 0.0
+   },
+   "rate:AIT202:10s": {
+    "valid_rows": 5390,
+    "violation_rate": 0.0
+   },
+   "rate:AIT202:60s": {
+    "valid_rows": 5340,
+    "violation_rate": 0.0
+   },
+   "rate:FIT201:10s": {
+    "valid_rows": 5390,
+    "violation_rate": 0.001299
+   },
+   "rate:FIT201:60s": {
+    "valid_rows": 5340,
+    "violation_rate": 0.006929
+   },
+   "rate:LIT301:10s": {
+    "valid_rows": 5390,
+    "violation_rate": 0.0
+   },
+   "rate:LIT301:60s": {
+    "valid_rows": 5340,
+    "violation_rate": 0.0
+   },
+   "rate:DPIT301:10s": {
+    "valid_rows": 5390,
+    "violation_rate": 0.0
+   },
+   "rate:DPIT301:60s": {
+    "valid_rows": 5340,
+    "violation_rate": 0.0
+   },
+   "rate:LIT401:10s": {
+    "valid_rows": 5390,
+    "violation_rate": 0.0
+   },
+   "rate:LIT401:60s": {
+    "valid_rows": 5340,
+    "violation_rate": 0.0
+   },
+   "rate:AIT402:10s": {
+    "valid_rows": 5390,
+    "violation_rate": 0.00167
+   },
+   "rate:AIT402:60s": {
+    "valid_rows": 5340,
+    "violation_rate": 0.018165
+   },
+   "rate:PIT501:10s": {
+    "valid_rows": 5390,
+    "violation_rate": 0.0
+   },
+   "rate:PIT501:60s": {
+    "valid_rows": 5340,
+    "violation_rate": 0.0
+   },
+   "rate:FIT501:10s": {
+    "valid_rows": 5390,
+    "violation_rate": 0.0
+   },
+   "rate:FIT501:60s": {
+    "valid_rows": 5340,
+    "violation_rate": 0.0
+   }
+  },
+  "kept": {
+   "rate": 16,
+   "state": 0,
+   "balance": 0
+  }
+ },
+ "invariants": [
+  {
+   "id": "rate:LIT101:10s",
+   "family": "rate",
+   "sensor": "LIT101",
+   "horizon": 10,
+   "cap": 28.10778788793439,
+   "text": "LIT101 never changed by more than 28.1 mm in 10 s in normal operation",
+   "stage": "S1"
+  },
+  {
+   "id": "rate:LIT101:60s",
+   "family": "rate",
+   "sensor": "LIT101",
+   "horizon": 60,
+   "cap": 96.087770033306,
+   "text": "LIT101 never changed by more than 96.1 mm in 60 s in normal operation",
+   "stage": "S1"
+  },
+  {
+   "id": "rate:FIT101:10s",
+   "family": "rate",
+   "sensor": "FIT101",
+   "horizon": 10,
+   "cap": 0.29044654849362744,
+   "text": "FIT101 never changed by more than 0.29 m3/h in 10 s in normal operation",
+   "stage": "S1"
+  },
+  {
+   "id": "rate:FIT101:60s",
+   "family": "rate",
+   "sensor": "FIT101",
+   "horizon": 60,
+   "cap": 0.30232246440165256,
+   "text": "FIT101 never changed by more than 0.302 m3/h in 60 s in normal operation",
+   "stage": "S1"
+  },
+  {
+   "id": "rate:AIT202:10s",
+   "family": "rate",
+   "sensor": "AIT202",
+   "horizon": 10,
+   "cap": 0.1384099398065828,
+   "text": "AIT202 never changed by more than 0.138 pH in 10 s in normal operation",
+   "stage": "S2"
+  },
+  {
+   "id": "rate:AIT202:60s",
+   "family": "rate",
+   "sensor": "AIT202",
+   "horizon": 60,
+   "cap": 0.19794727847490312,
+   "text": "AIT202 never changed by more than 0.198 pH in 60 s in normal operation",
+   "stage": "S2"
+  },
+  {
+   "id": "rate:LIT301:10s",
+   "family": "rate",
+   "sensor": "LIT301",
+   "horizon": 10,
+   "cap": 68.27298066393881,
+   "text": "LIT301 never changed by more than 68.3 mm in 10 s in normal operation",
+   "stage": "S3"
+  },
+  {
+   "id": "rate:LIT301:60s",
+   "family": "rate",
+   "sensor": "LIT301",
+   "horizon": 60,
+   "cap": 123.50444001967193,
+   "text": "LIT301 never changed by more than 124 mm in 60 s in normal operation",
+   "stage": "S3"
+  },
+  {
+   "id": "rate:DPIT301:10s",
+   "family": "rate",
+   "sensor": "DPIT301",
+   "horizon": 10,
+   "cap": 12.13045148869751,
+   "text": "DPIT301 never changed by more than 12.1 kPa in 10 s in normal operation",
+   "stage": "S3"
+  },
+  {
+   "id": "rate:DPIT301:60s",
+   "family": "rate",
+   "sensor": "DPIT301",
+   "horizon": 60,
+   "cap": 11.994065089966305,
+   "text": "DPIT301 never changed by more than 12 kPa in 60 s in normal operation",
+   "stage": "S3"
+  },
+  {
+   "id": "rate:LIT401:10s",
+   "family": "rate",
+   "sensor": "LIT401",
+   "horizon": 10,
+   "cap": 46.26744574860143,
+   "text": "LIT401 never changed by more than 46.3 mm in 10 s in normal operation",
+   "stage": "S4"
+  },
+  {
+   "id": "rate:LIT401:60s",
+   "family": "rate",
+   "sensor": "LIT401",
+   "horizon": 60,
+   "cap": 69.69691199549906,
+   "text": "LIT401 never changed by more than 69.7 mm in 60 s in normal operation",
+   "stage": "S4"
+  },
+  {
+   "id": "rate:PIT501:10s",
+   "family": "rate",
+   "sensor": "PIT501",
+   "horizon": 10,
+   "cap": 26.545908856689785,
+   "text": "PIT501 never changed by more than 26.5 kPa in 10 s in normal operation",
+   "stage": "S5"
+  },
+  {
+   "id": "rate:PIT501:60s",
+   "family": "rate",
+   "sensor": "PIT501",
+   "horizon": 60,
+   "cap": 28.02445437862184,
+   "text": "PIT501 never changed by more than 28 kPa in 60 s in normal operation",
+   "stage": "S5"
+  },
+  {
+   "id": "rate:FIT501:10s",
+   "family": "rate",
+   "sensor": "FIT501",
+   "horizon": 10,
+   "cap": 0.29933974570868216,
+   "text": "FIT501 never changed by more than 0.299 m3/h in 10 s in normal operation",
+   "stage": "S5"
+  },
+  {
+   "id": "rate:FIT501:60s",
+   "family": "rate",
+   "sensor": "FIT501",
+   "horizon": 60,
+   "cap": 0.31007086428834607,
+   "text": "FIT501 never changed by more than 0.31 m3/h in 60 s in normal operation",
+   "stage": "S5"
+  }
+ ]
+}

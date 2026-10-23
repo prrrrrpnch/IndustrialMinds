@@ -1,0 +1,203 @@
+{
+ "label": "TWIN MEASUREMENT (synthetic plant) - NOT SWaT detection performance",
+ "fit_hours": 6.0,
+ "seed": 1,
+ "report": {
+  "label": "healthy digital twin, 6.0 h, seed 1",
+  "rows": 21600,
+  "rows_fit": 16200,
+  "rows_holdout": 5400,
+  "quantile": 0.9999,
+  "blocks": 6,
+  "proposed": {
+   "rate": 20,
+   "state": 0,
+   "balance": 0
+  },
+  "dropped": [
+   {
+    "id": "rate:FIT201:10s",
+    "reason": "misfires on unseen normal rows: violation rate 1.30e-03 > 2e-04"
+   },
+   {
+    "id": "rate:FIT201:60s",
+    "reason": "misfires on unseen normal rows: violation rate 6.93e-03 > 2e-04"
+   },
+   {
+    "id": "rate:AIT402:10s",
+    "reason": "misfires on unseen normal rows: violation rate 1.67e-03 > 2e-04"
+   },
+   {
+    "id": "rate:AIT402:60s",
+    "reason": "misfires on unseen normal rows: violation rate 1.82e-02 > 2e-04"
+   }
+  ],
+  "holdout": {
+   "rate:LIT101:10s": {
+    "valid_rows": 5390,
+    "violation_rate": 0.0
+   },
+   "rate:LIT101:60s": {
+    "valid_rows": 5340,
+    "violation_rate": 0.0
+   },
+   "rate:FIT101:10s": {
+    "valid_rows": 5390,
+    "violation_rate": 0.0
+   },
+   "rate:FIT101:60s": {
+    "valid_rows": 5340,
+    "violation_rate": 0.0
+   },
+   "rate:AIT202:10s": {
+    "valid_rows": 5390,
+    "violation_rate": 0.0
+   },
+   "rate:AIT202:60s": {
+    "valid_rows": 5340,
+    "violation_rate": 0.0
+   },
+   "rate:FIT201:10s": {
+    "valid_rows": 5390,
+    "violation_rate": 0.001299
+   },
+   "rate:FIT201:60s": {
+    "valid_rows": 5340,
+    "violation_rate": 0.006929
+   },
+   "rate:LIT301:10s": {
+    "valid_rows": 5390,
+    "violation_rate": 0.0
+   },
+   "rate:LIT301:60s": {
+    "valid_rows": 5340,
+    "violation_rate": 0.0
+   },
+   "rate:DPIT301:10s": {
+    "valid_rows": 5390,
+    "violation_rate": 0.0
+   },
+   "rate:DPIT301:60s": {
+    "valid_rows": 5340,
+    "violation_rate": 0.0
+   },
+   "rate:LIT401:10s": {
+    "valid_rows": 5390,
+    "violation_rate": 0.0
+   },
+   "rate:LIT401:60s": {
+    "valid_rows": 5340,
+    "violation_rate": 0.0
+   },
+   "rate:AIT402:10s": {
+    "valid_rows": 5390,
+    "violation_rate": 0.00167
+   },
+   "rate:AIT402:60s": {
+    "valid_rows": 5340,
+    "violation_rate": 0.018165
+   },
+   "rate:PIT501:10s": {
+    "valid_rows": 5390,
+    "violation_rate": 0.0
+   },
+   "rate:PIT501:60s": {
+    "valid_rows": 5340,
+    "violation_rate": 0.0
+   },
+   "rate:FIT501:10s": {
+    "valid_rows": 5390,
+    "violation_rate": 0.0
+   },
+   "rate:FIT501:60s": {
+    "valid_rows": 5340,
+    "violation_rate": 0.0
+   }
+  },
+  "kept": {
+   "rate": 16,
+   "state": 0,
+   "balance": 0
+  }
+ },
+ "nominal": {
+  "simulated_hours": 3.0,
+  "calibrated_theta": 1.5,
+  "per_theta": {
+   "1.0": {
+    "violating_seconds": 165,
+    "episodes_per_hour": 1.333
+   },
+   "1.5": {
+    "violating_seconds": 0,
+    "episodes_per_hour": 0.0
+   },
+   "2.0": {
+    "violating_seconds": 0,
+    "episodes_per_hour": 0.0
+   },
+   "3.0": {
+    "violating_seconds": 0,
+    "episodes_per_hour": 0.0
+   }
+  }
+ },
+ "scenarios": {
+  "p101_stop (raw pump stops)": {
+   "changes": {
+    "P101": 5.0
+   },
+   "violating_seconds_before_attack": 0,
+   "first_violation_after_s": 5,
+   "first_invariant": "rate:AIT202:10s"
+  },
+  "acid_overdose (HCl max, raw pump low)": {
+   "changes": {
+    "P203": 100.0,
+    "P101": 15.0
+   },
+   "violating_seconds_before_attack": 0,
+   "first_violation_after_s": 3,
+   "first_invariant": "rate:AIT202:10s"
+  },
+  "chlorine_breakthrough (NaOCl max, UV off)": {
+   "changes": {
+    "P205": 100.0,
+    "UV401": 0.0
+   },
+   "violating_seconds_before_attack": 0,
+   "first_violation_after_s": null,
+   "first_invariant": null
+  },
+  "ro_deadhead (RO pump max, reject valve shut)": {
+   "changes": {
+    "P501": 100.0,
+    "MV503": 0.0
+   },
+   "violating_seconds_before_attack": 0,
+   "first_violation_after_s": 2,
+   "first_invariant": "rate:PIT501:10s"
+  },
+  "uf_valve_shut (UF feed valve closes)": {
+   "changes": {
+    "MV302": 2.0
+   },
+   "violating_seconds_before_attack": 0,
+   "first_violation_after_s": 8,
+   "first_invariant": "rate:LIT101:10s"
+  }
+ },
+ "environment": {
+  "generated_utc": "2026-10-23 11:01:15",
+  "python": "3.13.16",
+  "platform": "Linux-6.18.44-fc-v153-x86_64-with-glibc2.39",
+  "machine": "x86_64",
+  "cpu_count": 4,
+  "numpy": "2.5.4",
+  "pandas": "3.0.6",
+  "scikit_learn": "1.9.1",
+  "joblib": "1.6.0",
+  "git_commit": "4c2cf39",
+  "git_dirty": true
+ }
+}
