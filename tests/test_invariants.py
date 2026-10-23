@@ -70,6 +70,12 @@ check("the pump -> flow coupling is found for both states", {"state:P101=on:FIT2
 check("no relation is invented for independent signals (no balance for the other tanks)", not (ids & {"balance:LIT301", "balance:LIT401"}))
 check("an actuator nothing depends on gets no band", not any(k["id"].startswith("state:P203") for k in inv.invariants))
 check("the tank balance does not list a driver that never varied", "frac:MV302" not in next(k for k in inv.invariants if k["id"] == "balance:LIT101")["drivers"])
+flats = {k["sensor"] for k in inv.invariants if k["family"] == "flat"}
+check("every noisy sensor gets a flatline rule (a real sensor cannot go perfectly flat)", {"LIT101", "LIT301", "LIT401", "PIT501", "AIT402", "DPIT301"} <= flats, str(sorted(flats)))
+S_q, A_q, CH_q = make_plant(60000, 1)
+S_q[:, SI["AIT202"]] = np.round(S_q[:, SI["AIT202"]] / 0.1) * 0.1            # quantised coarser than its noise: a flat reading is NORMAL for this sensor
+inv_q = I.InvariantSet.fit(S_q, A_q, CH_q, label="quantised")
+check("a sensor that is legitimately flat in normal data gets NO flatline rule (it would false-alarm)", not any(k["family"] == "flat" and k["sensor"] == "AIT202" for k in inv_q.invariants))
 check("every kept invariant has a plain-language meaning and a stage", all(k["text"] and k["stage"] for k in inv.invariants))
 check("the report records what was proposed, kept and held out", rep["rows_holdout"] == 15000 and sum(rep["kept"].values()) == len(inv) and "holdout" in rep)
 
@@ -111,12 +117,17 @@ def a_ramp(S, A, t):
     S[t:, SI["LIT101"]] += np.arange(len(S) - t) * 0.5
 
 
-for name, fn, family, limit in [("a flow meter stuck at zero while the pump runs", a_flow0, "state", 30), ("a level sensor frozen", a_freeze, "balance", 120),
+for name, fn, family, limit in [("a flow meter stuck at zero while the pump runs", a_flow0, "state", 30), ("a level sensor frozen", a_freeze, "flat", 40),
                                 ("a level sensor jumping by 200 mm", a_step, "rate", 5), ("a flow meter reading 0.8 too high", a_bias, None, 30),
                                 ("a pump state reported opposite to what the flow shows", a_flip, None, 120), ("a level sensor creeping 0.5 mm/s", a_ramp, "balance", 120)]:
     first, which, noise = attack(fn)
     check(f"detected: {name}", first is not None and first <= limit and (family is None or which.startswith(family)), f"after {first} s by {which}")
 check("nothing fires before the attack starts", attack(a_step)[2] == 0)
+first_fz, which_fz, _ = attack(a_freeze)
+check("a frozen sensor is caught by the flatline rule within about the window plus persistence (20 s + 5 s)", which_fz.startswith("flat:LIT101") and first_fz <= 30, f"{first_fz} s by {which_fz}")
+def a_freeze_other(S, A, t):
+    S[t:, SI["AIT202"]] = S[t, SI["AIT202"]]
+check("a frozen pH sensor is caught too", attack(a_freeze_other)[0] is not None and attack(a_freeze_other)[0] <= 30, str(attack(a_freeze_other)[:2]))
 
 print("\nVALIDATION DROPS WHAT DOES NOT HOLD")
 S3, A3, CH3 = make_plant(60000, 5)

@@ -12,16 +12,17 @@
   "proposed": {
    "rate": 20,
    "state": 0,
-   "balance": 0
+   "balance": 0,
+   "flat": 6
   },
   "dropped": [
    {
-    "id": "rate:FIT201:10s",
-    "reason": "misfires on unseen normal rows: violation rate 1.30e-03 > 2e-04"
+    "id": "rate:AIT202:10s",
+    "reason": "misfires on unseen normal rows: violation rate 7.42e-04 > 2e-04"
    },
    {
     "id": "rate:FIT201:60s",
-    "reason": "misfires on unseen normal rows: violation rate 6.93e-03 > 2e-04"
+    "reason": "misfires on unseen normal rows: violation rate 3.75e-04 > 2e-04"
    },
    {
     "id": "rate:AIT402:10s",
@@ -51,7 +52,7 @@
    },
    "rate:AIT202:10s": {
     "valid_rows": 5390,
-    "violation_rate": 0.0
+    "violation_rate": 0.000742
    },
    "rate:AIT202:60s": {
     "valid_rows": 5340,
@@ -59,11 +60,11 @@
    },
    "rate:FIT201:10s": {
     "valid_rows": 5390,
-    "violation_rate": 0.001299
+    "violation_rate": 0.0
    },
    "rate:FIT201:60s": {
     "valid_rows": 5340,
-    "violation_rate": 0.006929
+    "violation_rate": 0.000375
    },
    "rate:LIT301:10s": {
     "valid_rows": 5390,
@@ -112,12 +113,37 @@
    "rate:FIT501:60s": {
     "valid_rows": 5340,
     "violation_rate": 0.0
+   },
+   "flat:LIT101:20s": {
+    "valid_rows": 5381,
+    "violation_rate": 0.0
+   },
+   "flat:LIT301:20s": {
+    "valid_rows": 5381,
+    "violation_rate": 0.0
+   },
+   "flat:DPIT301:20s": {
+    "valid_rows": 5381,
+    "violation_rate": 0.0
+   },
+   "flat:LIT401:20s": {
+    "valid_rows": 5381,
+    "violation_rate": 0.0
+   },
+   "flat:AIT402:20s": {
+    "valid_rows": 5381,
+    "violation_rate": 0.0
+   },
+   "flat:PIT501:20s": {
+    "valid_rows": 5381,
+    "violation_rate": 0.0
    }
   },
   "kept": {
    "rate": 16,
    "state": 0,
-   "balance": 0
+   "balance": 0,
+   "flat": 6
   }
  },
  "nominal": {
@@ -125,7 +151,7 @@
   "calibrated_theta": 1.5,
   "per_theta": {
    "1.0": {
-    "violating_seconds": 165,
+    "violating_seconds": 117,
     "episodes_per_hour": 1.333
    },
    "1.5": {
@@ -148,8 +174,8 @@
     "P101": 5.0
    },
    "violating_seconds_before_attack": 0,
-   "first_violation_after_s": 5,
-   "first_invariant": "rate:AIT202:10s"
+   "first_violation_after_s": 4,
+   "first_invariant": "rate:FIT201:10s"
   },
   "acid_overdose (HCl max, raw pump low)": {
    "changes": {
@@ -158,7 +184,7 @@
    },
    "violating_seconds_before_attack": 0,
    "first_violation_after_s": 3,
-   "first_invariant": "rate:AIT202:10s"
+   "first_invariant": "rate:AIT202:60s"
   },
   "chlorine_breakthrough (NaOCl max, UV off)": {
    "changes": {
@@ -176,7 +202,7 @@
    },
    "violating_seconds_before_attack": 0,
    "first_violation_after_s": 2,
-   "first_invariant": "rate:PIT501:10s"
+   "first_invariant": "rate:FIT501:10s"
   },
   "uf_valve_shut (UF feed valve closes)": {
    "changes": {
@@ -188,7 +214,7 @@
   }
  },
  "environment": {
-  "generated_utc": "2026-10-23 11:01:15",
+  "generated_utc": "2026-10-23 15:23:11",
   "python": "3.13.16",
   "platform": "Linux-6.18.44-fc-v153-x86_64-with-glibc2.39",
   "machine": "x86_64",
@@ -197,7 +223,7 @@
   "pandas": "3.0.6",
   "scikit_learn": "1.9.1",
   "joblib": "1.6.0",
-  "git_commit": "4c2cf39",
+  "git_commit": "b9e3745",
   "git_dirty": true
  }
 }

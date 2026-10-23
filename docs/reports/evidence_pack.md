@@ -18,6 +18,8 @@ Commands are labelled by the phase that sent them: legitimate phase = benign, at
 
 **Attack campaigns detected: 9/10** (a campaign is detected when at least one of its commands was stopped). Of the campaigns that actually pass through the middleware: **9/9**. `false-injection` writes straight to the PLC, so no inline control can stop it (documented limit); it is listed so the pack is not selective.
 
+**Campaign view (the fairer reading of the same run).** 9 of 9 attack campaigns that pass through the middleware were detected, the slowest at its command 6. Before the first flag, 10 attack-labelled commands passed: these are the commands a campaign is allowed to send before it is recognisable (the first frames of a flood under the rate limit, the original frame of a replay, the individually safe early steps of a ramp). **After detection began, 0 commands got through** (0 campaigns leaked). Legitimate traffic: 0 of 40 commands flagged.
+
 ![live campaign](figures/evidence_live_campaign.png)
 
 | phase | commands | dropped | alerted | passed | first flag at | why it was stopped | note |
@@ -36,7 +38,7 @@ Commands are labelled by the phase that sent them: legitimate phase = benign, at
 
 Incidents the dashboard grouped from this run: 1 (all attacks came from one source address, so they correlate into one incident).
 
-- `INC-0001` **critical** - 127.0.0.1: 15 event(s) in 65 s - Flood / Rate Limit, Impossible Command (Out of Bounds), Write To Sensor Register
+- `INC-0001` **critical** - 127.0.0.1: 15 event(s) in 66 s - Flood / Rate Limit, Impossible Command (Out of Bounds), Write To Sensor Register
 
 Reading the table honestly: attacks that are slow and stay inside normal bounds (for example freeze or ramp style) are **not** stopped by rules; that is what the advisory physical model is for, and its real-data performance is section 3. The command-level recall above counts every command of an attack campaign as an attack, including the ones that are allowed by design (see the note column), so it understates how many HARMFUL commands were stopped.
 

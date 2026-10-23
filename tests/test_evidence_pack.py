@@ -42,12 +42,20 @@ check("an upstream (PLC->SCADA) drop counts as detection", rows["ghost"]["detect
 check("false-injection is a documented miss and is marked as bypassing the middleware", not rows["false-injection"]["detected"] and not rows["false-injection"]["traverses_middleware"])
 check("campaigns detected: counted over all attacks and over those that traverse the middleware",
       a["campaigns_detected"] == "3/4" and a["campaigns_detected_through_middleware"] == "3/3", f"{a['campaigns_detected']} / {a['campaigns_detected_through_middleware']}")
+cv = a["campaign_view"]
+check("campaign view: commands passed before the first flag are counted apart from those that leak after it",
+      cv["commands_passed_before_first_flag"] == 5 and cv["commands_passed_after_first_flag"] == 0 and cv["campaigns_with_leakage_after_detection"] == 0, str(cv))
+check("campaign view: slowest first flag and the benign false-positive count", cv["worst_first_flag_at_command"] == 6 and cv["benign_commands_flagged"] == 0 and cv["benign_commands"] == 10)
+leaky = E.analyse_campaign({"status": "OK", "label": "x", "ports": {}, "incidents": [], "phases": [
+    {"name": "ramp", "kind": "attack", "completed": True, "seconds": 1.0, "events": [ev("PASS"), ev("DROP", "OUT_OF_BOUNDS"), ev("PASS")], "upstream_drops": []}]})
+check("a command that passes AFTER detection began is reported as leakage", leaky["campaign_view"]["commands_passed_after_first_flag"] == 1 and leaky["campaign_view"]["campaigns_with_leakage_after_detection"] == 1)
 check("bulky event lists are dropped from the saved record", all("events" not in p for p in a["phases"]))
 a2 = E.analyse_campaign({"status": "NOT RUN: x"})
 check("a campaign that did not run is passed through untouched", a2["status"] == "NOT RUN: x")
 
 md = E.render({"live": a, "response": {"label": "r"}, "recorded": {}})
 check("the report states the phase-labelling caveat and names the matrix cells", "labelled by the phase" in md and "TN 10 / FP 0 / FN 6 / TP 6" in md)
+check("the report carries the campaign view", "Campaign view" in md and "After detection began, 0 commands got through" in md)
 check("the report shows the false-injection note (not selective)", "BYPASSES the middleware" in md and "not selective" in md)
 check("the report keeps the three kinds of evidence apart", "## 1. Live campaign" in md and "## 2. Response layer" in md and "## 3. Recorded results" in md)
 check("a skipped live run is reported as not run, not as zero", "NOT RUN (--no-live)" in E.render({"live": {"status": "NOT RUN (--no-live)"}, "response": {}, "recorded": {}}))

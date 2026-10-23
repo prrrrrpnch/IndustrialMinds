@@ -130,7 +130,7 @@ def simulate_twin(hours: float, seed: int, changes: Optional[Dict[str, float]] =
                 tw.set_target(MACHINE_BY_NAME[tag]["register"], v)
         for _ in range(10):
             tw.step(0.1)
-        v = tw.values()
+        v = {r: round(x * 10.0) / 10.0 for r, x in tw.values().items()}      # the Modbus wire carries value x 10 as an integer: 0.1 resolution
         S[t] = [v[MACHINE_BY_NAME[s]["register"]] for s in SENSORS]
         A[t] = [1.0 if v[MACHINE_BY_NAME[a]["register"]] >= ON_THRESHOLD else 0.0 for a in ACTUATORS]
     return S, A
