@@ -8,16 +8,17 @@ and are **advisory**: a violation raises an ALERT (the command is still forwarde
 Code: `swat/invariants.py` (engine, shared by evaluation and live), `models/invariant_monitor.py` (live side), `tools/fit_invariants.py`
 (learn and measure), `tools/live_invariants_check.py` (prove the wiring on the real stack). Tests: `tests/test_invariants.py`.
 
-## The three families (all over the 18 signals the model already reads)
+## The four families (all over the 18 signals the model already reads)
 
 | family | rule | example |
 |---|---|---|
 | **rate** | a sensor cannot move faster than it ever did in normal operation (10 s and 60 s horizons) | `LIT101 never changed by more than X mm in 10 s` |
 | **state** | while an actuator has held one state for at least 30 s, a sensor stays inside the band it always had in that state | `while P101 is steadily ON, FIT201 stays within 2.43 to 2.57 m3/h` |
 | **balance** | a tank's level change over 60 s is explained by the flows and pump states around it (mass balance) | `the change of LIT101 over 60 s is explained by FIT101, FIT201, P101 (within +-X mm)` |
+| **flat** | a sensor that always carries measurement noise cannot go perfectly flat: its range over 20 s never fell below a floor in normal data (a flat reading is a stuck, frozen or replayed sensor) | `LIT101 always varied by at least X mm within any 20 s` |
 
 Every invariant yields an **excess** `e(t)`: at most 1 inside the range normal data showed, above 1 outside. The same scale for all families.
-The excess must persist (rate 2 s, state 10 s, balance 20 s) so one noisy second is not a violation. The score is `V(t)` = the largest
+The excess must persist (rate 2 s, state 10 s, balance 20 s, flat 5 s) so one noisy second is not a violation. The score is `V(t)` = the largest
 persistent excess; the rule fires when `V(t) > theta`. `theta = 1` means "beyond everything normal training ever showed".
 
 ## How the rules are kept honest
@@ -32,7 +33,7 @@ persistent excess; the rule fires when `V(t) > theta`. `theta = 1` means "beyond
 
 ## What they can and cannot see
 
-They target **sensor spoofing, frozen or tampered readings, impossible jumps, and broken couplings**. An attack that only changes an actuator and
+They target **sensor spoofing, frozen or tampered readings (the flat family exists because the first before/after found a frozen level sensor missed by every source), impossible jumps, and broken couplings**. An attack that only changes an actuator and
 whose consequences are internally consistent (a pump set to a different but plausible speed) leaves the plant consistent: consistency rules
 do not see it. That is why they are evaluated next to the model, and why the interesting number is "model OR invariants", not either alone.
 
@@ -44,11 +45,11 @@ do not see it. That is why they are evaluated next to the model, and why the int
 | live monitor = offline score, second by second | parity check in the same test (963 flagged seconds, 0 mismatches) | proven |
 | works on the real running stack | `python -m tools.live_invariants_check`: healthy plant silent for 100 s, an attack raised an upstream ALERT in 4 s and the dashboard showed it | proven (twin) |
 | behaviour on the twin | `docs/reports/twin_invariants_report.md` (twin measurement, **not** SWaT) | measured |
-| **what it changed in the whole system (before/after, twin)** | `docs/reports/invariants_ab_report.md` (`python -m benchmark.invariants_ab`): sensor tampering 10/25 -> 20/25 detected, actuator attacks 25/25 -> 25/25, 0 false-alarm episodes in 9 healthy hours both ways, no measurable decision-latency cost | measured (twin, **not** SWaT) |
+| **what it changed in the whole system (before/after, twin)** | `docs/reports/invariants_ab_report.md` (`python -m benchmark.invariants_ab`): sensor tampering 10/25 -> 25/25 detected (the invariants alone 15/25; a flow-meter bias and a slow ramp are caught only by the model/envelope), actuator attacks 25/25 -> 25/25, 0 false-alarm episodes in 9 healthy hours both ways, no measurable decision-latency cost. **Disclosed: the flat rule was added after the first run showed the frozen-sensor case missed, so that scenario is not independent evidence, and the five sensor attacks are our own construction.** | measured (twin, **not** SWaT) |
 | **detection and false alarms on real SWaT** | `python -m tools.fit_invariants --data-dir <SWaT>` and the invariants section of `python -m benchmark.swat_protocol --data-dir <SWaT>` | **NOT RUN yet: needs the archive. Do not quote a SWaT number until it has run.** |
 
-Twin result in one line: the twin-fitted rules found only the rate family (the twin's tank dynamics are compressed in time, so its balances
-fail validation), the healthy fresh run is silent at the file's calibrated `theta` (1.5), and four of five synthetic actuator attacks raise a
+Twin result in one line: the twin-fitted rules are the rate and flat families (the twin's tank dynamics are compressed in time, so its balances
+fail validation; pH and flow meters are quantised to 0.1 on the Modbus wire, so they are flat in normal operation and get no flat rule), the healthy fresh run is silent at the file's calibrated `theta` (1.5), and four of five synthetic actuator attacks raise a
 violation within 2 to 8 s; the chlorine-breakthrough scenario (a slow, consistent drift) does not. Read the report, not this sentence.
 
 ## Turning it on
