@@ -44,6 +44,7 @@ do not see it. That is why they are evaluated next to the model, and why the int
 | live monitor = offline score, second by second | parity check in the same test (963 flagged seconds, 0 mismatches) | proven |
 | works on the real running stack | `python -m tools.live_invariants_check`: healthy plant silent for 100 s, an attack raised an upstream ALERT in 4 s and the dashboard showed it | proven (twin) |
 | behaviour on the twin | `docs/reports/twin_invariants_report.md` (twin measurement, **not** SWaT) | measured |
+| **what it changed in the whole system (before/after, twin)** | `docs/reports/invariants_ab_report.md` (`python -m benchmark.invariants_ab`): sensor tampering 10/25 -> 20/25 detected, actuator attacks 25/25 -> 25/25, 0 false-alarm episodes in 9 healthy hours both ways, no measurable decision-latency cost | measured (twin, **not** SWaT) |
 | **detection and false alarms on real SWaT** | `python -m tools.fit_invariants --data-dir <SWaT>` and the invariants section of `python -m benchmark.swat_protocol --data-dir <SWaT>` | **NOT RUN yet: needs the archive. Do not quote a SWaT number until it has run.** |
 
 Twin result in one line: the twin-fitted rules found only the rate family (the twin's tank dynamics are compressed in time, so its balances
