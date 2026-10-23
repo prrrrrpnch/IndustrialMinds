@@ -14,7 +14,7 @@ from typing import Any, Dict, Optional
 
 import requests
 
-from core.interfaces import MACHINES, MACHINE_BY_REGISTER, NUM_REGISTERS, REGISTER_MAP
+from core.interfaces import MACHINES, MACHINE_BY_REGISTER, NUM_REGISTERS, REGISTER_MAP, make_verdict
 from core import attack_log
 from middleware import orchestrator, physical_agent
 from middleware import forwarding, runtime
@@ -207,6 +207,35 @@ def _check_upstream_envelope(registers: Dict[Any, float], now: float) -> None:
         log.exception("upstream envelope check failed - ignored (rules elsewhere still gate)")
 
 
+INVARIANT_ALERT_INTERVAL = float(os.environ.get("IM_INVARIANT_ALERT_SECONDS", "30"))
+_last_invariant_alert: Dict[str, float] = {}
+
+
+def _check_upstream_invariants(pipeline: Any, now: float) -> None:
+    """Physical-invariant rules (advisory, only when IM_INVARIANTS=1): publish an upstream ALERT for a violated invariant even when no
+    command is flowing (rate-limited per invariant). ALERT, not DROP: the telemetry is still mirrored to SCADA."""
+    try:
+        monitor = getattr(pipeline, "invariants", None)
+        if monitor is None:
+            return
+        rep = monitor.assess()
+        if not rep.get("threat_flag"):
+            return
+        fresh = [v for v in rep["violated"] if now - _last_invariant_alert.get(v["id"], 0.0) >= INVARIANT_ALERT_INTERVAL]
+        if not fresh:
+            return
+        for v in fresh:
+            _last_invariant_alert[v["id"]] = now
+        verdict = make_verdict(f"UP-INV-{int(now * 1000)}", True, "OK", "physical")
+        verdict["command"] = "UPSTREAM INVARIANT " + ",".join(v["id"] for v in fresh[:3])
+        advisory = {"threat_flag": True, "flagged_by": [f"invariant:{v['id']}" for v in fresh[:3]], "suspect_stage": fresh[0]["stage"],
+                    "explanation": "physical invariant violated: " + fresh[0]["text"]}
+        orchestrator.decide(None, verdict, now, physical_advisory=advisory)
+        log.warning("[UPSTREAM] physical invariant violated: %s", fresh[0]["text"])
+    except Exception:
+        log.exception("upstream invariant check failed - ignored (rules elsewhere still gate)")
+
+
 def _expire_pending_if_stale(reg: int, pending: dict, reported: float, now: float) -> bool:
     """Drop a PASSed command that was forwarded but whose register never settled
     to the commanded value within runtime.PENDING_COMMAND_TIMEOUT_S. Returns True if it
@@ -344,6 +373,7 @@ def _poll_once(
 
         if ENVELOPE_ALERTS:
             _check_upstream_envelope(dict(runtime._plc_state["registers"]), now)
+        _check_upstream_invariants(pipeline, now)
 
         # -------------------------------------------------
         # Check ONLY commands that were PASSed

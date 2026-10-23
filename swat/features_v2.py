@@ -130,4 +130,5 @@ def build_windows_v2(stream: pd.DataFrame, norm: Norm, stride: int = 5, batch: i
             keep.append(eb[ok])
     k = np.concatenate(keep)
     meta = stream.iloc[k][["epoch", "label", "seg", "block", "chunk"]].reset_index(drop=True)
+    meta["row"] = k                                   # position of the window's last second in the stream (lets row-level rules be read per window)
     return np.vstack(x87), np.vstack(xl), meta

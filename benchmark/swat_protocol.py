@@ -215,6 +215,46 @@ def describe_segments(stream, tags: List[str], seg_ids: List[int], ref_s: int = 
     return out
 
 
+# --------------------------------------------------------------------------------------------- physical invariants
+INV_THETAS = (1.0, 1.5, 2.0, 3.0)
+
+
+def invariant_section(stream, meta, pool: np.ndarray, primary_flags: np.ndarray, counts_of, n_boot: int, seed: int) -> Dict[str, Any]:
+    """The physical-invariant rules (swat/invariants.py), scored on the SAME tested windows. They are fitted once, on the pre-attack normal
+    period only (no labels, nothing from the attack period), so there is nothing to cross-validate: every tested window is out of time and out
+    of sample. A window carries the worst violation in the 5 s that end at it. Also scored: v2's alarms OR the invariants' (do they add?)."""
+    from swat.invariants import InvariantSet, stream_signals
+    S, A, chunk = stream_signals(stream)
+    normal = ((stream["period"] == "normal_period") & ~stream["label"]).to_numpy()
+    if int(normal.sum()) < 20000:
+        return {"status": "NOT RUN: the pre-attack normal period is too short to fit invariants"}
+    inv = InvariantSet.fit(S[normal], A[normal], chunk[normal], label="pre-attack normal period")
+    V, arg = inv.score(S, A, chunk)
+    V5 = V.copy()
+    for k in range(1, 5):
+        V5[k:] = np.maximum(V5[k:], V[:-k])
+    rows = meta["row"].to_numpy()[pool]
+    score = V5[rows]
+    out: Dict[str, Any] = {"status": "OK", "label": inv.meta["label"], "fit_rows": int(normal.sum()), "kept": inv.meta["report"]["kept"],
+                           "proposed": inv.meta["report"]["proposed"], "dropped": inv.meta["report"]["dropped"],
+                           "invariants": [{"id": k["id"], "text": k["text"]} for k in inv.invariants], "per_theta": {}}
+    flags = {th: score > th for th in INV_THETAS}
+    for th in INV_THETAS:
+        out["per_theta"][str(th)] = SC.metrics(counts_of(flags[th]))
+    out["ci_theta_1"] = SC.bootstrap(counts_of(flags[1.0]), n_boot, seed)
+    out["union_with_v2"] = SC.metrics(counts_of(primary_flags | flags[1.0]))
+    out["union_ci"] = SC.bootstrap(counts_of(primary_flags | flags[1.0]), n_boot, seed)
+    first_family: Dict[int, Optional[str]] = {}
+    yp, sp = meta["label"].to_numpy()[pool].astype(bool), meta["seg"].to_numpy()[pool]
+    a_rows = arg[rows]
+    for sid in np.unique(sp[yp]):
+        hit = np.flatnonzero((sp == sid) & yp & flags[1.0])
+        first_family[int(sid)] = inv.invariants[int(a_rows[hit[0]])]["family"] if hit.size else None
+    out["first_family_by_attack"] = first_family
+    out["flags_theta_1"] = flags[1.0]
+    return out
+
+
 # --------------------------------------------------------------------------------------------- the run
 def _fold_auc(y: np.ndarray, score: np.ndarray) -> Dict[str, Optional[float]]:
     from sklearn.metrics import average_precision_score, roc_auc_score
@@ -319,12 +359,18 @@ def run(stream, k: int, embargo_s: float, seed: int, budgets: Tuple[float, ...],
     res["largest_segment"] = {"segment": big, "attack_windows": sizes[big], "share_of_attack_windows": round(sizes[big] / max(int(yp.sum()), 1), 4)}
     res["without_largest_segment"] = {n: SC.metrics(counts_of(flags[n][pb], keep)) for n in ("v2", "refit_baseline", "pca", "iforest")}
     res["without_largest_segment"]["envelope_rule"] = SC.metrics(counts_of(env_flag, keep))
+    # ---- physical-invariant rules, scored on the same windows
+    inv = invariant_section(stream, meta, pool, primary_flags, counts_of, n_boot, seed)
+    inv_flags = inv.pop("flags_theta_1", None)
+    res["invariants"] = inv
     # ---- attack by attack
     descr: Dict[int, Dict[str, Any]] = {}
     if tags_for_description:
         descr = describe_segments(stream, tags_for_description, [int(s) for s in sizes])
     rows = SC.per_attack(counts_of(primary_flags))
     others = {n: {r["segment"]: r for r in SC.per_attack(counts_of(flags[n][pb]))} for n in ("refit_baseline", "pca", "iforest")}
+    if inv_flags is not None:
+        others["invariants"] = {r["segment"]: r for r in SC.per_attack(counts_of(inv_flags))}
     fold_of = {int(s): f + 1 for f, g in enumerate(F["groups"]) for s in g}
     for r in rows:
         s = r["segment"]
@@ -406,6 +452,38 @@ def _ci(res: Dict[str, Any], name: str, key: str) -> str:
     return "" if not c else f" ({c[0]} to {c[1]})"
 
 
+def render_invariants(res: Dict[str, Any]) -> List[str]:
+    inv = res.get("invariants") or {}
+    L = ["", "## Physical-invariant rules (deterministic, no training, no labels)", ""]
+    if inv.get("status") != "OK":
+        return L + [inv.get("status", "NOT RUN"), ""]
+    pb = str(res["protocol"]["primary_budget"])
+    v2 = res["pooled"]["v2"][pb]
+    L += [f"Rules learned from the pre-attack normal period only ({inv['fit_rows']:,} seconds), validated on a held-out last quarter of it: proposed {inv['proposed']}, kept {inv['kept']}. "
+          "Fitted before any attack day, so every tested window is out of time and out of sample (no folds needed). theta = violation threshold in units of the normal range "
+          "(1 = beyond everything normal training showed).", "",
+          "| rule | strict F1 | composite F1 | point-adjust F1 | attacks detected | median delay (s) | false-alarm episodes / h |", "|---|---|---|---|---|---|---|"]
+    for th, m in inv["per_theta"].items():
+        L.append(f"| invariants, theta {th} | {m['f1']} | {m['composite_f1']} | {m['pa_f1']} | {m['segments_detected']}/{m['segments_total']} | {m['median_latency_s']} | {m['false_alarm_episodes_per_hour']} |")
+    u = inv["union_with_v2"]
+    L.append(f"| **v2 OR invariants (theta 1)** | {u['f1']} | {u['composite_f1']} | {u['pa_f1']} | {u['segments_detected']}/{u['segments_total']} | {u['median_latency_s']} | {u['false_alarm_episodes_per_hour']} |")
+    L.append(f"| v2 alone (for reference) | {v2['f1']} | {v2['composite_f1']} | {v2['pa_f1']} | {v2['segments_detected']}/{v2['segments_total']} | {v2['median_latency_s']} | {v2['false_alarm_episodes_per_hour']} |")
+    c = inv.get("ci_theta_1") or {}
+    f = lambda k: "n/a" if not c.get(k) else f"{c[k][0]} to {c[k][1]}"
+    L += ["", f"95 % intervals for the invariants at theta 1: attacks detected share {f('event_recall')}; false-alarm episodes per hour {f('false_alarm_episodes_per_hour')}.", "",
+          "Which rules were kept:", "", "| invariant | meaning |", "|---|---|"]
+    L += [f"| `{k['id']}` | {k['text']} |" for k in inv["invariants"]]
+    if inv["dropped"]:
+        L += ["", f"{len(inv['dropped'])} proposals were dropped by validation (listed with reasons in `benchmarks/swat_protocol.json`)."]
+    fam: Dict[str, int] = {}
+    for v in inv["first_family_by_attack"].values():
+        if v:
+            fam[v] = fam.get(v, 0) + 1
+    L += ["", f"First rule to fire, by family, over the attacks they detected: {fam}. Reading it: consistency rules target sensor spoofing, freezes and tampered readings; "
+          "an attack that changes an actuator and leaves the plant consistent is outside what they can see, which is why the union with the model is the interesting row.", ""]
+    return L
+
+
 def render(res: Dict[str, Any], fixture: bool) -> str:
     p, pb = res["protocol"], str(res["protocol"]["primary_budget"])
     v2 = res["pooled"]["v2"][pb]
@@ -463,17 +541,18 @@ def render(res: Dict[str, Any], fixture: bool) -> str:
         L.append(f"| {n} | {a['f1']} | {b['f1']} | {a['pa_f1']} | {b['pa_f1']} |")
     L += ["", "## Attack by attack (v2)", "",
           "Description is a heuristic from the data (SWaT ships no attack list): tags that moved against the preceding benign minutes. 'visible' = at least one of the 18 tags the model reads moved.", "",
-          "| attack | fold | duration | windows flagged | detected | delay (s) | also detected by: refit / PCA / iForest | tags moved (all 51) | live tags moved | visible |", "|---|---|---|---|---|---|---|---|---|---|"]
+          "| attack | fold | duration | windows flagged | detected | delay (s) | also detected by: refit / PCA / iForest / invariants | tags moved (all 51) | live tags moved | visible |", "|---|---|---|---|---|---|---|---|---|---|"]
     for r in res["per_attack"]:
         d = r.get("describe") or {}
         db = r["detected_by"]
         L.append(f"| {r['segment']} | {r['fold']} | {r['duration_s']} s | {r['flagged_windows']}/{r['attack_windows']} ({int(100 * (r['flagged_share'] or 0))} %) | {'yes' if r['detected'] else '**no**'} | "
-                 f"{r['latency_s'] if r['latency_s'] is not None else '-'} | {' / '.join('yes' if db[n] else 'no' for n in ('refit_baseline', 'pca', 'iforest'))} | "
+                 f"{r['latency_s'] if r['latency_s'] is not None else '-'} | {' / '.join(('yes' if db[n] else 'no') if n in db else '-' for n in ('refit_baseline', 'pca', 'iforest', 'invariants'))} | "
                  f"{d.get('tags_moved', '?')} | {', '.join(d.get('live_tags_moved', [])) or ('none' if d.get('described') else '?')} | {('yes' if d.get('visible_to_model') else 'no') if d.get('described') else '?'} |")
     vb = res.get("visibility_bound")
     if vb:
         L += ["", f"Visibility bound: {vb['visible_on_live_tags']} of {vb['described_attacks']} attacks move at least one of the 18 live tags; v2 detects {vb['visible_detected']} of those and "
               f"{vb['not_visible_detected']} of the {vb['not_visible']} that move none. An attack that moves no live tag cannot be detected from them: the model is not at fault for those. ({vb['note']})"]
+    L += render_invariants(res)
     L += ["", "## Limits that stay", "",
           "- 35 attacks is everything SWaT offers; intervals are wide because the unit of evidence is the attack, not the window.",
           "- The twin is a simulation of SWaT: these numbers are SWaT performance, not the twin's (see `docs/reports/twin_domain_gap_report.md` for the twin).",

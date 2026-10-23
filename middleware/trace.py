@@ -102,6 +102,14 @@ def _outcome(passed: Optional[bool]) -> str:
     return "NOT_RUN" if passed is None else ("PASS" if passed else "FAIL")
 
 
+def _invariant_summary(rep):
+    """What the physical-invariant rules saw (None when they are not enabled)."""
+    if not rep:
+        return None
+    return {"status": rep.get("status"), "score": rep.get("score"), "theta": rep.get("theta"),
+            "violated": [{"id": v.get("id"), "excess": v.get("excess")} for v in (rep.get("violated") or [])[:5]]}
+
+
 def build_trace(command: Dict[str, Any], state: Dict[str, Any], cyber_rule: Dict[str, Any], gate_cyber: Dict[str, Any],
                 cyber_ml: Dict[str, Any], phys_rule: Dict[str, Any], phys_ml: Dict[str, Any], decision: Dict[str, Any],
                 timings_ms: Dict[str, Any], mode: str) -> Dict[str, Any]:
@@ -143,6 +151,7 @@ def build_trace(command: Dict[str, Any], state: Dict[str, Any], cyber_rule: Dict
                     "most_unusual": (phys_ml.get("top_deviations") or [None])[0],
                     "warmup_remaining_s": phys_ml.get("warmup_remaining_s"),
                     "bounds_violations": len(phys_ml.get("bounds_violations") or []),
+                    "invariants": _invariant_summary(phys_ml.get("invariants")),
                     "thresholds": {"isolation_forest": phys_ml.get("threshold"), "classifier": phys_ml.get("clf_threshold")}},
          "checks": []},
         {"hop": "orchestrator", "layer": "orchestrator", "outcome": decision.get("verdict"), "ms": None,

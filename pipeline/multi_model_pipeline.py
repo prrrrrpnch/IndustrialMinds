@@ -34,6 +34,7 @@ from typing import Any, Callable, Dict, Mapping, Optional, Tuple, Union
 
 from core.interfaces import make_verdict
 from middleware import cyber_agent, incidents, investigator, orchestrator, physical_agent, quarantine, trace as tracer
+from models import invariant_monitor
 from models.cyber_model import CyberModel
 from models.physical_model import PhysicalModel
 from models.physical_model_v2 import load_physical_model
@@ -51,11 +52,14 @@ class MultiModelPipeline:
     def __init__(self, cyber_model: Optional[CyberModel] = None,
                  physical_model: Optional[PhysicalModel] = None,
                  enforce_cyber_model: Optional[bool] = None,
-                 max_workers: int = 2) -> None:
+                 max_workers: int = 2,
+                 invariants: Optional["invariant_monitor.InvariantMonitor"] = None) -> None:
         self.cyber_model = cyber_model if cyber_model is not None else CyberModel.load()
         self.physical_model = physical_model if physical_model is not None else load_physical_model()
         self.enforce_cyber_model = (_env_flag("IM_CYBER_MODEL_ENFORCE")
                                     if enforce_cyber_model is None else enforce_cyber_model)
+        # Physical-invariant rules (advisory, OFF unless IM_INVARIANTS=1 and a fitted file loads): see models/invariant_monitor.py
+        self.invariants = invariants if invariants is not None else invariant_monitor.load_monitor()
         self._executor = ThreadPoolExecutor(max_workers=max_workers, thread_name_prefix="im-pipeline")
         self._telemetry_lock = threading.Lock()
         log.info(
@@ -83,6 +87,8 @@ class MultiModelPipeline:
         tx = command.get("tx_id", "")
         rule = self._guard_rule(lambda: physical_agent.check_command(command, state), tx, "physical")
         model = self.physical_model.assess()                       # never raises
+        if self.invariants is not None:
+            model = self.invariants.merge_into(model)              # never raises; flag + flagged_by + 'invariants' detail
         return rule, model
 
     # ------------------------------------------------------------- command
@@ -192,6 +198,8 @@ class MultiModelPipeline:
     def _investigation_context(self) -> Dict[str, Any]:
         """Evidence an investigation may read. Gathered in the worker thread, after the decision has already been returned."""
         model = self.physical_model.assess()
+        if self.invariants is not None:
+            model = self.invariants.merge_into(model)
         suspect = [s for s in ([model.get("suspect_stage")] + [d.get("stage") for d in (model.get("top_deviations") or [])]) if s]
         return {"traces": dict(self._recent_traces),
                 "plant_state": {"registers": dict(self._last_registers), "physical_model": model,
@@ -239,10 +247,13 @@ class MultiModelPipeline:
                 self.physical_model.update(registers, timestamp)
         except Exception:
             log.exception("PhysicalModel.update failed - sample skipped")
+        if self.invariants is not None:
+            self.invariants.update(registers, timestamp)           # never raises
 
     def health_report(self) -> Report:
-        """Current PhysicalModel assessment (plant_state, scores, bounds violations)."""
-        return self.physical_model.assess()
+        """Current PhysicalModel assessment (plant_state, scores, bounds violations), with the invariant verdict merged in when enabled."""
+        model = self.physical_model.assess()
+        return model if self.invariants is None else self.invariants.merge_into(model)
 
     def shutdown(self) -> None:
         self._executor.shutdown(wait=False)
