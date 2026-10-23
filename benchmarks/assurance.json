@@ -1,0 +1,2653 @@
+{
+ "quick": false,
+ "seeds": [
+  1,
+  2,
+  3
+ ],
+ "model": "v2",
+ "invariants": {
+  "file": "config/invariants_twin.json",
+  "count": 22,
+  "theta": 1.5
+ },
+ "accuracy": {
+  "label": "TWIN, window level (1 Hz). Scored strictly from the second the attack is injected, so propagation delay counts as a miss.",
+  "runs": 30,
+  "healthy_runs": 3,
+  "windows_scored": 33150,
+  "attack_windows": 16200,
+  "benign_windows": 16950,
+  "benign_hours": 4.71,
+  "by_source": {
+   "advisory model (v2)": {
+    "n": 33150,
+    "tp": 11769,
+    "fp": 66,
+    "fn": 4431,
+    "tn": 16884,
+    "accuracy": 0.8643,
+    "precision": 0.9944,
+    "recall": 0.7265,
+    "f1": 0.8396,
+    "specificity": 0.9961,
+    "false_positive_rate": 0.0039,
+    "balanced_accuracy": 0.8613,
+    "never_alarm_accuracy": 0.5113,
+    "roc_auc": 0.9717,
+    "pr_auc": 0.9744
+   },
+   "measured-envelope rule": {
+    "n": 33150,
+    "tp": 11561,
+    "fp": 0,
+    "fn": 4639,
+    "tn": 16950,
+    "accuracy": 0.8601,
+    "precision": 1.0,
+    "recall": 0.7136,
+    "f1": 0.8329,
+    "specificity": 1.0,
+    "false_positive_rate": 0.0,
+    "balanced_accuracy": 0.8568,
+    "never_alarm_accuracy": 0.5113
+   },
+   "physical invariants": {
+    "n": 33150,
+    "tp": 5353,
+    "fp": 0,
+    "fn": 10847,
+    "tn": 16950,
+    "accuracy": 0.6728,
+    "precision": 1.0,
+    "recall": 0.3304,
+    "f1": 0.4967,
+    "specificity": 1.0,
+    "false_positive_rate": 0.0,
+    "balanced_accuracy": 0.6652,
+    "never_alarm_accuracy": 0.5113,
+    "roc_auc": 0.8048,
+    "pr_auc": 0.851
+   },
+   "model OR envelope (previous system)": {
+    "n": 33150,
+    "tp": 11771,
+    "fp": 66,
+    "fn": 4429,
+    "tn": 16884,
+    "accuracy": 0.8644,
+    "precision": 0.9944,
+    "recall": 0.7266,
+    "f1": 0.8397,
+    "specificity": 0.9961,
+    "false_positive_rate": 0.0039,
+    "balanced_accuracy": 0.8614,
+    "never_alarm_accuracy": 0.5113
+   },
+   "model OR envelope OR invariants (current)": {
+    "n": 33150,
+    "tp": 13785,
+    "fp": 66,
+    "fn": 2415,
+    "tn": 16884,
+    "accuracy": 0.9252,
+    "precision": 0.9952,
+    "recall": 0.8509,
+    "f1": 0.9174,
+    "specificity": 0.9961,
+    "false_positive_rate": 0.0039,
+    "balanced_accuracy": 0.9235,
+    "never_alarm_accuracy": 0.5113
+   }
+  },
+  "per_attack": [
+   {
+    "family": "actuator",
+    "attack": "p101_stop (raw pump stops)",
+    "seed": 1,
+    "detected": true,
+    "delay_s": 4,
+    "by": {
+     "model": 4,
+     "envelope": 4,
+     "invariants": 4
+    },
+    "false_alarm_seconds_before_attack": 0
+   },
+   {
+    "family": "actuator",
+    "attack": "acid_overdose (HCl max, raw pump low)",
+    "seed": 1,
+    "detected": true,
+    "delay_s": 2,
+    "by": {
+     "model": 2,
+     "envelope": 2,
+     "invariants": 3
+    },
+    "false_alarm_seconds_before_attack": 0
+   },
+   {
+    "family": "actuator",
+    "attack": "ro_deadhead (RO pump max, reject valve shut)",
+    "seed": 1,
+    "detected": true,
+    "delay_s": 1,
+    "by": {
+     "model": 1,
+     "envelope": 1,
+     "invariants": 2
+    },
+    "false_alarm_seconds_before_attack": 0
+   },
+   {
+    "family": "actuator",
+    "attack": "uf_valve_shut (UF feed valve closes)",
+    "seed": 1,
+    "detected": true,
+    "delay_s": 6,
+    "by": {
+     "model": 6,
+     "envelope": 17,
+     "invariants": 8
+    },
+    "false_alarm_seconds_before_attack": 0
+   },
+   {
+    "family": "sensor",
+    "attack": "step LIT401",
+    "seed": 1,
+    "detected": true,
+    "delay_s": 0,
+    "by": {
+     "model": 0,
+     "envelope": 0,
+     "invariants": 1
+    },
+    "false_alarm_seconds_before_attack": 0
+   },
+   {
+    "family": "sensor",
+    "attack": "freeze LIT101",
+    "seed": 1,
+    "detected": true,
+    "delay_s": 23,
+    "by": {
+     "model": null,
+     "envelope": null,
+     "invariants": 23
+    },
+    "false_alarm_seconds_before_attack": 0
+   },
+   {
+    "family": "sensor",
+    "attack": "dead FIT101",
+    "seed": 1,
+    "detected": true,
+    "delay_s": 1,
+    "by": {
+     "model": null,
+     "envelope": null,
+     "invariants": 1
+    },
+    "false_alarm_seconds_before_attack": 0
+   },
+   {
+    "family": "sensor",
+    "attack": "ramp LIT301",
+    "seed": 1,
+    "detected": true,
+    "delay_s": 71,
+    "by": {
+     "model": 71,
+     "envelope": 71,
+     "invariants": null
+    },
+    "false_alarm_seconds_before_attack": 0
+   },
+   {
+    "family": "sensor",
+    "attack": "bias FIT201",
+    "seed": 1,
+    "detected": true,
+    "delay_s": 0,
+    "by": {
+     "model": 0,
+     "envelope": 0,
+     "invariants": 1
+    },
+    "false_alarm_seconds_before_attack": 0
+   },
+   {
+    "family": "actuator",
+    "attack": "p101_stop (raw pump stops)",
+    "seed": 2,
+    "detected": true,
+    "delay_s": 4,
+    "by": {
+     "model": 4,
+     "envelope": 4,
+     "invariants": 4
+    },
+    "false_alarm_seconds_before_attack": 0
+   },
+   {
+    "family": "actuator",
+    "attack": "acid_overdose (HCl max, raw pump low)",
+    "seed": 2,
+    "detected": true,
+    "delay_s": 2,
+    "by": {
+     "model": 2,
+     "envelope": 2,
+     "invariants": 3
+    },
+    "false_alarm_seconds_before_attack": 0
+   },
+   {
+    "family": "actuator",
+    "attack": "ro_deadhead (RO pump max, reject valve shut)",
+    "seed": 2,
+    "detected": true,
+    "delay_s": 1,
+    "by": {
+     "model": 1,
+     "envelope": 1,
+     "invariants": 2
+    },
+    "false_alarm_seconds_before_attack": 0
+   },
+   {
+    "family": "actuator",
+    "attack": "uf_valve_shut (UF feed valve closes)",
+    "seed": 2,
+    "detected": true,
+    "delay_s": 5,
+    "by": {
+     "model": 5,
+     "envelope": 17,
+     "invariants": 8
+    },
+    "false_alarm_seconds_before_attack": 0
+   },
+   {
+    "family": "sensor",
+    "attack": "step LIT401",
+    "seed": 2,
+    "detected": true,
+    "delay_s": 0,
+    "by": {
+     "model": 0,
+     "envelope": 0,
+     "invariants": 1
+    },
+    "false_alarm_seconds_before_attack": 0
+   },
+   {
+    "family": "sensor",
+    "attack": "freeze LIT101",
+    "seed": 2,
+    "detected": true,
+    "delay_s": 23,
+    "by": {
+     "model": 191,
+     "envelope": null,
+     "invariants": 23
+    },
+    "false_alarm_seconds_before_attack": 0
+   },
+   {
+    "family": "sensor",
+    "attack": "dead FIT101",
+    "seed": 2,
+    "detected": true,
+    "delay_s": 1,
+    "by": {
+     "model": 191,
+     "envelope": null,
+     "invariants": 1
+    },
+    "false_alarm_seconds_before_attack": 0
+   },
+   {
+    "family": "sensor",
+    "attack": "ramp LIT301",
+    "seed": 2,
+    "detected": true,
+    "delay_s": 70,
+    "by": {
+     "model": 70,
+     "envelope": 70,
+     "invariants": null
+    },
+    "false_alarm_seconds_before_attack": 0
+   },
+   {
+    "family": "sensor",
+    "attack": "bias FIT201",
+    "seed": 2,
+    "detected": true,
+    "delay_s": 0,
+    "by": {
+     "model": 0,
+     "envelope": 0,
+     "invariants": 1
+    },
+    "false_alarm_seconds_before_attack": 0
+   },
+   {
+    "family": "actuator",
+    "attack": "p101_stop (raw pump stops)",
+    "seed": 3,
+    "detected": true,
+    "delay_s": 3,
+    "by": {
+     "model": 4,
+     "envelope": 4,
+     "invariants": 3
+    },
+    "false_alarm_seconds_before_attack": 0
+   },
+   {
+    "family": "actuator",
+    "attack": "acid_overdose (HCl max, raw pump low)",
+    "seed": 3,
+    "detected": true,
+    "delay_s": 2,
+    "by": {
+     "model": 2,
+     "envelope": 2,
+     "invariants": 3
+    },
+    "false_alarm_seconds_before_attack": 0
+   },
+   {
+    "family": "actuator",
+    "attack": "ro_deadhead (RO pump max, reject valve shut)",
+    "seed": 3,
+    "detected": true,
+    "delay_s": 1,
+    "by": {
+     "model": 1,
+     "envelope": 1,
+     "invariants": 2
+    },
+    "false_alarm_seconds_before_attack": 0
+   },
+   {
+    "family": "actuator",
+    "attack": "uf_valve_shut (UF feed valve closes)",
+    "seed": 3,
+    "detected": true,
+    "delay_s": 5,
+    "by": {
+     "model": 5,
+     "envelope": 18,
+     "invariants": 8
+    },
+    "false_alarm_seconds_before_attack": 0
+   },
+   {
+    "family": "sensor",
+    "attack": "step LIT401",
+    "seed": 3,
+    "detected": true,
+    "delay_s": 0,
+    "by": {
+     "model": 0,
+     "envelope": 0,
+     "invariants": 1
+    },
+    "false_alarm_seconds_before_attack": 0
+   },
+   {
+    "family": "sensor",
+    "attack": "freeze LIT101",
+    "seed": 3,
+    "detected": true,
+    "delay_s": 23,
+    "by": {
+     "model": null,
+     "envelope": null,
+     "invariants": 23
+    },
+    "false_alarm_seconds_before_attack": 0
+   },
+   {
+    "family": "sensor",
+    "attack": "dead FIT101",
+    "seed": 3,
+    "detected": true,
+    "delay_s": 1,
+    "by": {
+     "model": null,
+     "envelope": null,
+     "invariants": 1
+    },
+    "false_alarm_seconds_before_attack": 0
+   },
+   {
+    "family": "sensor",
+    "attack": "ramp LIT301",
+    "seed": 3,
+    "detected": true,
+    "delay_s": 70,
+    "by": {
+     "model": 70,
+     "envelope": 70,
+     "invariants": null
+    },
+    "false_alarm_seconds_before_attack": 0
+   },
+   {
+    "family": "sensor",
+    "attack": "bias FIT201",
+    "seed": 3,
+    "detected": true,
+    "delay_s": 0,
+    "by": {
+     "model": 0,
+     "envelope": 0,
+     "invariants": 1
+    },
+    "false_alarm_seconds_before_attack": 0
+   }
+  ],
+  "detection_view": {
+   "attacks": 27,
+   "detected": 27,
+   "detection_rate": 1.0,
+   "median_delay_s": 2.0,
+   "runs_with_a_false_alarm_before_the_attack": 0
+  }
+ },
+ "robustness": {
+  "malformed_input": {
+   "cases": [
+    {
+     "case": "well-formed signed command (control)",
+     "must_refuse": false,
+     "raised": false,
+     "verdict": "PASS",
+     "reason": "OK",
+     "refused": false
+    },
+    {
+     "case": "value NaN",
+     "must_refuse": true,
+     "raised": false,
+     "verdict": "DROP",
+     "reason": "AGENT_ERROR:cyber:ValueError",
+     "refused": true
+    },
+    {
+     "case": "value +inf",
+     "must_refuse": true,
+     "raised": false,
+     "verdict": "DROP",
+     "reason": "AGENT_ERROR:cyber:OverflowError",
+     "refused": true
+    },
+    {
+     "case": "value -inf",
+     "must_refuse": true,
+     "raised": false,
+     "verdict": "DROP",
+     "reason": "AGENT_ERROR:cyber:OverflowError",
+     "refused": true
+    },
+    {
+     "case": "raw_value 1e12",
+     "must_refuse": true,
+     "raised": false,
+     "verdict": "DROP",
+     "reason": "HMAC_MALFORMED:frame fields out of range",
+     "refused": true
+    },
+    {
+     "case": "raw_value negative",
+     "must_refuse": true,
+     "raised": false,
+     "verdict": "DROP",
+     "reason": "HMAC_MALFORMED:frame fields out of range",
+     "refused": true
+    },
+    {
+     "case": "raw_value tampered (signature kept)",
+     "must_refuse": true,
+     "raised": false,
+     "verdict": "DROP",
+     "reason": "HMAC_INVALID:HMAC tag does not match command (ta",
+     "refused": true
+    },
+    {
+     "case": "register tampered (signature kept)",
+     "must_refuse": true,
+     "raised": false,
+     "verdict": "DROP",
+     "reason": "HMAC_INVALID:HMAC tag does not match command (ta",
+     "refused": true
+    },
+    {
+     "case": "register -1",
+     "must_refuse": true,
+     "raised": false,
+     "verdict": "DROP",
+     "reason": "INVALID_REGISTER",
+     "refused": true
+    },
+    {
+     "case": "register 9999",
+     "must_refuse": true,
+     "raised": false,
+     "verdict": "DROP",
+     "reason": "INVALID_REGISTER",
+     "refused": true
+    },
+    {
+     "case": "register None",
+     "must_refuse": true,
+     "raised": false,
+     "verdict": "DROP",
+     "reason": "INVALID_REGISTER",
+     "refused": true
+    },
+    {
+     "case": "function code 99",
+     "must_refuse": true,
+     "raised": false,
+     "verdict": "DROP",
+     "reason": "INVALID_FUNCTION_CODE",
+     "refused": true
+    },
+    {
+     "case": "function code None",
+     "must_refuse": true,
+     "raised": false,
+     "verdict": "DROP",
+     "reason": "INVALID_FUNCTION_CODE",
+     "refused": true
+    },
+    {
+     "case": "source empty",
+     "must_refuse": true,
+     "raised": false,
+     "verdict": "DROP",
+     "reason": "UNTRUSTED_SOURCE",
+     "refused": true
+    },
+    {
+     "case": "source not an address",
+     "must_refuse": true,
+     "raised": false,
+     "verdict": "DROP",
+     "reason": "UNTRUSTED_SOURCE",
+     "refused": true
+    },
+    {
+     "case": "signature removed",
+     "must_refuse": true,
+     "raised": false,
+     "verdict": "DROP",
+     "reason": "HMAC_MISSING:command carried no HMAC signature",
+     "refused": true
+    },
+    {
+     "case": "signature empty",
+     "must_refuse": true,
+     "raised": false,
+     "verdict": "DROP",
+     "reason": "HMAC_MISSING:command carried no HMAC signature",
+     "refused": true
+    },
+    {
+     "case": "mac truncated",
+     "must_refuse": true,
+     "raised": false,
+     "verdict": "DROP",
+     "reason": "HMAC_MALFORMED:HMAC tag has wrong length",
+     "refused": true
+    },
+    {
+     "case": "mac emptied",
+     "must_refuse": true,
+     "raised": false,
+     "verdict": "DROP",
+     "reason": "HMAC_MALFORMED:HMAC tag has wrong length",
+     "refused": true
+    },
+    {
+     "case": "mac zeroed",
+     "must_refuse": true,
+     "raised": false,
+     "verdict": "DROP",
+     "reason": "HMAC_MALFORMED:HMAC tag has wrong length",
+     "refused": true
+    },
+    {
+     "case": "mac field removed",
+     "must_refuse": true,
+     "raised": false,
+     "verdict": "DROP",
+     "reason": "HMAC_MALFORMED:HMAC tag has wrong length",
+     "refused": true
+    },
+    {
+     "case": "nonce zeroed",
+     "must_refuse": true,
+     "raised": false,
+     "verdict": "DROP",
+     "reason": "HMAC_INVALID:HMAC tag does not match command (ta",
+     "refused": true
+    },
+    {
+     "case": "timestamp an hour old",
+     "must_refuse": true,
+     "raised": false,
+     "verdict": "DROP",
+     "reason": "HMAC_INVALID:HMAC tag does not match command (ta",
+     "refused": true
+    },
+    {
+     "case": "tx_id None",
+     "must_refuse": false,
+     "raised": false,
+     "verdict": "PASS",
+     "reason": "OK",
+     "refused": false
+    },
+    {
+     "case": "value disagrees with raw_value",
+     "must_refuse": false,
+     "raised": false,
+     "verdict": "PASS",
+     "reason": "OK",
+     "refused": false
+    },
+    {
+     "case": "empty dict",
+     "must_refuse": true,
+     "raised": false,
+     "verdict": "DROP",
+     "reason": "UNTRUSTED_SOURCE",
+     "refused": true
+    },
+    {
+     "case": "value as text",
+     "must_refuse": true,
+     "raised": false,
+     "verdict": "DROP",
+     "reason": "AGENT_ERROR:cyber:ValueError",
+     "refused": true
+    }
+   ],
+   "n": 26,
+   "must_refuse": 24,
+   "raised": 0,
+   "refused_as_required": 24,
+   "wrongly_accepted": 0,
+   "control_passed": true,
+   "note": "`value` is derived from `raw_value` by the ingest path, so the two cannot disagree on the wire; that case and a null tx_id are recorded but not required to be refused"
+  },
+  "degraded_telemetry": {
+   "cases": [
+    {
+     "case": "a sensor missing",
+     "raised": false,
+     "raised_through_the_pipeline": false,
+     "model_status": "WARMING_UP",
+     "invariant_status": "WARMING_UP",
+     "flagged": false
+    },
+    {
+     "case": "a reading is NaN",
+     "raised": false,
+     "raised_through_the_pipeline": false,
+     "model_status": "WARMING_UP",
+     "invariant_status": "WARMING_UP",
+     "flagged": false
+    },
+    {
+     "case": "an empty sample",
+     "raised": false,
+     "raised_through_the_pipeline": false,
+     "model_status": "WARMING_UP",
+     "invariant_status": "WARMING_UP",
+     "flagged": false
+    },
+    {
+     "case": "values as text",
+     "raised": false,
+     "raised_through_the_pipeline": false,
+     "model_status": "WARMING_UP",
+     "invariant_status": "ERROR",
+     "flagged": false
+    },
+    {
+     "case": "a 10-minute telemetry gap",
+     "raised": false,
+     "model_status": "WARMING_UP",
+     "invariant_status": "WARMING_UP",
+     "flagged": false,
+     "note": "both were ('OK', 'OK') before the gap"
+    }
+   ],
+   "raised": 0,
+   "raised_through_the_pipeline": 0,
+   "flagged_on_garbage": 0
+  },
+  "noise_sweep": {
+   "label": "sensor noise scaled around the twin's calibrated level; the detectors were fitted at x1",
+   "rows": [
+    {
+     "noise_x": 0.5,
+     "healthy_hours": 1.47,
+     "false_alarm_seconds": 44,
+     "false_alarm_rate": 0.00833,
+     "attack_detected": true,
+     "detection_delay_s": 1
+    },
+    {
+     "noise_x": 1.0,
+     "healthy_hours": 1.47,
+     "false_alarm_seconds": 50,
+     "false_alarm_rate": 0.00947,
+     "attack_detected": true,
+     "detection_delay_s": 1
+    },
+    {
+     "noise_x": 2.0,
+     "healthy_hours": 1.47,
+     "false_alarm_seconds": 60,
+     "false_alarm_rate": 0.01136,
+     "attack_detected": true,
+     "detection_delay_s": 1
+    },
+    {
+     "noise_x": 4.0,
+     "healthy_hours": 1.47,
+     "false_alarm_seconds": 97,
+     "false_alarm_rate": 0.01837,
+     "attack_detected": true,
+     "detection_delay_s": 1
+    }
+   ]
+  },
+  "concurrency": {
+   "threads": 8,
+   "commands": 640,
+   "exceptions": 0,
+   "examples": [],
+   "verdicts": {
+    "DROP": 358,
+    "PASS": 282
+   },
+   "seconds": 0.29,
+   "note": "the rate limiter is shared state, so DROP(RATE_LIMIT_EXCEEDED) under this load is correct behaviour, not a failure"
+  }
+ },
+ "fairness": {
+  "source_parity": {
+   "label": "an identical legitimate command sent from each trusted source address",
+   "per_source": {
+    "127.0.0.1": {
+     "accepted": 10,
+     "n": 10,
+     "rate": 1.0,
+     "reasons": [
+      "OK"
+     ]
+    },
+    "127.0.0.2": {
+     "accepted": 10,
+     "n": 10,
+     "rate": 1.0,
+     "reasons": [
+      "OK"
+     ]
+    },
+    "127.0.0.3": {
+     "accepted": 10,
+     "n": 10,
+     "rate": 1.0,
+     "reasons": [
+      "OK"
+     ]
+    },
+    "127.0.0.4": {
+     "accepted": 10,
+     "n": 10,
+     "rate": 1.0,
+     "reasons": [
+      "OK"
+     ]
+    },
+    "127.0.0.5": {
+     "accepted": 10,
+     "n": 10,
+     "rate": 1.0,
+     "reasons": [
+      "OK"
+     ]
+    }
+   },
+   "identical_outcome_for_every_source": true,
+   "disparity": {
+    "groups": 5,
+    "min": 1.0,
+    "max": 1.0,
+    "spread": 0.0,
+    "ratio_min_over_max": 1.0,
+    "worst_group": "127.0.0.1",
+    "best_group": "127.0.0.1",
+    "per_group": {
+     "127.0.0.1": 1.0,
+     "127.0.0.2": 1.0,
+     "127.0.0.3": 1.0,
+     "127.0.0.4": 1.0,
+     "127.0.0.5": 1.0
+    }
+   }
+  },
+  "register_parity": {
+   "label": "small legitimate set-point changes on each of the 10 actuators (6 each)",
+   "disparity": {
+    "groups": 10,
+    "min": 1.0,
+    "max": 1.0,
+    "spread": 0.0,
+    "ratio_min_over_max": 1.0,
+    "worst_group": "MV101",
+    "best_group": "MV101",
+    "per_group": {
+     "MV101": 1.0,
+     "P101": 1.0,
+     "P203": 1.0,
+     "P205": 1.0,
+     "MV302": 1.0,
+     "P302": 1.0,
+     "P402": 1.0,
+     "UV401": 1.0,
+     "P501": 1.0,
+     "MV503": 1.0
+    }
+   }
+  },
+  "stage_parity": {
+   "label": "the SAME step, in sigma of that sensor's measured normal spread, applied to one sensor of each stage",
+   "runs": 60,
+   "sizes_sigma": [
+    1.0,
+    2.0,
+    4.0,
+    8.0
+   ],
+   "per_size": {
+    "1.0": {
+     "detection_rate_per_stage": {
+      "S1": 1.0,
+      "S2": 0.3333333333333333,
+      "S3": 0.3333333333333333,
+      "S4": 1.0,
+      "S5": 0.3333333333333333
+     },
+     "overall": 0.6,
+     "disparity": {
+      "groups": 5,
+      "min": 0.3333,
+      "max": 1.0,
+      "spread": 0.6667,
+      "ratio_min_over_max": 0.3333,
+      "worst_group": "S2",
+      "best_group": "S1",
+      "per_group": {
+       "S1": 1.0,
+       "S2": 0.3333,
+       "S3": 0.3333,
+       "S4": 1.0,
+       "S5": 0.3333
+      }
+     }
+    },
+    "2.0": {
+     "detection_rate_per_stage": {
+      "S1": 1.0,
+      "S2": 0.3333333333333333,
+      "S3": 1.0,
+      "S4": 1.0,
+      "S5": 1.0
+     },
+     "overall": 0.8667,
+     "disparity": {
+      "groups": 5,
+      "min": 0.3333,
+      "max": 1.0,
+      "spread": 0.6667,
+      "ratio_min_over_max": 0.3333,
+      "worst_group": "S2",
+      "best_group": "S1",
+      "per_group": {
+       "S1": 1.0,
+       "S2": 0.3333,
+       "S3": 1.0,
+       "S4": 1.0,
+       "S5": 1.0
+      }
+     }
+    },
+    "4.0": {
+     "detection_rate_per_stage": {
+      "S1": 1.0,
+      "S2": 0.3333333333333333,
+      "S3": 1.0,
+      "S4": 1.0,
+      "S5": 1.0
+     },
+     "overall": 0.8667,
+     "disparity": {
+      "groups": 5,
+      "min": 0.3333,
+      "max": 1.0,
+      "spread": 0.6667,
+      "ratio_min_over_max": 0.3333,
+      "worst_group": "S2",
+      "best_group": "S1",
+      "per_group": {
+       "S1": 1.0,
+       "S2": 0.3333,
+       "S3": 1.0,
+       "S4": 1.0,
+       "S5": 1.0
+      }
+     }
+    },
+    "8.0": {
+     "detection_rate_per_stage": {
+      "S1": 1.0,
+      "S2": 1.0,
+      "S3": 1.0,
+      "S4": 1.0,
+      "S5": 1.0
+     },
+     "overall": 1.0,
+     "disparity": {
+      "groups": 5,
+      "min": 1.0,
+      "max": 1.0,
+      "spread": 0.0,
+      "ratio_min_over_max": 1.0,
+      "worst_group": "S1",
+      "best_group": "S1",
+      "per_group": {
+       "S1": 1.0,
+       "S2": 1.0,
+       "S3": 1.0,
+       "S4": 1.0,
+       "S5": 1.0
+      }
+     }
+    }
+   },
+   "discriminating_size_sigma": 1.0,
+   "detection_rate_per_stage": {
+    "S1": 1.0,
+    "S2": 0.3333333333333333,
+    "S3": 0.3333333333333333,
+    "S4": 1.0,
+    "S5": 0.3333333333333333
+   },
+   "median_delay_per_stage": {
+    "S1": 0.5,
+    "S2": 103.5,
+    "S3": 0.0,
+    "S4": 0.5,
+    "S5": 0.0
+   },
+   "disparity": {
+    "groups": 5,
+    "min": 0.3333,
+    "max": 1.0,
+    "spread": 0.6667,
+    "ratio_min_over_max": 0.3333,
+    "worst_group": "S2",
+    "best_group": "S1",
+    "per_group": {
+     "S1": 1.0,
+     "S2": 0.3333,
+     "S3": 0.3333,
+     "S4": 1.0,
+     "S5": 0.3333
+    }
+   },
+   "rows": [
+    {
+     "sigma": 1.0,
+     "stage": "S1",
+     "sensor": "LIT101",
+     "seed": 1,
+     "detected": true,
+     "delay_s": 1,
+     "by": {
+      "model": true,
+      "envelope": false,
+      "invariants": true
+     }
+    },
+    {
+     "sigma": 1.0,
+     "stage": "S1",
+     "sensor": "LIT101",
+     "seed": 2,
+     "detected": true,
+     "delay_s": 1,
+     "by": {
+      "model": true,
+      "envelope": false,
+      "invariants": true
+     }
+    },
+    {
+     "sigma": 1.0,
+     "stage": "S1",
+     "sensor": "LIT101",
+     "seed": 3,
+     "detected": true,
+     "delay_s": 1,
+     "by": {
+      "model": true,
+      "envelope": false,
+      "invariants": true
+     }
+    },
+    {
+     "sigma": 1.0,
+     "stage": "S2",
+     "sensor": "AIT202",
+     "seed": 1,
+     "detected": false,
+     "delay_s": null,
+     "by": {
+      "model": false,
+      "envelope": false,
+      "invariants": false
+     }
+    },
+    {
+     "sigma": 1.0,
+     "stage": "S2",
+     "sensor": "AIT202",
+     "seed": 2,
+     "detected": false,
+     "delay_s": null,
+     "by": {
+      "model": false,
+      "envelope": false,
+      "invariants": false
+     }
+    },
+    {
+     "sigma": 1.0,
+     "stage": "S2",
+     "sensor": "AIT202",
+     "seed": 3,
+     "detected": true,
+     "delay_s": 207,
+     "by": {
+      "model": true,
+      "envelope": false,
+      "invariants": false
+     }
+    },
+    {
+     "sigma": 1.0,
+     "stage": "S3",
+     "sensor": "LIT301",
+     "seed": 1,
+     "detected": false,
+     "delay_s": null,
+     "by": {
+      "model": false,
+      "envelope": false,
+      "invariants": false
+     }
+    },
+    {
+     "sigma": 1.0,
+     "stage": "S3",
+     "sensor": "LIT301",
+     "seed": 2,
+     "detected": false,
+     "delay_s": null,
+     "by": {
+      "model": false,
+      "envelope": false,
+      "invariants": false
+     }
+    },
+    {
+     "sigma": 1.0,
+     "stage": "S3",
+     "sensor": "LIT301",
+     "seed": 3,
+     "detected": true,
+     "delay_s": 207,
+     "by": {
+      "model": true,
+      "envelope": false,
+      "invariants": false
+     }
+    },
+    {
+     "sigma": 1.0,
+     "stage": "S4",
+     "sensor": "LIT401",
+     "seed": 1,
+     "detected": true,
+     "delay_s": 1,
+     "by": {
+      "model": false,
+      "envelope": false,
+      "invariants": true
+     }
+    },
+    {
+     "sigma": 1.0,
+     "stage": "S4",
+     "sensor": "LIT401",
+     "seed": 2,
+     "detected": true,
+     "delay_s": 1,
+     "by": {
+      "model": false,
+      "envelope": false,
+      "invariants": true
+     }
+    },
+    {
+     "sigma": 1.0,
+     "stage": "S4",
+     "sensor": "LIT401",
+     "seed": 3,
+     "detected": true,
+     "delay_s": 1,
+     "by": {
+      "model": false,
+      "envelope": false,
+      "invariants": true
+     }
+    },
+    {
+     "sigma": 1.0,
+     "stage": "S5",
+     "sensor": "PIT501",
+     "seed": 1,
+     "detected": false,
+     "delay_s": null,
+     "by": {
+      "model": false,
+      "envelope": false,
+      "invariants": false
+     }
+    },
+    {
+     "sigma": 1.0,
+     "stage": "S5",
+     "sensor": "PIT501",
+     "seed": 2,
+     "detected": false,
+     "delay_s": null,
+     "by": {
+      "model": false,
+      "envelope": false,
+      "invariants": false
+     }
+    },
+    {
+     "sigma": 1.0,
+     "stage": "S5",
+     "sensor": "PIT501",
+     "seed": 3,
+     "detected": true,
+     "delay_s": 203,
+     "by": {
+      "model": true,
+      "envelope": false,
+      "invariants": false
+     }
+    },
+    {
+     "sigma": 2.0,
+     "stage": "S1",
+     "sensor": "LIT101",
+     "seed": 1,
+     "detected": true,
+     "delay_s": 1,
+     "by": {
+      "model": true,
+      "envelope": false,
+      "invariants": true
+     }
+    },
+    {
+     "sigma": 2.0,
+     "stage": "S1",
+     "sensor": "LIT101",
+     "seed": 2,
+     "detected": true,
+     "delay_s": 1,
+     "by": {
+      "model": true,
+      "envelope": false,
+      "invariants": true
+     }
+    },
+    {
+     "sigma": 2.0,
+     "stage": "S1",
+     "sensor": "LIT101",
+     "seed": 3,
+     "detected": true,
+     "delay_s": 1,
+     "by": {
+      "model": true,
+      "envelope": false,
+      "invariants": true
+     }
+    },
+    {
+     "sigma": 2.0,
+     "stage": "S2",
+     "sensor": "AIT202",
+     "seed": 1,
+     "detected": false,
+     "delay_s": null,
+     "by": {
+      "model": false,
+      "envelope": false,
+      "invariants": false
+     }
+    },
+    {
+     "sigma": 2.0,
+     "stage": "S2",
+     "sensor": "AIT202",
+     "seed": 2,
+     "detected": false,
+     "delay_s": null,
+     "by": {
+      "model": false,
+      "envelope": false,
+      "invariants": false
+     }
+    },
+    {
+     "sigma": 2.0,
+     "stage": "S2",
+     "sensor": "AIT202",
+     "seed": 3,
+     "detected": true,
+     "delay_s": 207,
+     "by": {
+      "model": true,
+      "envelope": false,
+      "invariants": false
+     }
+    },
+    {
+     "sigma": 2.0,
+     "stage": "S3",
+     "sensor": "LIT301",
+     "seed": 1,
+     "detected": true,
+     "delay_s": 0,
+     "by": {
+      "model": true,
+      "envelope": true,
+      "invariants": true
+     }
+    },
+    {
+     "sigma": 2.0,
+     "stage": "S3",
+     "sensor": "LIT301",
+     "seed": 2,
+     "detected": true,
+     "delay_s": 0,
+     "by": {
+      "model": true,
+      "envelope": true,
+      "invariants": true
+     }
+    },
+    {
+     "sigma": 2.0,
+     "stage": "S3",
+     "sensor": "LIT301",
+     "seed": 3,
+     "detected": true,
+     "delay_s": 0,
+     "by": {
+      "model": true,
+      "envelope": true,
+      "invariants": true
+     }
+    },
+    {
+     "sigma": 2.0,
+     "stage": "S4",
+     "sensor": "LIT401",
+     "seed": 1,
+     "detected": true,
+     "delay_s": 1,
+     "by": {
+      "model": false,
+      "envelope": false,
+      "invariants": true
+     }
+    },
+    {
+     "sigma": 2.0,
+     "stage": "S4",
+     "sensor": "LIT401",
+     "seed": 2,
+     "detected": true,
+     "delay_s": 1,
+     "by": {
+      "model": true,
+      "envelope": true,
+      "invariants": true
+     }
+    },
+    {
+     "sigma": 2.0,
+     "stage": "S4",
+     "sensor": "LIT401",
+     "seed": 3,
+     "detected": true,
+     "delay_s": 1,
+     "by": {
+      "model": true,
+      "envelope": true,
+      "invariants": true
+     }
+    },
+    {
+     "sigma": 2.0,
+     "stage": "S5",
+     "sensor": "PIT501",
+     "seed": 1,
+     "detected": true,
+     "delay_s": 0,
+     "by": {
+      "model": true,
+      "envelope": true,
+      "invariants": false
+     }
+    },
+    {
+     "sigma": 2.0,
+     "stage": "S5",
+     "sensor": "PIT501",
+     "seed": 2,
+     "detected": true,
+     "delay_s": 0,
+     "by": {
+      "model": true,
+      "envelope": true,
+      "invariants": false
+     }
+    },
+    {
+     "sigma": 2.0,
+     "stage": "S5",
+     "sensor": "PIT501",
+     "seed": 3,
+     "detected": true,
+     "delay_s": 0,
+     "by": {
+      "model": true,
+      "envelope": true,
+      "invariants": false
+     }
+    },
+    {
+     "sigma": 4.0,
+     "stage": "S1",
+     "sensor": "LIT101",
+     "seed": 1,
+     "detected": true,
+     "delay_s": 0,
+     "by": {
+      "model": true,
+      "envelope": true,
+      "invariants": true
+     }
+    },
+    {
+     "sigma": 4.0,
+     "stage": "S1",
+     "sensor": "LIT101",
+     "seed": 2,
+     "detected": true,
+     "delay_s": 0,
+     "by": {
+      "model": true,
+      "envelope": true,
+      "invariants": true
+     }
+    },
+    {
+     "sigma": 4.0,
+     "stage": "S1",
+     "sensor": "LIT101",
+     "seed": 3,
+     "detected": true,
+     "delay_s": 0,
+     "by": {
+      "model": true,
+      "envelope": true,
+      "invariants": true
+     }
+    },
+    {
+     "sigma": 4.0,
+     "stage": "S2",
+     "sensor": "AIT202",
+     "seed": 1,
+     "detected": false,
+     "delay_s": null,
+     "by": {
+      "model": false,
+      "envelope": false,
+      "invariants": false
+     }
+    },
+    {
+     "sigma": 4.0,
+     "stage": "S2",
+     "sensor": "AIT202",
+     "seed": 2,
+     "detected": false,
+     "delay_s": null,
+     "by": {
+      "model": false,
+      "envelope": false,
+      "invariants": false
+     }
+    },
+    {
+     "sigma": 4.0,
+     "stage": "S2",
+     "sensor": "AIT202",
+     "seed": 3,
+     "detected": true,
+     "delay_s": 207,
+     "by": {
+      "model": true,
+      "envelope": false,
+      "invariants": false
+     }
+    },
+    {
+     "sigma": 4.0,
+     "stage": "S3",
+     "sensor": "LIT301",
+     "seed": 1,
+     "detected": true,
+     "delay_s": 0,
+     "by": {
+      "model": true,
+      "envelope": true,
+      "invariants": true
+     }
+    },
+    {
+     "sigma": 4.0,
+     "stage": "S3",
+     "sensor": "LIT301",
+     "seed": 2,
+     "detected": true,
+     "delay_s": 0,
+     "by": {
+      "model": true,
+      "envelope": true,
+      "invariants": true
+     }
+    },
+    {
+     "sigma": 4.0,
+     "stage": "S3",
+     "sensor": "LIT301",
+     "seed": 3,
+     "detected": true,
+     "delay_s": 0,
+     "by": {
+      "model": true,
+      "envelope": true,
+      "invariants": true
+     }
+    },
+    {
+     "sigma": 4.0,
+     "stage": "S4",
+     "sensor": "LIT401",
+     "seed": 1,
+     "detected": true,
+     "delay_s": 0,
+     "by": {
+      "model": true,
+      "envelope": true,
+      "invariants": true
+     }
+    },
+    {
+     "sigma": 4.0,
+     "stage": "S4",
+     "sensor": "LIT401",
+     "seed": 2,
+     "detected": true,
+     "delay_s": 0,
+     "by": {
+      "model": true,
+      "envelope": true,
+      "invariants": true
+     }
+    },
+    {
+     "sigma": 4.0,
+     "stage": "S4",
+     "sensor": "LIT401",
+     "seed": 3,
+     "detected": true,
+     "delay_s": 0,
+     "by": {
+      "model": true,
+      "envelope": true,
+      "invariants": true
+     }
+    },
+    {
+     "sigma": 4.0,
+     "stage": "S5",
+     "sensor": "PIT501",
+     "seed": 1,
+     "detected": true,
+     "delay_s": 0,
+     "by": {
+      "model": true,
+      "envelope": true,
+      "invariants": true
+     }
+    },
+    {
+     "sigma": 4.0,
+     "stage": "S5",
+     "sensor": "PIT501",
+     "seed": 2,
+     "detected": true,
+     "delay_s": 0,
+     "by": {
+      "model": true,
+      "envelope": true,
+      "invariants": true
+     }
+    },
+    {
+     "sigma": 4.0,
+     "stage": "S5",
+     "sensor": "PIT501",
+     "seed": 3,
+     "detected": true,
+     "delay_s": 0,
+     "by": {
+      "model": true,
+      "envelope": true,
+      "invariants": true
+     }
+    },
+    {
+     "sigma": 8.0,
+     "stage": "S1",
+     "sensor": "LIT101",
+     "seed": 1,
+     "detected": true,
+     "delay_s": 0,
+     "by": {
+      "model": true,
+      "envelope": true,
+      "invariants": true
+     }
+    },
+    {
+     "sigma": 8.0,
+     "stage": "S1",
+     "sensor": "LIT101",
+     "seed": 2,
+     "detected": true,
+     "delay_s": 0,
+     "by": {
+      "model": true,
+      "envelope": true,
+      "invariants": true
+     }
+    },
+    {
+     "sigma": 8.0,
+     "stage": "S1",
+     "sensor": "LIT101",
+     "seed": 3,
+     "detected": true,
+     "delay_s": 0,
+     "by": {
+      "model": true,
+      "envelope": true,
+      "invariants": true
+     }
+    },
+    {
+     "sigma": 8.0,
+     "stage": "S2",
+     "sensor": "AIT202",
+     "seed": 1,
+     "detected": true,
+     "delay_s": 0,
+     "by": {
+      "model": true,
+      "envelope": true,
+      "invariants": true
+     }
+    },
+    {
+     "sigma": 8.0,
+     "stage": "S2",
+     "sensor": "AIT202",
+     "seed": 2,
+     "detected": true,
+     "delay_s": 0,
+     "by": {
+      "model": true,
+      "envelope": true,
+      "invariants": true
+     }
+    },
+    {
+     "sigma": 8.0,
+     "stage": "S2",
+     "sensor": "AIT202",
+     "seed": 3,
+     "detected": true,
+     "delay_s": 0,
+     "by": {
+      "model": true,
+      "envelope": true,
+      "invariants": true
+     }
+    },
+    {
+     "sigma": 8.0,
+     "stage": "S3",
+     "sensor": "LIT301",
+     "seed": 1,
+     "detected": true,
+     "delay_s": 0,
+     "by": {
+      "model": true,
+      "envelope": true,
+      "invariants": true
+     }
+    },
+    {
+     "sigma": 8.0,
+     "stage": "S3",
+     "sensor": "LIT301",
+     "seed": 2,
+     "detected": true,
+     "delay_s": 0,
+     "by": {
+      "model": true,
+      "envelope": true,
+      "invariants": true
+     }
+    },
+    {
+     "sigma": 8.0,
+     "stage": "S3",
+     "sensor": "LIT301",
+     "seed": 3,
+     "detected": true,
+     "delay_s": 0,
+     "by": {
+      "model": true,
+      "envelope": true,
+      "invariants": true
+     }
+    },
+    {
+     "sigma": 8.0,
+     "stage": "S4",
+     "sensor": "LIT401",
+     "seed": 1,
+     "detected": true,
+     "delay_s": 0,
+     "by": {
+      "model": true,
+      "envelope": true,
+      "invariants": true
+     }
+    },
+    {
+     "sigma": 8.0,
+     "stage": "S4",
+     "sensor": "LIT401",
+     "seed": 2,
+     "detected": true,
+     "delay_s": 0,
+     "by": {
+      "model": true,
+      "envelope": true,
+      "invariants": true
+     }
+    },
+    {
+     "sigma": 8.0,
+     "stage": "S4",
+     "sensor": "LIT401",
+     "seed": 3,
+     "detected": true,
+     "delay_s": 0,
+     "by": {
+      "model": true,
+      "envelope": true,
+      "invariants": true
+     }
+    },
+    {
+     "sigma": 8.0,
+     "stage": "S5",
+     "sensor": "PIT501",
+     "seed": 1,
+     "detected": true,
+     "delay_s": 0,
+     "by": {
+      "model": true,
+      "envelope": true,
+      "invariants": true
+     }
+    },
+    {
+     "sigma": 8.0,
+     "stage": "S5",
+     "sensor": "PIT501",
+     "seed": 2,
+     "detected": true,
+     "delay_s": 0,
+     "by": {
+      "model": true,
+      "envelope": true,
+      "invariants": true
+     }
+    },
+    {
+     "sigma": 8.0,
+     "stage": "S5",
+     "sensor": "PIT501",
+     "seed": 3,
+     "detected": true,
+     "delay_s": 0,
+     "by": {
+      "model": true,
+      "envelope": true,
+      "invariants": true
+     }
+    }
+   ]
+  }
+ },
+ "consistency": {
+  "determinism": {
+   "repeats": 200,
+   "distinct_outcomes": 1,
+   "outcomes": [
+    "('PASS', 'OK')"
+   ]
+  },
+  "order_invariance": {
+   "permutations": 8,
+   "same_verdict_per_register": 8,
+   "note": "only order-independent rules are compared here; the rate limiter and the replay window are order-dependent BY DESIGN"
+  },
+  "live_offline_parity": {
+   "seconds_compared": 1733,
+   "max_abs_difference": 0.0,
+   "exact_matches": 1733,
+   "note": "the live monitor and the evaluation harness call the same scoring function on the same arrays"
+  },
+  "reproducibility": {
+   "identical_model_scores": true,
+   "identical_flags": true
+  }
+ },
+ "explainability": {
+  "coverage": {
+   "decisions": 6,
+   "with_a_machine_readable_reason": 6,
+   "with_every_trace_hop": 6,
+   "drops": 5,
+   "drops_naming_the_failing_check": 5
+  },
+  "faithfulness": {
+   "label": "one stage is perturbed; the explanation should name that stage (model) and that sensor (invariants)",
+   "model_attributions": 15,
+   "model_correct_stage": 15,
+   "model_top1_accuracy": 1.0,
+   "invariant_attributions": 15,
+   "invariant_correct_sensor": 15,
+   "invariant_top1_accuracy": 1.0,
+   "chance_level": 0.2,
+   "rows": [
+    {
+     "stage": "S1",
+     "sensor": "LIT101",
+     "seed": 1,
+     "model_said": "S1",
+     "invariant_said": "rate:LIT101:10s"
+    },
+    {
+     "stage": "S1",
+     "sensor": "LIT101",
+     "seed": 2,
+     "model_said": "S1",
+     "invariant_said": "rate:LIT101:10s"
+    },
+    {
+     "stage": "S1",
+     "sensor": "LIT101",
+     "seed": 3,
+     "model_said": "S1",
+     "invariant_said": "rate:LIT101:10s"
+    },
+    {
+     "stage": "S2",
+     "sensor": "AIT202",
+     "seed": 1,
+     "model_said": "S2",
+     "invariant_said": "rate:AIT202:60s"
+    },
+    {
+     "stage": "S2",
+     "sensor": "AIT202",
+     "seed": 2,
+     "model_said": "S2",
+     "invariant_said": "rate:AIT202:60s"
+    },
+    {
+     "stage": "S2",
+     "sensor": "AIT202",
+     "seed": 3,
+     "model_said": "S2",
+     "invariant_said": "rate:AIT202:60s"
+    },
+    {
+     "stage": "S3",
+     "sensor": "LIT301",
+     "seed": 1,
+     "model_said": "S3",
+     "invariant_said": "rate:LIT301:10s"
+    },
+    {
+     "stage": "S3",
+     "sensor": "LIT301",
+     "seed": 2,
+     "model_said": "S3",
+     "invariant_said": "rate:LIT301:10s"
+    },
+    {
+     "stage": "S3",
+     "sensor": "LIT301",
+     "seed": 3,
+     "model_said": "S3",
+     "invariant_said": "rate:LIT301:10s"
+    },
+    {
+     "stage": "S4",
+     "sensor": "LIT401",
+     "seed": 1,
+     "model_said": "S4",
+     "invariant_said": "rate:LIT401:10s"
+    },
+    {
+     "stage": "S4",
+     "sensor": "LIT401",
+     "seed": 2,
+     "model_said": "S4",
+     "invariant_said": "rate:LIT401:10s"
+    },
+    {
+     "stage": "S4",
+     "sensor": "LIT401",
+     "seed": 3,
+     "model_said": "S4",
+     "invariant_said": "rate:LIT401:10s"
+    },
+    {
+     "stage": "S5",
+     "sensor": "PIT501",
+     "seed": 1,
+     "model_said": "S5",
+     "invariant_said": "rate:PIT501:10s"
+    },
+    {
+     "stage": "S5",
+     "sensor": "PIT501",
+     "seed": 2,
+     "model_said": "S5",
+     "invariant_said": "rate:PIT501:10s"
+    },
+    {
+     "stage": "S5",
+     "sensor": "PIT501",
+     "seed": 3,
+     "model_said": "S5",
+     "invariant_said": "rate:PIT501:10s"
+    }
+   ]
+  },
+  "reason_vocabulary": {
+   "documented_prefixes": [
+    "AGENT_ERROR",
+    "CROSS_REGISTER_VIOLATION",
+    "HMAC_",
+    "INVALID_FUNCTION_CODE",
+    "INVALID_REGISTER",
+    "OK",
+    "OUT_OF_BOUNDS",
+    "PHYSICAL_MODEL",
+    "POLICY_ERROR",
+    "RATE_LIMIT_EXCEEDED",
+    "RATE_OF_CHANGE_EXCEEDED",
+    "REPLAY_DETECTED",
+    "SOURCE_QUARANTINED",
+    "UNAUTHORIZED_",
+    "UNKNOWN_DEVICE",
+    "UNKNOWN_REGISTER",
+    "UNTRUSTED_SOURCE",
+    "WRITE_TO_SENSOR_REGISTER"
+   ],
+   "cyber_check_order": [
+    "source_whitelist",
+    "function_code",
+    "register_allowlist",
+    "rate_limit",
+    "hmac",
+    "replay",
+    "quarantine",
+    "authorization"
+   ],
+   "physical_check_order": [
+    "register_known",
+    "actuator_only",
+    "bounds",
+    "rate_of_change",
+    "cross_register"
+   ]
+  }
+ },
+ "drift": {
+  "long_healthy_run": {
+   "simulated_hours": 4.0,
+   "scored_seconds": 14281,
+   "alarm_seconds": 713,
+   "alarm_seconds_first_half": 18,
+   "alarm_seconds_second_half": 695,
+   "model_probability": {
+    "p50": 0.2764,
+    "p95": 0.7872,
+    "p99": 0.9797,
+    "max": 0.9934,
+    "threshold": 0.788
+   },
+   "invariant_score": {
+    "p95": 0.5,
+    "max": 1.011,
+    "theta": 1.5
+   }
+  },
+  "score_stability": {
+   "psi_same_run_repeated_control": 0.0,
+   "psi_first_vs_second_half": 0.2101,
+   "psi_vs_independent_healthy_run": 0.9978,
+   "reading": "PSI below 0.1 is no meaningful shift, 0.1-0.25 moderate, above 0.25 large. The control re-runs the identical seed and must be 0: anything above that is real variation between healthy runs, not a measurement artefact."
+  },
+  "slow_degradation": {
+   "label": "a sensor drifting slowly upward with no attack: the system should notice a large drift and ignore a tiny one",
+   "rows": [
+    {
+     "tag": "LIT301",
+     "mm_per_second": 0.005,
+     "total_drift_mm": 18.0,
+     "first_alarm_at_s": null,
+     "alarm_seconds": 0,
+     "psi_vs_healthy": 0.7289
+    },
+    {
+     "tag": "LIT301",
+     "mm_per_second": 0.02,
+     "total_drift_mm": 72.0,
+     "first_alarm_at_s": null,
+     "alarm_seconds": 0,
+     "psi_vs_healthy": 0.7368
+    },
+    {
+     "tag": "LIT301",
+     "mm_per_second": 0.05,
+     "total_drift_mm": 180.0,
+     "first_alarm_at_s": null,
+     "alarm_seconds": 0,
+     "psi_vs_healthy": 0.7158
+    }
+   ]
+  },
+  "domain_gap": {
+   "note": "the live model was trained on SWaT and runs here on the twin; the standing measurement is docs/reports/twin_domain_gap_report.md",
+   "twin_false_alarm_rate_this_run": 0.04993
+  }
+ },
+ "safety": {
+  "fail_closed": {
+   "faults": [
+    {
+     "fault_injected_in": "cyber_agent.check",
+     "verdict": "DROP",
+     "reason": "AGENT_ERROR:cyber:RuntimeError",
+     "failed_closed": true
+    },
+    {
+     "fault_injected_in": "physical_agent.check_command",
+     "verdict": "DROP",
+     "reason": "AGENT_ERROR:physical:RuntimeError",
+     "failed_closed": true
+    },
+    {
+     "fault_injected_in": "orchestrator.decide",
+     "verdict": "DROP",
+     "reason": "AGENT_ERROR:orchestrator",
+     "failed_closed": true
+    }
+   ],
+   "all_failed_closed": true,
+   "recovered_afterwards": true
+  },
+  "advisory_never_blocks": {
+   "cases": [
+    {
+     "flagged_by": "model",
+     "verdict": "ALERT",
+     "reason": "PHYSICAL_MODEL:model S1"
+    },
+    {
+     "flagged_by": "invariants",
+     "verdict": "ALERT",
+     "reason": "PHYSICAL_MODEL:invariants S1"
+    }
+   ],
+   "all_alert_not_drop": true
+  },
+  "unsafe_states": {
+   "rules": 8,
+   "refused_any_reason": 8,
+   "blocked": 8,
+   "recovery_allowed": 8,
+   "rows": [
+    {
+     "rule": "RAW_PUMP_DRY_RUN",
+     "command": "P101 55.0 -> 65.0 while MV101 = 5.0",
+     "refused": true,
+     "unsafe_command_blocked": true,
+     "verdict": "DROP",
+     "reason": "CROSS_REGISTER_VIOLATION:RAW_PUMP_DRY_RUN:P101=65.0>=60 & MV",
+     "recovery_allowed": true,
+     "recovery_verdict": "PASS"
+    },
+    {
+     "rule": "RAW_TANK_OVERFLOW",
+     "command": "MV101 75.0 -> 85.0 while P101 = 5.0",
+     "refused": true,
+     "unsafe_command_blocked": true,
+     "verdict": "DROP",
+     "reason": "CROSS_REGISTER_VIOLATION:RAW_TANK_OVERFLOW:MV101=85.0>=80 & ",
+     "recovery_allowed": true,
+     "recovery_verdict": "PASS"
+    },
+    {
+     "rule": "ACID_OVERDOSE_LOW_FLOW",
+     "command": "P203 75.0 -> 85.0 while P101 = 15.0",
+     "refused": true,
+     "unsafe_command_blocked": true,
+     "verdict": "DROP",
+     "reason": "CROSS_REGISTER_VIOLATION:ACID_OVERDOSE_LOW_FLOW:P203=85.0>=8",
+     "recovery_allowed": true,
+     "recovery_verdict": "PASS"
+    },
+    {
+     "rule": "UF_PUMP_DEADHEAD",
+     "command": "P302 55.0 -> 65.0 while MV302 = 5.0",
+     "refused": true,
+     "unsafe_command_blocked": true,
+     "verdict": "DROP",
+     "reason": "CROSS_REGISTER_VIOLATION:UF_PUMP_DEADHEAD:P302=65.0>=60 & MV",
+     "recovery_allowed": true,
+     "recovery_verdict": "PASS"
+    },
+    {
+     "rule": "UF_TANK_OVERFLOW",
+     "command": "MV302 75.0 -> 85.0 while P302 = 5.0",
+     "refused": true,
+     "unsafe_command_blocked": true,
+     "verdict": "DROP",
+     "reason": "CROSS_REGISTER_VIOLATION:UF_TANK_OVERFLOW:MV302=85.0>=80 & P",
+     "recovery_allowed": true,
+     "recovery_verdict": "PASS"
+    },
+    {
+     "rule": "CHLORINE_BREAKTHROUGH",
+     "command": "P205 75.0 -> 85.0 while UV401 = 5.0",
+     "refused": true,
+     "unsafe_command_blocked": true,
+     "verdict": "DROP",
+     "reason": "CROSS_REGISTER_VIOLATION:CHLORINE_BREAKTHROUGH:P205=85.0>=80",
+     "recovery_allowed": true,
+     "recovery_verdict": "PASS"
+    },
+    {
+     "rule": "RO_PUMP_DEADHEAD",
+     "command": "P501 65.0 -> 75.0 while MV503 = 5.0",
+     "refused": true,
+     "unsafe_command_blocked": true,
+     "verdict": "DROP",
+     "reason": "CROSS_REGISTER_VIOLATION:RO_PUMP_DEADHEAD:P501=75.0>=70 & MV",
+     "recovery_allowed": true,
+     "recovery_verdict": "PASS"
+    },
+    {
+     "rule": "RO_FEED_STARVATION",
+     "command": "P501 55.0 -> 65.0 while P402 = 5.0",
+     "refused": true,
+     "unsafe_command_blocked": true,
+     "verdict": "DROP",
+     "reason": "CROSS_REGISTER_VIOLATION:RO_FEED_STARVATION:P501=65.0>=60 & ",
+     "recovery_allowed": true,
+     "recovery_verdict": "PASS"
+    }
+   ]
+  },
+  "bounded_resources": {
+   "decision_queue_maxsize": 500,
+   "forward_queue_maxsize": 200,
+   "dropped_writes_counter": 0,
+   "dropped_forwards_counter": 0,
+   "undelivered_counter": 0,
+   "pending_command_timeout_s": 15.0,
+   "note": "a full queue fails CLOSED (the write is refused) and increments a counter the health endpoint reports"
+  },
+  "plc_allow_list": {
+   "configured_writers": [
+    "1",
+    "2",
+    "7",
+    ".",
+    "0",
+    ".",
+    "0",
+    ".",
+    "1"
+   ],
+   "middleware_allowed": true,
+   "foreign_host_refused": true,
+   "note": "a spoofed source address still passes this check: it is defence in depth, not segmentation"
+  }
+ },
+ "rules": {
+  "label": "RULE-BASED checks on CONSTRUCTED scenarios (deterministic rules; NOT SWaT, NOT a learned model)",
+  "per_case": 200,
+  "seed": 7,
+  "cases": [
+   {
+    "layer": "legitimate",
+    "case": "operator command, in bounds, slow",
+    "expected": "PASS",
+    "n": 200,
+    "as_expected": 200,
+    "rate": 1.0,
+    "dropped_any_reason": 0,
+    "unexpected_outcomes": {},
+    "predicted": {
+     "PASS": 200,
+     "ALERT": 0,
+     "DROP": 0
+    }
+   },
+   {
+    "layer": "cyber",
+    "case": "untrusted source",
+    "expected": "UNTRUSTED_SOURCE",
+    "n": 200,
+    "as_expected": 200,
+    "rate": 1.0,
+    "dropped_any_reason": 200,
+    "unexpected_outcomes": {},
+    "predicted": {
+     "PASS": 0,
+     "ALERT": 0,
+     "DROP": 200
+    }
+   },
+   {
+    "layer": "cyber",
+    "case": "invalid function code",
+    "expected": "INVALID_FUNCTION_CODE",
+    "n": 200,
+    "as_expected": 200,
+    "rate": 1.0,
+    "dropped_any_reason": 200,
+    "unexpected_outcomes": {},
+    "predicted": {
+     "PASS": 0,
+     "ALERT": 0,
+     "DROP": 200
+    }
+   },
+   {
+    "layer": "cyber",
+    "case": "unknown register",
+    "expected": "INVALID_REGISTER",
+    "n": 200,
+    "as_expected": 200,
+    "rate": 1.0,
+    "dropped_any_reason": 200,
+    "unexpected_outcomes": {},
+    "predicted": {
+     "PASS": 0,
+     "ALERT": 0,
+     "DROP": 200
+    }
+   },
+   {
+    "layer": "cyber",
+    "case": "rate-limit burst",
+    "expected": "RATE_LIMIT_EXCEEDED",
+    "n": 200,
+    "as_expected": 200,
+    "rate": 1.0,
+    "dropped_any_reason": 200,
+    "unexpected_outcomes": {},
+    "predicted": {
+     "PASS": 0,
+     "ALERT": 0,
+     "DROP": 200
+    }
+   },
+   {
+    "layer": "cyber",
+    "case": "HMAC missing (unsigned)",
+    "expected": "HMAC_MISSING",
+    "n": 200,
+    "as_expected": 200,
+    "rate": 1.0,
+    "dropped_any_reason": 200,
+    "unexpected_outcomes": {},
+    "predicted": {
+     "PASS": 0,
+     "ALERT": 0,
+     "DROP": 200
+    }
+   },
+   {
+    "layer": "cyber",
+    "case": "HMAC invalid: value tampered",
+    "expected": "HMAC_INVALID",
+    "n": 200,
+    "as_expected": 200,
+    "rate": 1.0,
+    "dropped_any_reason": 200,
+    "unexpected_outcomes": {},
+    "predicted": {
+     "PASS": 0,
+     "ALERT": 0,
+     "DROP": 200
+    }
+   },
+   {
+    "layer": "cyber",
+    "case": "HMAC invalid: wrong key",
+    "expected": "HMAC_INVALID",
+    "n": 200,
+    "as_expected": 200,
+    "rate": 1.0,
+    "dropped_any_reason": 200,
+    "unexpected_outcomes": {},
+    "predicted": {
+     "PASS": 0,
+     "ALERT": 0,
+     "DROP": 200
+    }
+   },
+   {
+    "layer": "cyber",
+    "case": "HMAC expired / future-dated",
+    "expected": "HMAC_EXPIRED",
+    "n": 200,
+    "as_expected": 200,
+    "rate": 1.0,
+    "dropped_any_reason": 200,
+    "unexpected_outcomes": {},
+    "predicted": {
+     "PASS": 0,
+     "ALERT": 0,
+     "DROP": 200
+    }
+   },
+   {
+    "layer": "cyber",
+    "case": "replayed frame",
+    "expected": "REPLAY_DETECTED",
+    "n": 200,
+    "as_expected": 200,
+    "rate": 1.0,
+    "dropped_any_reason": 200,
+    "unexpected_outcomes": {},
+    "predicted": {
+     "PASS": 0,
+     "ALERT": 0,
+     "DROP": 200
+    }
+   },
+   {
+    "layer": "physical",
+    "case": "write to a sensor register",
+    "expected": "WRITE_TO_SENSOR_REGISTER",
+    "n": 200,
+    "as_expected": 200,
+    "rate": 1.0,
+    "dropped_any_reason": 200,
+    "unexpected_outcomes": {},
+    "predicted": {
+     "PASS": 0,
+     "ALERT": 0,
+     "DROP": 200
+    }
+   },
+   {
+    "layer": "physical",
+    "case": "out-of-bounds value",
+    "expected": "OUT_OF_BOUNDS",
+    "n": 200,
+    "as_expected": 200,
+    "rate": 1.0,
+    "dropped_any_reason": 200,
+    "unexpected_outcomes": {},
+    "predicted": {
+     "PASS": 0,
+     "ALERT": 0,
+     "DROP": 200
+    }
+   },
+   {
+    "layer": "physical",
+    "case": "rate of change too fast",
+    "expected": "RATE_OF_CHANGE_EXCEEDED",
+    "n": 200,
+    "as_expected": 200,
+    "rate": 1.0,
+    "dropped_any_reason": 200,
+    "unexpected_outcomes": {},
+    "predicted": {
+     "PASS": 0,
+     "ALERT": 0,
+     "DROP": 200
+    }
+   },
+   {
+    "layer": "physical",
+    "case": "stage rule VALVE_CLOSING_LOW_LEVEL",
+    "expected": "CROSS_REGISTER_VIOLATION:VALVE_CLOSING_LOW_LEVEL",
+    "n": 200,
+    "as_expected": 200,
+    "rate": 1.0,
+    "dropped_any_reason": 200,
+    "unexpected_outcomes": {},
+    "predicted": {
+     "PASS": 0,
+     "ALERT": 0,
+     "DROP": 200
+    }
+   },
+   {
+    "layer": "physical",
+    "case": "stage rule RO_PRESSURE_OVERLOAD",
+    "expected": "CROSS_REGISTER_VIOLATION:RO_PRESSURE_OVERLOAD",
+    "n": 200,
+    "as_expected": 200,
+    "rate": 1.0,
+    "dropped_any_reason": 200,
+    "unexpected_outcomes": {},
+    "predicted": {
+     "PASS": 0,
+     "ALERT": 0,
+     "DROP": 200
+    }
+   },
+   {
+    "layer": "physical",
+    "case": "cross-register RAW_PUMP_DRY_RUN",
+    "expected": "CROSS_REGISTER_VIOLATION:RAW_PUMP_DRY_RUN",
+    "n": 200,
+    "as_expected": 200,
+    "rate": 1.0,
+    "dropped_any_reason": 200,
+    "unexpected_outcomes": {},
+    "predicted": {
+     "PASS": 0,
+     "ALERT": 0,
+     "DROP": 200
+    }
+   },
+   {
+    "layer": "physical",
+    "case": "cross-register RAW_TANK_OVERFLOW",
+    "expected": "CROSS_REGISTER_VIOLATION:RAW_TANK_OVERFLOW",
+    "n": 200,
+    "as_expected": 200,
+    "rate": 1.0,
+    "dropped_any_reason": 200,
+    "unexpected_outcomes": {},
+    "predicted": {
+     "PASS": 0,
+     "ALERT": 0,
+     "DROP": 200
+    }
+   },
+   {
+    "layer": "physical",
+    "case": "cross-register ACID_OVERDOSE_LOW_FLOW",
+    "expected": "CROSS_REGISTER_VIOLATION:ACID_OVERDOSE_LOW_FLOW",
+    "n": 200,
+    "as_expected": 200,
+    "rate": 1.0,
+    "dropped_any_reason": 200,
+    "unexpected_outcomes": {},
+    "predicted": {
+     "PASS": 0,
+     "ALERT": 0,
+     "DROP": 200
+    }
+   },
+   {
+    "layer": "physical",
+    "case": "cross-register UF_PUMP_DEADHEAD",
+    "expected": "CROSS_REGISTER_VIOLATION:UF_PUMP_DEADHEAD",
+    "n": 200,
+    "as_expected": 200,
+    "rate": 1.0,
+    "dropped_any_reason": 200,
+    "unexpected_outcomes": {},
+    "predicted": {
+     "PASS": 0,
+     "ALERT": 0,
+     "DROP": 200
+    }
+   },
+   {
+    "layer": "physical",
+    "case": "cross-register UF_TANK_OVERFLOW",
+    "expected": "CROSS_REGISTER_VIOLATION:UF_TANK_OVERFLOW",
+    "n": 200,
+    "as_expected": 200,
+    "rate": 1.0,
+    "dropped_any_reason": 200,
+    "unexpected_outcomes": {},
+    "predicted": {
+     "PASS": 0,
+     "ALERT": 0,
+     "DROP": 200
+    }
+   },
+   {
+    "layer": "physical",
+    "case": "cross-register CHLORINE_BREAKTHROUGH",
+    "expected": "CROSS_REGISTER_VIOLATION:CHLORINE_BREAKTHROUGH",
+    "n": 200,
+    "as_expected": 200,
+    "rate": 1.0,
+    "dropped_any_reason": 200,
+    "unexpected_outcomes": {},
+    "predicted": {
+     "PASS": 0,
+     "ALERT": 0,
+     "DROP": 200
+    }
+   },
+   {
+    "layer": "physical",
+    "case": "cross-register RO_PUMP_DEADHEAD",
+    "expected": "CROSS_REGISTER_VIOLATION:RO_PUMP_DEADHEAD",
+    "n": 200,
+    "as_expected": 200,
+    "rate": 1.0,
+    "dropped_any_reason": 200,
+    "unexpected_outcomes": {},
+    "predicted": {
+     "PASS": 0,
+     "ALERT": 0,
+     "DROP": 200
+    }
+   },
+   {
+    "layer": "physical",
+    "case": "cross-register RO_FEED_STARVATION",
+    "expected": "CROSS_REGISTER_VIOLATION:RO_FEED_STARVATION",
+    "n": 200,
+    "as_expected": 200,
+    "rate": 1.0,
+    "dropped_any_reason": 200,
+    "unexpected_outcomes": {},
+    "predicted": {
+     "PASS": 0,
+     "ALERT": 0,
+     "DROP": 200
+    }
+   }
+  ],
+  "legitimate_false_positive_rate": 0.0,
+  "confusion": {
+   "overall": {
+    "tp": 4400,
+    "fp": 0,
+    "fn": 0,
+    "tn": 200,
+    "n": 4600,
+    "accuracy": 1.0,
+    "precision": 1.0,
+    "recall": 1.0,
+    "specificity": 1.0,
+    "f1": 1.0,
+    "false_positive_rate": 0.0,
+    "balanced_accuracy": 1.0
+   },
+   "three_class": {
+    "truth_PASS (legitimate)": {
+     "PASS": 200,
+     "ALERT": 0,
+     "DROP": 0
+    },
+    "truth_DROP (violating)": {
+     "PASS": 0,
+     "ALERT": 0,
+     "DROP": 4400
+    }
+   },
+   "per_layer": {
+    "cyber": {
+     "tp": 1800,
+     "fp": 0,
+     "fn": 0,
+     "tn": 200,
+     "n": 2000,
+     "accuracy": 1.0,
+     "precision": 1.0,
+     "recall": 1.0,
+     "specificity": 1.0,
+     "f1": 1.0,
+     "false_positive_rate": 0.0,
+     "balanced_accuracy": 1.0
+    },
+    "physical": {
+     "tp": 2600,
+     "fp": 0,
+     "fn": 0,
+     "tn": 200,
+     "n": 2800,
+     "accuracy": 1.0,
+     "precision": 1.0,
+     "recall": 1.0,
+     "specificity": 1.0,
+     "f1": 1.0,
+     "false_positive_rate": 0.0,
+     "balanced_accuracy": 1.0
+    }
+   }
+  },
+  "violating_scenarios": 4400,
+  "violating_detected_with_expected_reason": 4400
+ },
+ "recorded_swat": {
+  "precision": 0.4606,
+  "recall": 0.5127,
+  "f1": 0.4853,
+  "accuracy": 0.9589,
+  "balanced_accuracy": 0.7446,
+  "roc_auc": 0.8362,
+  "average_precision": 0.3628,
+  "always_benign_baseline_accuracy": 0.9622,
+  "alarm_episodes_per_benign_hour": 1.173,
+  "segments_detected": 8,
+  "segments_total": 10,
+  "median_latency_s": 57.5,
+  "source": "docs/reports/physical_training_report_v2_swat.json (held-out test block, threshold fixed on validation)",
+  "point_adjusted_f1": 0.6852,
+  "composite_f1": 0.5846
+ },
+ "seconds": 405.3,
+ "environment": {
+  "generated_utc": "2026-10-23 18:19:20",
+  "python": "3.13.16",
+  "platform": "Linux-6.18.44-fc-v153-x86_64-with-glibc2.39",
+  "machine": "x86_64",
+  "cpu_count": 4,
+  "numpy": "2.5.4",
+  "pandas": "3.0.6",
+  "scikit_learn": "1.9.1",
+  "joblib": "1.6.0",
+  "git_commit": "48d4e59",
+  "git_dirty": false
+ }
+}
