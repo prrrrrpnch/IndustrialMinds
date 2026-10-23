@@ -80,9 +80,17 @@ class PhysicalModel:
     # --------------------------------------------------------------- window
     @staticmethod
     def _value(registers: Registers, tag: str) -> Optional[float]:
+        """One reading, or None when it is missing or not a number. Unusable input makes the window incomplete (the model then
+        abstains); it must never raise, because the docstring promises that and callers rely on it."""
         m = MACHINE_BY_NAME[tag]
         v = registers.get(m["register"], registers.get(tag))
-        return None if v is None else float(v)
+        if v is None:
+            return None
+        try:
+            f = float(v)
+        except (TypeError, ValueError):
+            return None
+        return None if (f != f or f in (float("inf"), float("-inf"))) else f
 
     def update(self, registers: Registers, timestamp: Optional[float] = None) -> None:
         """Push one telemetry sample (keys: register numbers or names). Decimated to 1 Hz."""

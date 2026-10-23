@@ -113,9 +113,17 @@ check("accuracy: healthy runs are excluded from the per-attack table", all(r["fa
 rob = A.section_robustness(model, inv, quick=True)
 mi = rob["malformed_input"]
 check("robustness: no malformed command crashed the pipeline", mi["raised"] == 0, f"{mi['raised']} of {mi['n']}")
-check("robustness: no malformed command was accepted", mi["passed_through"] == 0, f"{mi['passed_through']} of {mi['n']}")
+check("robustness: every command that must be refused was refused", mi["wrongly_accepted"] == 0, f"{mi['wrongly_accepted']} of {mi['must_refuse']}")
+check("robustness: a tampered signature, register or raw value is always rejected",
+      all(r["refused"] for r in mi["cases"] if "mac" in r["case"] or "tampered" in r["case"] or "nonce" in r["case"]),
+      str([r["case"] for r in mi["cases"] if ("mac" in r["case"] or "tampered" in r["case"]) and not r["refused"]]))
+check("robustness: the fuzzer attacks the fields the signature actually covers",
+      any("mac zeroed" == r["case"] for r in mi["cases"]) and any("raw_value tampered (signature kept)" == r["case"] for r in mi["cases"]))
 check("robustness: the well-formed control was still accepted (the test is not vacuous)", mi["control_passed"])
-check("robustness: unusable telemetry makes the detectors abstain rather than flag", rob["degraded_telemetry"]["raised"] == 0 and rob["degraded_telemetry"]["flagged_on_garbage"] == 0)
+check("robustness: unusable telemetry makes the detectors abstain rather than flag",
+      rob["degraded_telemetry"]["raised"] == 0 and rob["degraded_telemetry"]["flagged_on_garbage"] == 0,
+      str([c["case"] for c in rob["degraded_telemetry"]["cases"] if c["raised"]]))
+check("robustness: the real telemetry entry point never raises either", rob["degraded_telemetry"]["raised_through_the_pipeline"] == 0)
 check("robustness: concurrent load raised no exception", rob["concurrency"]["exceptions"] == 0, str(rob["concurrency"]["examples"]))
 check("robustness: the noise sweep reports a false-alarm rate and a detection result per level", all({"false_alarm_rate", "attack_detected"} <= set(r) for r in rob["noise_sweep"]["rows"]))
 
