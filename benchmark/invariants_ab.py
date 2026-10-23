@@ -106,7 +106,7 @@ def run_twin(model, inv: InvariantSet, seed: int, seconds: int, changes: Optiona
                 tw.set_target(MACHINE_BY_NAME[tag]["register"], v)
         for _ in range(10):
             tw.step(0.1)
-        regs = tw.values()
+        regs = {r: round(x * 10.0) / 10.0 for r, x in tw.values().items()}     # what the middleware reads: the wire carries value x 10 as an integer
         if tamper is not None and change_at is not None and t >= change_at:
             tamper(regs, t - change_at, held)
         model.update(regs, timestamp=float(t))

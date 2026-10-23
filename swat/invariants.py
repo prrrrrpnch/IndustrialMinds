@@ -3,12 +3,14 @@ swat/invariants.py - PHYSICAL INVARIANT rules: deterministic consistency checks 
 
 An invariant is a relationship that holds in normal operation because of physics or of the control logic, learned from NORMAL data only
 (no attack labels, no classifier). A violation means "these readings cannot all be true at once": a spoofed or frozen sensor, a pump that
-does not do what its state says, a tank that gains water nobody pumped. Three families, all over the 18 signals the live twin provides:
+does not do what its state says, a tank that gains water nobody pumped. Four families, all over the 18 signals the live twin provides:
 
   rate      a sensor cannot move faster than it ever did in normal operation (10 s and 60 s horizons)            |x(t) - x(t-h)| <= cap
   state     while an actuator has held one state for >= DWELL s, a sensor stays inside the band it always had   x in [lo, hi] | actuator = s
             in that state (a pump that is on => its flow is up; control-logic and process couplings)
   balance   a tank's level change over 60 s is explained by the flows and pump states around it (mass balance)  |dL - f(drivers)| <= tol
+  flat      a sensor that always carries measurement noise cannot go perfectly flat: its range over the last         range(20 s) >= floor
+            20 s never fell below a floor in normal operation (a flat reading is a stuck, frozen or replayed sensor)
 
 Every invariant yields an EXCESS e(t) with e <= 1 inside the range seen in normal data and e > 1 outside (the same scale for all
 families), made PERSISTENT by taking the minimum over the last `persist` seconds so one noisy second is not a violation. The detector's
@@ -40,7 +42,10 @@ SCHEMA = "im-invariants-1"
 RATE_HORIZONS = (10, 60)
 BAL_H = 60                       # seconds over which a level change is balanced
 DWELL = 30                       # an actuator state counts only after it has been steady this long (flows lag the pump)
-PERSIST = {"rate": 2, "state": 10, "balance": 20}
+FLAT_W = 20                      # seconds over which "perfectly flat" is judged
+FLAT_LO_Q = 0.0005               # lower quantile of the rolling range that sets the floor
+FLAT_FLOOR_FRACTION = 0.5        # the floor is half of the worst block's lower quantile: flat means well below anything normal
+PERSIST = {"rate": 2, "state": 10, "balance": 20, "flat": 5}
 QUANTILE = 0.9999
 STATE_LO_Q, STATE_HI_Q = 0.0005, 0.9995
 MIN_STATE_SAMPLES = 2000
@@ -131,6 +136,17 @@ class _Ctx:
         self._lag: Dict[Tuple[int, int], np.ndarray] = {}
         self._mean: Dict[Tuple[str, int], np.ndarray] = {}
         self._age: Dict[int, np.ndarray] = {}
+        self._range: Dict[Tuple[int, int], np.ndarray] = {}
+
+    def flat_range(self, i: int, w: int) -> np.ndarray:
+        """max - min of the last w samples of sensor i (NaN until w valid samples exist inside the chunk)."""
+        if (i, w) not in self._range:
+            hi = lo = self.S[:, i]
+            for k in range(1, w):
+                prev = self.lag(i, k)
+                hi, lo = np.maximum(hi, prev), np.minimum(lo, prev)       # NaN propagates: an incomplete window is unknown, never flat
+            self._range[(i, w)] = hi - lo
+        return self._range[(i, w)]
 
     def lag(self, i: int, h: int) -> np.ndarray:
         if (i, h) not in self._lag:
@@ -169,6 +185,9 @@ def raw_excess(inv: Dict[str, Any], ctx: _Ctx) -> np.ndarray:
         for spec, coef, mu, sd in zip(inv["drivers"], inv["coef"], inv["mu"], inv["sd"]):
             pred = pred + coef * (ctx.driver(spec, H) - mu) / sd
         return np.abs((ctx.S[:, i] - ctx.lag(i, H)) - pred) / inv["tol"]
+    if fam == "flat":
+        r = ctx.flat_range(_SI[inv["sensor"]], inv["window"])
+        return inv["floor"] / np.maximum(r, inv["floor"] / 1000.0)         # 1 at the floor, rising as the sensor flattens
     raise ValueError(f"unknown invariant family {fam!r}")
 
 
@@ -181,6 +200,9 @@ def describe(inv: Dict[str, Any]) -> str:
         word = "ON" if inv["state"] == 1 else "OFF"
         return (f"while {inv['actuator']} is steadily {word} (>= {inv['dwell']} s), {inv['sensor']} stays within "
                 f"{f(inv['mid'] - inv['half'])} to {f(inv['mid'] + inv['half'])} {u(inv['sensor'])}")
+    if inv["family"] == "flat":
+        return (f"{inv['sensor']} always varied by at least {f(inv['floor'])} {u(inv['sensor'])} within any {inv['window']} s in normal operation; "
+                f"a perfectly flat reading means a stuck, frozen or replayed sensor")
     names = ", ".join(s.split(":")[1] for s in inv["drivers"])
     return (f"the change of {inv['level']} over {inv['horizon']} s is explained by {names} "
             f"(within +-{f(inv['tol'])} {u(inv['level'])}; explains {100 * inv['fit']['r2']:.0f} % of the variance)")
@@ -194,7 +216,7 @@ def stage_of(inv: Dict[str, Any]) -> Optional[str]:
 
 def lookback_of(inv: Dict[str, Any]) -> int:
     fam = inv["family"]
-    need = inv["horizon"] + 1 if fam in ("rate", "balance") else inv["dwell"]
+    need = inv["horizon"] + 1 if fam in ("rate", "balance") else inv["window"] if fam == "flat" else inv["dwell"]
     return need + PERSIST[fam]
 
 
@@ -317,7 +339,7 @@ def stream_signals(stream) -> Tuple[np.ndarray, np.ndarray, np.ndarray]:
 
 
 def _count(invs: List[Dict[str, Any]]) -> Dict[str, int]:
-    out = {"rate": 0, "state": 0, "balance": 0}
+    out = {"rate": 0, "state": 0, "balance": 0, "flat": 0}
     for k in invs:
         out[k["family"]] += 1
     return out
@@ -356,6 +378,23 @@ def _propose(S: np.ndarray, A: np.ndarray, chunk: np.ndarray, q: float, n_blocks
             inv_id = f"rate:{name}:{h}s"
             if want(inv_id):
                 out.append({"id": inv_id, "family": "rate", "sensor": name, "horizon": h, "cap": cap})
+
+    # ---- flat: a sensor that always carries noise never goes perfectly flat. The floor is half of the worst block's lower quantile of the 20 s range;
+    # a sensor whose range was ever (near) zero in normal data - quantised coarser than its noise, or legitimately constant - gets no flat rule.
+    for name, i in _SI.items():
+        inv_id = f"flat:{name}:{FLAT_W}s"
+        if not want(inv_id):
+            continue
+        r = ctx.flat_range(i, FLAT_W)
+        lows = []
+        for b in blocks:
+            x = r[b]
+            x = x[~np.isnan(x)]
+            if x.size >= MIN_BLOCK_SAMPLES:
+                lows.append(float(np.quantile(x, FLAT_LO_Q)))
+        if len(lows) < 3 or min(lows) <= 1e-9:
+            continue
+        out.append({"id": inv_id, "family": "flat", "sensor": name, "window": FLAT_W, "floor": FLAT_FLOOR_FRACTION * min(lows)})
 
     # ---- state: the band of a sensor while an actuator holds a steady state
     marg: Dict[str, Tuple[float, float]] = {}
