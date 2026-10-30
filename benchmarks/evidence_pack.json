@@ -1,15 +1,15 @@
 {
   "environment": {
-    "generated_utc": "2026-10-23 15:20:38",
+    "generated_utc": "2026-10-30 09:54:43",
     "python": "3.13.16",
-    "platform": "Linux-6.18.44-fc-v153-x86_64-with-glibc2.39",
+    "platform": "Linux-6.18.44-fc-v185-x86_64-with-glibc2.39",
     "machine": "x86_64",
     "cpu_count": 4,
     "numpy": "2.5.4",
     "pandas": "3.0.6",
     "scikit_learn": "1.9.1",
     "joblib": "1.6.0",
-    "git_commit": "b9e3745",
+    "git_commit": "f201679",
     "git_dirty": true
   },
   "live": {
@@ -19,7 +19,7 @@
         "name": "legitimate operator traffic",
         "kind": "benign",
         "completed": true,
-        "seconds": 26.3
+        "seconds": 26.2
       },
       {
         "name": "flood",
@@ -31,7 +31,7 @@
         "name": "impossible-command",
         "kind": "attack",
         "completed": true,
-        "seconds": 2.3
+        "seconds": 2.2
       },
       {
         "name": "sensor-write",
@@ -46,12 +46,6 @@
         "seconds": 2.2
       },
       {
-        "name": "delayed-replay",
-        "kind": "attack",
-        "completed": true,
-        "seconds": 2.2
-      },
-      {
         "name": "hmac-missing",
         "kind": "attack",
         "completed": true,
@@ -61,7 +55,7 @@
         "name": "hmac-tamper",
         "kind": "attack",
         "completed": true,
-        "seconds": 2.3
+        "seconds": 2.2
       },
       {
         "name": "hmac-forged",
@@ -83,18 +77,18 @@
       }
     ],
     "ports": {
-      "plc": 39283,
-      "middleware": 37885,
-      "dashboard": 57283
+      "plc": 48435,
+      "middleware": 35641,
+      "dashboard": 59643
     },
     "incidents": [
       {
         "alerts": 0,
-        "drops": 15,
-        "events": 15,
-        "first_seen": 1792768874.1414816,
+        "drops": 14,
+        "events": 14,
+        "first_seen": 1793354117.1870017,
         "id": "INC-0001",
-        "last_seen": 1792768939.8133984,
+        "last_seen": 1793354178.99902,
         "quarantine": null,
         "quarantine_remaining_s": 0.0,
         "quarantined": false,
@@ -106,13 +100,13 @@
         "severity": "critical",
         "source": "127.0.0.1",
         "status": "open",
-        "summary": "127.0.0.1: 15 event(s) in 66 s - Flood / Rate Limit, Impossible Command (Out of Bounds), Write To Sensor Register",
+        "summary": "127.0.0.1: 14 event(s) in 62 s - Flood / Rate Limit, Impossible Command (Out of Bounds), Write To Sensor Register",
         "timeline": [
           {
             "reason": "RATE_LIMIT_EXCEEDED",
             "register": "MV101",
-            "t": 1792768874.1414816,
-            "tx_id": "40f5b0b4-f9d8-41e1-9650-9c1247717d1f",
+            "t": 1793354117.1870017,
+            "tx_id": "dc26e6d2-0717-4d2a-8022-66bef3485bb3",
             "type": "Flood / Rate Limit",
             "value": 55.6,
             "verdict": "DROP"
@@ -120,8 +114,8 @@
           {
             "reason": "RATE_LIMIT_EXCEEDED",
             "register": "MV101",
-            "t": 1792768874.193565,
-            "tx_id": "d10661d1-55b6-49ea-ad7d-4d06d8241693",
+            "t": 1793354117.238322,
+            "tx_id": "81c2ce26-f0c8-443c-b56b-66610e244e24",
             "type": "Flood / Rate Limit",
             "value": 55.7,
             "verdict": "DROP"
@@ -129,8 +123,8 @@
           {
             "reason": "RATE_LIMIT_EXCEEDED",
             "register": "MV101",
-            "t": 1792768874.245189,
-            "tx_id": "21bed355-3777-4ef1-bde0-f38c64dabc70",
+            "t": 1793354117.2895496,
+            "tx_id": "2586eb6c-e9df-4e32-a9a5-c367d622abbd",
             "type": "Flood / Rate Limit",
             "value": 55.8,
             "verdict": "DROP"
@@ -138,8 +132,8 @@
           {
             "reason": "RATE_LIMIT_EXCEEDED",
             "register": "MV101",
-            "t": 1792768874.296512,
-            "tx_id": "7a541a30-95e0-47a0-acac-c9b13911c624",
+            "t": 1793354117.3408067,
+            "tx_id": "f8626400-d676-4367-a74e-1cc0fc2ffd10",
             "type": "Flood / Rate Limit",
             "value": 55.9,
             "verdict": "DROP"
@@ -147,8 +141,8 @@
           {
             "reason": "RATE_LIMIT_EXCEEDED",
             "register": "MV101",
-            "t": 1792768874.3477364,
-            "tx_id": "d825de57-5a2a-4483-ace0-495d85a00c65",
+            "t": 1793354117.3921344,
+            "tx_id": "9db55522-a2de-4c9f-874f-f69d81c2f050",
             "type": "Flood / Rate Limit",
             "value": 56.0,
             "verdict": "DROP"
@@ -156,8 +150,8 @@
           {
             "reason": "OUT_OF_BOUNDS",
             "register": "P101",
-            "t": 1792768878.171243,
-            "tx_id": "7e4b3daa-f15c-47e7-b307-17ffe616f4ff",
+            "t": 1793354121.1159854,
+            "tx_id": "ffcb3202-735a-44d7-9cbe-77851eab8eee",
             "type": "Impossible Command (Out of Bounds)",
             "value": 999.0,
             "verdict": "DROP"
@@ -165,8 +159,8 @@
           {
             "reason": "WRITE_TO_SENSOR_REGISTER",
             "register": "LIT101",
-            "t": 1792768881.8659942,
-            "tx_id": "8d692b1a-c724-4822-86c7-3492e6708ed1",
+            "t": 1793354124.827845,
+            "tx_id": "326a20cf-3eb6-4960-859d-aac9f9717c9f",
             "type": "Write To Sensor Register",
             "value": 500.0,
             "verdict": "DROP"
@@ -174,26 +168,17 @@
           {
             "reason": "REPLAY_DETECTED",
             "register": "MV101",
-            "t": 1792768885.5897794,
-            "tx_id": "cebd1cfe-a9bc-4f49-9ae2-790dd641a5c3",
+            "t": 1793354128.5588732,
+            "tx_id": "6adeb2eb-24f6-49ef-b0cc-3cb83b735862",
             "type": "Replay",
             "value": 56.0,
             "verdict": "DROP"
           },
           {
-            "reason": "HMAC_EXPIRED",
-            "register": "MV101",
-            "t": 1792768889.2729235,
-            "tx_id": "a5b25a25-17c3-441e-8929-8974454dd078",
-            "type": "Expired Signature (Delayed Replay)",
-            "value": 57.0,
-            "verdict": "DROP"
-          },
-          {
             "reason": "HMAC_MISSING",
             "register": "MV101",
-            "t": 1792768893.0576835,
-            "tx_id": "c5dbe5ce-a508-43fc-9aad-e3519fcaa99e",
+            "t": 1793354132.3126009,
+            "tx_id": "8848c4c0-64c8-4ae8-b88c-f66ea295a870",
             "type": "Missing HMAC (Unsigned Command)",
             "value": 57.0,
             "verdict": "DROP"
@@ -201,8 +186,8 @@
           {
             "reason": "HMAC_INVALID",
             "register": "P101",
-            "t": 1792768896.8308303,
-            "tx_id": "6afc2e11-f065-4033-8bf7-19edd8befdb1",
+            "t": 1793354136.0104432,
+            "tx_id": "4a3c6831-8ab5-4cab-9a21-40322cc7146c",
             "type": "Tampered / Forged HMAC",
             "value": 95.0,
             "verdict": "DROP"
@@ -210,8 +195,8 @@
           {
             "reason": "HMAC_INVALID",
             "register": "MV101",
-            "t": 1792768900.5183573,
-            "tx_id": "72724ace-5813-4553-b14d-73f144476951",
+            "t": 1793354139.6816046,
+            "tx_id": "ce1672ea-2230-464b-9c76-ed3bb70d0b2a",
             "type": "Tampered / Forged HMAC",
             "value": 57.0,
             "verdict": "DROP"
@@ -219,8 +204,8 @@
           {
             "reason": "CROSS_REGISTER_VIOLATION",
             "register": "MV101",
-            "t": 1792768928.7791843,
-            "tx_id": "7f3b49c4-9e38-4002-81f7-8bc3def9bafa",
+            "t": 1793354167.966773,
+            "tx_id": "a47e8022-d6be-4f2a-96f4-01146c24bb4f",
             "type": "Cross-Register Correlation",
             "value": 6.0,
             "verdict": "DROP"
@@ -228,8 +213,8 @@
           {
             "reason": "CROSS_REGISTER_VIOLATION",
             "register": "MV101",
-            "t": 1792768934.2980804,
-            "tx_id": "d81f137a-2531-41a4-af89-0fee8d3ea191",
+            "t": 1793354173.4823608,
+            "tx_id": "2b04ad01-275e-485f-b16c-a61d5bf4adcc",
             "type": "Cross-Register Correlation",
             "value": 6.0,
             "verdict": "DROP"
@@ -237,8 +222,8 @@
           {
             "reason": "CROSS_REGISTER_VIOLATION",
             "register": "MV101",
-            "t": 1792768939.8133984,
-            "tx_id": "8fabe1a9-7b4b-4142-94c0-d21c540b56bb",
+            "t": 1793354178.99902,
+            "tx_id": "53df6b35-2864-403b-842a-bc83f96825d7",
             "type": "Cross-Register Correlation",
             "value": 6.0,
             "verdict": "DROP"
@@ -271,10 +256,6 @@
           },
           {
             "count": 1,
-            "type": "Expired Signature (Delayed Replay)"
-          },
-          {
-            "count": 1,
             "type": "Missing HMAC (Unsigned Command)"
           }
         ]
@@ -296,7 +277,7 @@
         "reasons": {},
         "detected": false,
         "completed": true,
-        "seconds": 26.3,
+        "seconds": 26.2,
         "traverses_middleware": true,
         "note": "in-bounds signed writes at 1.7/s, below the rate limit"
       },
@@ -336,7 +317,7 @@
         },
         "detected": true,
         "completed": true,
-        "seconds": 2.3,
+        "seconds": 2.2,
         "traverses_middleware": true,
         "note": ""
       },
@@ -381,26 +362,6 @@
         "note": "the original frame is legitimate; only the repeat is the attack"
       },
       {
-        "phase": "delayed-replay",
-        "kind": "attack",
-        "commands": 1,
-        "dropped": 1,
-        "alerted": 0,
-        "passed": 0,
-        "upstream_drops": 0,
-        "first_flag_at_command": 1,
-        "passed_before_first_flag": 0,
-        "passed_after_first_flag": 0,
-        "reasons": {
-          "HMAC_EXPIRED": 1
-        },
-        "detected": true,
-        "completed": true,
-        "seconds": 2.2,
-        "traverses_middleware": true,
-        "note": ""
-      },
-      {
         "phase": "hmac-missing",
         "kind": "attack",
         "commands": 1,
@@ -436,7 +397,7 @@
         },
         "detected": true,
         "completed": true,
-        "seconds": 2.3,
+        "seconds": 2.2,
         "traverses_middleware": true,
         "note": ""
       },
@@ -500,24 +461,24 @@
       }
     ],
     "command_confusion": {
-      "tp": 15,
+      "tp": 14,
       "fp": 0,
       "fn": 11,
       "tn": 40,
-      "n": 66,
-      "accuracy": 0.8333,
+      "n": 65,
+      "accuracy": 0.8308,
       "precision": 1.0,
-      "recall": 0.5769,
+      "recall": 0.56,
       "specificity": 1.0,
-      "f1": 0.7317,
+      "f1": 0.7179,
       "false_positive_rate": 0.0,
-      "balanced_accuracy": 0.7885
+      "balanced_accuracy": 0.78
     },
-    "campaigns_detected": "9/10",
-    "campaigns_detected_through_middleware": "9/9",
+    "campaigns_detected": "8/9",
+    "campaigns_detected_through_middleware": "8/8",
     "campaign_view": {
-      "campaigns_through_middleware": 9,
-      "detected": 9,
+      "campaigns_through_middleware": 8,
+      "detected": 8,
       "commands_passed_before_first_flag": 10,
       "commands_passed_after_first_flag": 0,
       "campaigns_with_leakage_after_detection": 0,

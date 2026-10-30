@@ -618,7 +618,7 @@ def section_explainability(model, inv: InvariantSet, seeds: List[int]) -> Dict[s
 
     # ---- E1 coverage: a reason on every decision, every hop in every trace, the failing check named on every DROP
     checked, with_reason, full_trace, named_check = 0, 0, 0, 0
-    hops_expected = {"arrival", "cyber_rules", "cyber_model", "physical_rules", "physical_model", "orchestrator"}
+    hops_expected = {"arrival", "cyber_rules", "physical_rules", "physical_model", "orchestrator"}
     drops = 0
     for name, cmd, state in [("legitimate", signed(1, 70.0, "e1"), nominal_state()),
                              ("out of bounds", signed(1, 999.0, "e2"), nominal_state()),

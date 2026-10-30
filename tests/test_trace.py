@@ -68,8 +68,8 @@ cases["replay"] = pipe.process_command(cmd_from_frame(f, MV101, tx="f2"), state(
 print("STRUCTURE")
 for name, rep in cases.items():
     t = rep["trace"]
-    check(f"{name}: trace has the 6 pipeline hops in order",
-          [h["hop"] for h in t["hops"]] == ["arrival", "cyber_rules", "cyber_model", "physical_rules", "physical_model", "orchestrator"])
+    check(f"{name}: trace has the 5 pipeline hops in order (no cyber_model hop: the cyber branch has no model)",
+          [h["hop"] for h in t["hops"]] == ["arrival", "cyber_rules", "physical_rules", "physical_model", "orchestrator"])
     check(f"{name}: trace verdict/reason equal the orchestrator decision",
           t["verdict"] == rep["decision"]["verdict"] and t["reason"] == rep["decision"]["reason"] and t["tx_id"] == rep["tx_id"])
 
@@ -88,8 +88,16 @@ check("physical_model hop shows the same status / plant_state / scores / flags t
       all(pm_hop[k] == pm_rep.get(k) for k in ("status", "plant_state", "anomaly_score", "attack_probability", "threat_flag", "flagged_by"))
       and pm_hop["thresholds"]["classifier"] == pm_rep.get("clf_threshold")
       and pm_hop["thresholds"]["isolation_forest"] == pm_rep.get("threshold"))
-check("cyber_model hop mirrors the cyber model report (NO_MODEL: rules-only)",
-      hop(t, "cyber_model")["values"]["status"] == cases["legit"]["cyber"]["model"]["status"])
+check("with no cyber model loaded (NO_MODEL) the trace has no cyber_model hop",
+      cases["legit"]["cyber"]["model"]["status"] == "NO_MODEL" and all(h["hop"] != "cyber_model" for h in t["hops"]))
+# a cyber model that IS loaded gets its hop back, straight after the cyber rules
+from middleware import trace as _trace
+_loaded = dict(cases["legit"]["cyber"]["model"], status="OK", anomaly_score=0.1, threat_flag=False)
+_cr = cases["legit"]["cyber"]["rule_verdict"]
+_t2 = _trace.build_trace(signed(MV101, 56.0, tx="m"), state(), _cr, _cr, _loaded,
+                         cases["legit"]["physical"]["rule_verdict"], cases["legit"]["physical"]["model"], cases["legit"]["decision"], {}, "MONITOR")
+check("a loaded cyber model is shown as hop 3, right after the cyber rules",
+      [h["hop"] for h in _t2["hops"]][:3] == ["arrival", "cyber_rules", "cyber_model"])
 fu = hop(t, "orchestrator")["values"]
 check("orchestrator hop shows its real inputs and the branch taken",
       fu["inputs"]["cyber_rules_pass"] is True and fu["inputs"]["physical_rules_pass"] is True

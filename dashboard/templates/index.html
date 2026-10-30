@@ -145,16 +145,15 @@
                 <h2><i class="fa-solid fa-diagram-project title-icon"></i> LIVE NETWORK FLOW</h2>
                 <span class="badge-tag" id="flow-status">waiting for traffic</span>
             </div>
-            <p class="flow-hint">Every command the middleware receives, from the host that really sent it (TCP source address). Green reaches the PLC, yellow reaches it with an advisory ALERT, red is stopped inside the middleware at the layer that caught it. Attacks are launched from the attacker system, never from this dashboard.</p>
+            <p class="flow-hint">Commands as they reach the middleware, drawn from the host that sent them.</p>
             <svg id="flow-svg" viewBox="0 0 1000 330" preserveAspectRatio="xMidYMid meet" role="img" aria-label="Live network flow"></svg>
             <div class="flow-legend">
                 <span><i class="dot dot-pass"></i>PASS: forwarded</span>
                 <span><i class="dot dot-alert"></i>ALERT: forwarded, flagged</span>
                 <span><i class="dot dot-drop"></i>DROP: stopped in the middleware</span>
                 <span><i class="dot dot-undelivered"></i>UNDELIVERED: approved, but the PLC never took it</span>
-                <span><i class="dot dot-untrusted"></i>untrusted source</span>
+                <span><i class="dot dot-untrusted"></i>attacker host</span>
             </div>
-            <ul class="flow-ticker" id="flow-ticker"></ul>
         </section>
 
 
@@ -518,15 +517,6 @@
         <div id="investigation-list"><p class="tracer-empty">No investigations. When an incident reaches high severity the investigator writes up what happened and what it would do about it, for a person to approve.</p></div>
     </section>
 
-    <!-- LIVE PHYSICAL MODEL: what it is, how well it was measured, what it cannot do -->
-    <section class="card model-strip" id="model-strip" style="margin:20px;">
-        <div class="card-header">
-            <h2><i class="fa-solid fa-circle-info title-icon"></i> PHYSICAL MODEL</h2>
-            <span class="badge-tag" id="model-role">advisory</span>
-        </div>
-        <div id="model-body"><p class="tracer-empty">Waiting for the middleware to publish the live model's card.</p></div>
-    </section>
-
     <!-- INCIDENTS (correlated blocked/alerted commands, quarantine state) -->
     <section class="card incident-card" id="incident-section" style="margin:20px;">
         <div class="card-header">
@@ -557,7 +547,6 @@
     <script src="{{ url_for('static', filename='script.js') }}"></script>
     <script src="{{ url_for('static', filename='flow.js') }}"></script>
     <script src="{{ url_for('static', filename='incidents.js') }}"></script>
-    <script src="{{ url_for('static', filename='model_card.js') }}"></script>
     <script src="{{ url_for('static', filename='investigations.js') }}"></script>
 
 </body>

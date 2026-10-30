@@ -39,7 +39,7 @@ _REASON_TO_ATTACK_TYPE = [
     ("HMAC_MISSING", "Missing HMAC (Unsigned Command)"),
     ("HMAC_INVALID", "Tampered / Forged HMAC"),
     ("HMAC_MALFORMED", "Malformed Signed Frame"),
-    ("HMAC_EXPIRED", "Expired Signature (Delayed Replay)"),
+    ("HMAC_EXPIRED", "Expired Signature"),
     ("REPLAY_DETECTED", "Replay"),
     ("OUT_OF_BOUNDS", "Impossible Command (Out of Bounds)"),
     ("RATE_OF_CHANGE_EXCEEDED", "Rate-of-Change Violation"),

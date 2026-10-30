@@ -258,9 +258,20 @@ def run_operator_loop(host: str = netconfig.MIDDLEWARE_HOST, port: int = netconf
 
             register = profile["register"]
 
+            plant = _read_plant(client)
+
+            # An incident (an attack that got through its early steps, a reset) can leave an actuator far from its operator
+            # target. Creeping back at one step per visit (10 actuators x 2 s = 20 s per step) kept the plant displaced for
+            # ~8 minutes, and the advisory model reports ALERT on every command for as long as the plant really is off-normal.
+            # So the operator recovers the way a person would: the same safe, rate-limit-respecting sweep as --restore.
+            if _quiet_displaced(plant, time.time()):
+                print("[SCADA] AUTO-RECOVERY: the plant stayed away from the operator targets; restoring them")
+                _recover(client, max_rounds=AUTO_RECOVERY_MAX_ROUNDS)
+                plant = _read_plant(client)
+
             _sync_with_plant(
                 name,
-                _read_plant(client).get(name)
+                plant.get(name)
             )
 
             value = _next_setpoint(name)
@@ -299,13 +310,95 @@ RESTORE_MAX_ROUNDS = 600
 REPLAY_WINDOW = 2.5          # s; > the Cyber Agent duplicate-payload window (2 s)
 
 
+RECOVERY_TRIGGER_STEPS = 3     # an actuator this many operator steps from its target starts an automatic recovery
+AUTO_RECOVERY_MAX_ROUNDS = 120  # bound for the automatic sweep (~2 min); --restore keeps its own, larger bound
+
+
+RECOVERY_QUIET_S = 15.0        # ...and has stopped moving this long (an attack in progress keeps moving it every few seconds)
+_still: Dict[str, tuple] = {}  # name -> (value, since): when each displaced actuator last changed
+
+
+def _quiet_displaced(plant: Dict[str, float], now: float) -> list:
+    """Displaced actuators that have held the same value for RECOVERY_QUIET_S. Recovering while an attack is still moving
+    them would only fight the attacker's own steps; the operator waits until the plant has settled, then restores it."""
+    displaced = _displaced(plant, RECOVERY_TRIGGER_STEPS)
+    for name in list(_still):
+        if name not in displaced:
+            del _still[name]                       # back near target: forget it
+    quiet = []
+    for name in displaced:
+        actual = plant[name]
+        prev = _still.get(name)
+        if prev is None or abs(prev[0] - actual) > 0.5:
+            _still[name] = (actual, now)           # new or still moving: restart the clock
+        elif now - prev[1] >= RECOVERY_QUIET_S:
+            quiet.append(name)
+    return quiet
+
+
+def _displaced(plant: Dict[str, float], factor: float) -> list:
+    """Names of actuators more than `factor` operator steps away from their operator target."""
+    out = []
+    for name, profile in OPERATOR_PROFILES.items():
+        actual = plant.get(name)
+        if actual is not None and abs(profile["target"] - actual) > factor * profile["step"]:
+            out.append(name)
+    return out
+
+
+def _recover(client: ModbusTcpClient, max_rounds: int = RESTORE_MAX_ROUNDS) -> int:
+    """
+    Bring every actuator back to its operator target, one signed command at a time, THROUGH the middleware.
+    Each command moves an actuator by at most half its operator step from the value the PLC reports, so the Physical
+    Agent's rate-of-change rule accepts it. Returns 0 when every actuator is within one step of its target, 2 if the
+    plant cannot be read, 1 if the bound was reached first. Shared by --restore and the operator's automatic recovery.
+    """
+
+    last_sent: Dict[str, tuple] = {}     # name -> (value, time): never repeat a payload inside the replay window
+    for rnd in range(1, max_rounds + 1):
+        plant = _read_plant(client)
+        if not plant:
+            print("[SCADA] Cannot read the plant state.")
+            return 2
+
+        pending = []
+        for name, profile in OPERATOR_PROFILES.items():
+            actual = plant.get(name)
+            if actual is None:
+                continue
+            gap = profile["target"] - actual
+            if abs(gap) > max(profile["step"] * 0.5, 0.2):
+                pending.append((name, profile, actual, gap))
+
+        if not pending:
+            print(f"[SCADA] RESTORE complete after {rnd - 1} round(s): all actuators at their operator targets.")
+            for name, profile in OPERATOR_PROFILES.items():
+                profile["current"] = plant.get(name, profile["current"])
+            return 0
+
+        print(f"[SCADA] RESTORE round {rnd}: {len(pending)} actuator(s) still away from target")
+        for name, profile, actual, gap in pending:
+            # Half an operator step: the Physical Agent's rate limit is measured against the age of its
+            # last plant snapshot, so a small move is accepted whatever the poll phase.
+            limit = profile["step"] / 2
+            move = max(-limit, min(limit, gap))
+            value = round(actual + move, 1)
+            prev = last_sent.get(name)
+            if prev and prev[0] == value and time.time() - prev[1] < REPLAY_WINDOW:
+                continue                     # same payload as the last attempt: wait, do not trip replay detection
+            last_sent[name] = (value, time.time())
+            send_write(client, profile["register"], value)
+            time.sleep(RESTORE_SPACING)
+        time.sleep(RESTORE_SPACING)
+
+    print("[SCADA] RESTORE stopped before every actuator reached its target (check the middleware log).")
+    return 1
+
+
 def run_restore(host: str = netconfig.MIDDLEWARE_HOST, port: int = netconfig.MIDDLEWARE_PORT) -> int:
     """
-    Operator recovery after an incident: bring every actuator back to its
-    operator target, one signed command at a time, THROUGH the middleware.
-    Each command moves an actuator by at most its operator step from the value
-    the PLC reports, so the Physical Agent's rate-of-change rule accepts it.
-    Exits 0 when every actuator is within one step of its target.
+    Operator recovery after an incident (python -m scada.scada --restore): bring every actuator back to its operator
+    target through the middleware. Exits 0 when every actuator is within one step of its target.
     """
 
     hmac_auth.get_secret()
@@ -317,46 +410,7 @@ def run_restore(host: str = netconfig.MIDDLEWARE_HOST, port: int = netconfig.MID
         return 2
 
     try:
-        last_sent: Dict[str, tuple] = {}     # name -> (value, time): never repeat a payload inside the replay window
-        for rnd in range(1, RESTORE_MAX_ROUNDS + 1):
-            plant = _read_plant(client)
-            if not plant:
-                print("[SCADA] Cannot read the plant state.")
-                return 2
-
-            pending = []
-            for name, profile in OPERATOR_PROFILES.items():
-                actual = plant.get(name)
-                if actual is None:
-                    continue
-                gap = profile["target"] - actual
-                if abs(gap) > max(profile["step"] * 0.5, 0.2):
-                    pending.append((name, profile, actual, gap))
-
-            if not pending:
-                print(f"[SCADA] RESTORE complete after {rnd - 1} round(s): all actuators at their operator targets.")
-                for name, profile in OPERATOR_PROFILES.items():
-                    profile["current"] = plant.get(name, profile["current"])
-                return 0
-
-            print(f"[SCADA] RESTORE round {rnd}: {len(pending)} actuator(s) still away from target")
-            for name, profile, actual, gap in pending:
-                # Half an operator step: the Physical Agent's rate limit is measured against the age of its
-                # last plant snapshot, so a small move is accepted whatever the poll phase.
-                limit = profile["step"] / 2
-                move = max(-limit, min(limit, gap))
-                value = round(actual + move, 1)
-                prev = last_sent.get(name)
-                if prev and prev[0] == value and time.time() - prev[1] < REPLAY_WINDOW:
-                    continue                     # same payload as the last attempt: wait, do not trip replay detection
-                last_sent[name] = (value, time.time())
-                send_write(client, profile["register"], value)
-                time.sleep(RESTORE_SPACING)
-            time.sleep(RESTORE_SPACING)
-
-        print("[SCADA] RESTORE gave up (actuators still away from target; check the middleware log).")
-        return 1
-
+        return _recover(client)
     finally:
         client.close()
 

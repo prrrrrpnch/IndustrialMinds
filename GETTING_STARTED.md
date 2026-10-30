@@ -139,7 +139,7 @@ the **Live Network Flow** panel, telemetry near nominal, no red rows.
 .\scripts\run.ps1 attacker hmac-tamper
 .\scripts\run.ps1 attacker random --type ramp
 ```
-Watch all at once: a red "untrusted" host appears in Live Network Flow with dots
+Watch all at once: a red "attacker (untrusted host)" appears in Live Network Flow with dots
 stopping at the layer that caught them; the Packet Tracer shows the failing
 check; the middleware prints `DROP ... reason=...`; and in Wireshark the frame is
 on the middleware leg (Mac A) but absent from the PLC leg (Windows A).

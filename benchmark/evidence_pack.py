@@ -47,7 +47,7 @@ from core.netconfig import LOOPBACK  # noqa: E402
 OUT_JSON = os.path.join(ROOT, "benchmarks", "evidence_pack.json")
 OUT_MD = os.path.join(ROOT, "docs", "reports", "evidence_pack.md")
 FIG_DIR = os.path.join(ROOT, "docs", "reports", "figures")
-ATTACKS = ["flood", "impossible-command", "sensor-write", "replay", "delayed-replay", "hmac-missing", "hmac-tamper", "hmac-forged",
+ATTACKS = ["flood", "impossible-command", "sensor-write", "replay", "hmac-missing", "hmac-tamper", "hmac-forged",
            "cross-register", "false-injection"]
 ATTACK_TIMEOUT_S = 150
 # Why some commands of an attack are expected to PASS, and what is out of the middleware's reach. Shown next to the numbers.

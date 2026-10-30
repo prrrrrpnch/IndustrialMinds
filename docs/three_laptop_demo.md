@@ -168,7 +168,7 @@ It cannot tell you about real Wi-Fi, real firewalls, real NICs or clock skew: th
 ## What was verified
 
 The full rehearsal above: 65 checks across startup through the launchers, the preflight, normal operation, every attack
-(impossible-command, sensor-write, hmac-missing, hmac-tamper, hmac-forged, replay, delayed-replay, flood, cross-register,
+(impossible-command, sensor-write, hmac-missing, hmac-tamper, hmac-forged, replay, flood, cross-register,
 a randomised ramp, a stranger host, and the bypass), a PLC outage and recovery, a dashboard restart, and a real capture of both
 legs cross-checked against the dashboard and the logs. For example, 166 writes reached the PLC from the middleware and the
 middleware logged exactly 166 `FORWARDED`; the attacker's 35 frames on the wire were exactly the 35 decisions the middleware

@@ -125,3 +125,17 @@ Branch: `claude/serene-feynman-or6ieo`.
   which is regenerated from the benchmarks.
 - **Deeper deployment steps** (real/soft PLC in the loop, Modbus transport
   security) are architecture-level future work, documented as such.
+
+---
+
+## 30 Oct: demo-readiness fixes
+
+- **Network Flow animation fixed at the root.** The view froze after the first burst of traffic because one JavaScript error ended its animation loop; the
+  data feed was fine. Fixed in `dashboard/static/flow.js` and measured in a real browser: every event is now drawn (62 of 62, was 32 of 69) with no page errors.
+- **Hosts are labelled by role.** The attacker laptop is shown red and as "attacker (untrusted host)" even when its address is whitelisted for the insider demo;
+  it is no longer called "trusted". Set by `IM_HOST_ROLES` (the launchers do it).
+- **ALERTs after the cross-register attack clear without a PLC restart.** The SCADA operator now recovers a displaced plant by itself once it stops moving
+  (same routine as `--restore`); the alerts used to last about 8 minutes, now about 2.
+- **Cleanup.** The delayed-replay attack, the Physical Model panel, the per-command ticker in the flow card, the long flow explanation and the
+  "no model" Cyber model hop in the packet tracer were removed.
+

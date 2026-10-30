@@ -14,11 +14,11 @@ LIVE campaign: real PLC twin + middleware + dashboard on loopback, real Modbus/T
 
 Commands are labelled by the phase that sent them: legitimate phase = benign, attack phases = attack. A multi-step attack whose early steps look normal therefore shows misses at command level. The physical ML model was cold (120 s warm-up), so this measures the rules.
 
-**Command-level confusion matrix** (flagged = DROP or ALERT): TN 40 / FP 0 / FN 11 / TP 15 - precision 1.0, recall 0.5769, F1 0.7317, accuracy 0.8333, false-positive rate 0.0.
+**Command-level confusion matrix** (flagged = DROP or ALERT): TN 40 / FP 0 / FN 11 / TP 14 - precision 1.0, recall 0.56, F1 0.7179, accuracy 0.8308, false-positive rate 0.0.
 
-**Attack campaigns detected: 9/10** (a campaign is detected when at least one of its commands was stopped). Of the campaigns that actually pass through the middleware: **9/9**. `false-injection` writes straight to the PLC, so no inline control can stop it (documented limit); it is listed so the pack is not selective.
+**Attack campaigns detected: 8/9** (a campaign is detected when at least one of its commands was stopped). Of the campaigns that actually pass through the middleware: **8/8**. `false-injection` writes straight to the PLC, so no inline control can stop it (documented limit); it is listed so the pack is not selective.
 
-**Campaign view (the fairer reading of the same run).** 9 of 9 attack campaigns that pass through the middleware were detected, the slowest at its command 6. Before the first flag, 10 attack-labelled commands passed: these are the commands a campaign is allowed to send before it is recognisable (the first frames of a flood under the rate limit, the original frame of a replay, the individually safe early steps of a ramp). **After detection began, 0 commands got through** (0 campaigns leaked). Legitimate traffic: 0 of 40 commands flagged.
+**Campaign view (the fairer reading of the same run).** 8 of 8 attack campaigns that pass through the middleware were detected, the slowest at its command 6. Before the first flag, 10 attack-labelled commands passed: these are the commands a campaign is allowed to send before it is recognisable (the first frames of a flood under the rate limit, the original frame of a replay, the individually safe early steps of a ramp). **After detection began, 0 commands got through** (0 campaigns leaked). Legitimate traffic: 0 of 40 commands flagged.
 
 ![live campaign](figures/evidence_live_campaign.png)
 
@@ -29,7 +29,6 @@ Commands are labelled by the phase that sent them: legitimate phase = benign, at
 | impossible-command | 1 | 1 | 0 | 0 | 1 | OUT_OF_BOUNDS x1 |  |
 | sensor-write | 1 | 1 | 0 | 0 | 1 | WRITE_TO_SENSOR_REGISTER x1 |  |
 | replay | 2 | 1 | 0 | 1 | 2 | REPLAY_DETECTED x1 | the original frame is legitimate; only the repeat is the attack |
-| delayed-replay | 1 | 1 | 0 | 0 | 1 | HMAC_EXPIRED x1 |  |
 | hmac-missing | 1 | 1 | 0 | 0 | 1 | HMAC_MISSING x1 |  |
 | hmac-tamper | 1 | 1 | 0 | 0 | 1 | HMAC_INVALID x1 |  |
 | hmac-forged | 1 | 1 | 0 | 0 | 1 | HMAC_INVALID x1 |  |
@@ -38,7 +37,7 @@ Commands are labelled by the phase that sent them: legitimate phase = benign, at
 
 Incidents the dashboard grouped from this run: 1 (all attacks came from one source address, so they correlate into one incident).
 
-- `INC-0001` **critical** - 127.0.0.1: 15 event(s) in 66 s - Flood / Rate Limit, Impossible Command (Out of Bounds), Write To Sensor Register
+- `INC-0001` **critical** - 127.0.0.1: 14 event(s) in 62 s - Flood / Rate Limit, Impossible Command (Out of Bounds), Write To Sensor Register
 
 Reading the table honestly: attacks that are slow and stay inside normal bounds (for example freeze or ramp style) are **not** stopped by rules; that is what the advisory physical model is for, and its real-data performance is section 3. The command-level recall above counts every command of an attack campaign as an attack, including the ones that are allowed by design (see the note column), so it understates how many HARMFUL commands were stopped.
 

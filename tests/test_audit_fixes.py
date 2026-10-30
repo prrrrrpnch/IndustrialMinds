@@ -93,7 +93,7 @@ check("FLOW VIEW: an approved command the PLC never took is UNDELIVERED, not a g
       sorted(e["verdict"] for e in flow.values()) == ["PASS", "UNDELIVERED", "UNDELIVERED"], str([e["verdict"] for e in flow.values()]))
 check("...for an advisory ALERT too, and the reason says why", any("PLC_UNREACHABLE" in str(e["reason"]) for e in flow.values()))
 flow_js = io.open(os.path.join(ROOT, "dashboard", "static", "flow.js")).read()
-check("the ticker says it never reached the PLC", "never reached the PLC" in flow_js)
+check("the flow view marks the PLC node as unreachable when a command never arrived", '":5020 unreachable"' in flow_js and "plc-down" in flow_js)
 
 print("\nA5 - /api/health must be able to report ill health")
 h = c.get("/api/health").get_json()

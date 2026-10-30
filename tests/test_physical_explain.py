@@ -237,8 +237,8 @@ got = c.get("/api/model").get_json()
 check("the dashboard serves the published card", got["model"] == "PhysicalModelV2" and got["known_limits"])
 check("a body that is not a card is rejected", c.post("/api/model", json={"nope": 1}).status_code == 400)
 page = c.get("/").data
-check("the page has the model panel and its script", b"model-strip" in page and b"model_card.js" in page)
-check("the panel script is served", c.get("/static/model_card.js").status_code == 200)
+check("the dashboard page no longer carries the physical-model panel (the card stays available over the API)",
+      b"model-strip" not in page and b"model_card.js" not in page)
 
 print("\nALL PASS" if fails == 0 else f"\n{fails} CHECK(S) FAILED")
 raise SystemExit(1 if fails else 0)
