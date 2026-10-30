@@ -27,7 +27,7 @@ From the attacker laptop, e.g. `python -m attacker.attacker hmac-tamper` (or `ra
 
 | Place | What you see |
 |---|---|
-| Live Network Flow | a new host (red border, "untrusted") appears; red dots travel to the middleware and **stop at the layer that caught them** (Cyber Agent for source/HMAC/replay/rate, Physical Agent for bounds/rate-of-change/cross-register); per-host counters; ticker with the reason |
+| Live Network Flow | the attacker host (red, "attacker (untrusted host)") appears; red dots travel to the middleware and **stop at the layer that caught them** (Cyber Agent for source/HMAC/replay/rate, Physical Agent for bounds/rate-of-change/cross-register); per-host counters |
 | Packet Tracer | click the command: seven hops, first failing check red, the rest `NOT_RUN`, outcome "dropped", log file named |
 | Middleware terminal | `[MIDDLEWARE] DROP src=<attacker_ip> ... reason=...` and the logging line |
 | Log | `logs/blocked_attacks.jsonl` (one JSON line per DROP; attack type derived from the reason code) and the dashboard Blocked sources table |
@@ -41,7 +41,7 @@ From the attacker laptop, e.g. `python -m attacker.attacker hmac-tamper` (or `ra
 
 ## 5. Recovery and return to normal
 1. Stop the attacker. Blocked attempts need no action.
-2. If the plant was displaced (ALERT rows persist, telemetry far from nominal), **bring the actuators back through the middleware**: `python -m scada.scada --restore`. It reads the plant, then sends signed half-step commands (never repeating a payload inside the replay window, at most 2 per second) until every actuator is at its operator target, then exits. Everything it sends is judged by the same rules and appears in the flow panel.
+2. The running SCADA operator recovers a displaced plant by itself: once an actuator is more than three operator steps from its target and has stopped moving for 15 s, it starts the same recovery as `--restore` (you will see `AUTO-RECOVERY` in its terminal). To do it immediately or when the operator loop is not running, **bring the actuators back through the middleware**: `python -m scada.scada --restore`. It reads the plant, then sends signed half-step commands (never repeating a payload inside the replay window, at most 2 per second) until every actuator is at its operator target, then exits. Everything it sends is judged by the same rules and appears in the flow panel.
 3. Sensors (tank levels, pressures) recover physically over a few minutes; the model's alerts stop once the window is healthy again.
 4. Resume the operator loop: `python -m scada.scada`. For a fully clean start (e.g. after `false-injection`), restart the PLC.
 5. The dashboard **Reset** clears only the tables, not the plant.

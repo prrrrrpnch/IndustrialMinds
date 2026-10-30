@@ -38,7 +38,7 @@ Traffic: `SCADA/Attacker -> Middleware :5021 -> PLC :5020`. The middleware also 
 
 Signed commands carry a timestamp and the middleware rejects frames more than **30 s** away from its own clock (`HMAC_EXPIRED`).
 Enable automatic time on all four laptops (macOS: System Settings -> General -> Date & Time; Windows: Settings -> Time & language ->
-"Set time automatically" -> Sync now). A skewed laptop looks exactly like a delayed-replay attack.
+"Set time automatically" -> Sync now). A skewed laptop is rejected as `HMAC_EXPIRED`, which looks like an attack but is only the clock.
 
 ## The shared secret
 

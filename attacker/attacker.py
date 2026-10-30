@@ -24,10 +24,9 @@ Attacks (new):
     hmac-missing           plain unsigned FC6 write                  -> HMAC_MISSING
     hmac-tamper            valid signed frame, value altered in transit -> HMAC_INVALID
     hmac-forged            frame signed with a guessed key           -> HMAC_INVALID
-    delayed-replay         correctly signed frame that is 5 minutes old -> HMAC_EXPIRED
 
 Threat model:
-    flood / impossible-command / replay / cross-register / delayed-replay model
+    flood / impossible-command / replay / cross-register model
     a COMPROMISED ENGINEERING WORKSTATION that holds the shared HMAC key
     (insider). HMAC cannot stop an attacker who owns the key; the cyber rate /
     replay checks and the Physical Agent must. The hmac-* attacks model an
@@ -43,7 +42,7 @@ Source IP:
 Two families (Phase 8):
     FIXED, scripted attacks (above): identical every run, for live-demo reliability.
         The three DEMO attacks are: flood, impossible-command, cross-register.
-        The rest (sensor-write, replay, false-injection, hmac-*, delayed-replay) are fixed protocol-level probes.
+        The rest (sensor-write, replay, false-injection, hmac-*) are fixed protocol-level probes.
     RANDOMISED attacks (`random`): target register, timing, intensity, step size and counts are drawn per run
         from distributions (attacker/scenarios.py); the seed is printed so any run can be reproduced.
         Types: freeze / ramp / cross-register  (SWaT-derived behaviours)
@@ -616,24 +615,6 @@ def hmac_forged_attack() -> None:
     print("[ATTACK] HMAC forged complete.")
 
 
-def delayed_replay_attack() -> None:
-
-    print("\n[ATTACK] DELAYED REPLAY (valid signature, captured 5 minutes ago)")
-
-    client = connect(MIDDLEWARE_HOST, MIDDLEWARE_PORT)
-    if client is None:
-        return
-
-    try:
-        current = read_plant(client).get(MV101, 32.0)
-        old_ts = int((time.time() - 300) * 1000)
-        write_signed(client, MV101, round(current + 1.0, 1), timestamp_ms=old_ts)
-    finally:
-        client.close()
-
-    print("[ATTACK] Delayed replay complete.")
-
-
 # ---------------------------------------------------------
 # RANDOMISED ATTACKS (plans come from attacker/scenarios.py)
 # ---------------------------------------------------------
@@ -711,7 +692,6 @@ ATTACKS = {
     "hmac-missing": hmac_missing_attack,
     "hmac-tamper": hmac_tamper_attack,
     "hmac-forged": hmac_forged_attack,
-    "delayed-replay": delayed_replay_attack,
 }
 
 

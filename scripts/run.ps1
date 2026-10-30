@@ -75,6 +75,7 @@ switch ($Role) {
         $env:IM_DASHBOARD_BIND_HOST = $DASH_BIND
         # The DASHBOARD reads this to name the hosts in the Live Network Flow ("SCADA operator" instead of a bare "host").
         $env:IM_HOST_LABELS = "$SCADA_IP=SCADA operator,$ATTACKER_IP=Attacker laptop"
+        $env:IM_HOST_ROLES = "$SCADA_IP=operator,$ATTACKER_IP=attacker"
         Set-DashToken
         & $py dashboard/app.py @Rest
     }

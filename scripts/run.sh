@@ -65,6 +65,7 @@ case "$ROLE" in
         export IM_DASHBOARD_BIND_HOST="$DASHBOARD_BIND_HOST"
         # The DASHBOARD reads these to name the hosts in the Live Network Flow ("SCADA operator" instead of a bare "host").
         export IM_HOST_LABELS="$SCADA_IP=SCADA operator,$ATTACKER_IP=Attacker laptop"
+        export IM_HOST_ROLES="$SCADA_IP=operator,$ATTACKER_IP=attacker"
         dash_token
         exec $PY dashboard/app.py "$@"
         ;;

@@ -2,7 +2,7 @@
 
 Every number here was measured on the held-out SWaT test block and is reproduced by
 `python -m benchmark.run_all --data-dir <SWaT archive>`. The short machine-readable form of this page is
-`models.physical_model_v2.model_card()`, which the middleware publishes to the dashboard at startup, so the panel always
+`models.physical_model_v2.model_card()`, which the middleware publishes to the dashboard at startup (`GET /api/model`), so the card always
 describes the model that is actually running, environment overrides included.
 
 ## What it is

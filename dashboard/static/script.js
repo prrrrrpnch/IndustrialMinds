@@ -1019,14 +1019,15 @@ function setupBlockedSection() {
 let tracerSelected = null;     // full tx_id the user clicked; null = follow the latest
 let tracerLastKey = "";
 
+// Numbered by position when drawn: the Cyber model hop only exists when a cyber model is loaded, so fixed numbers would skip one.
 const HOP_TITLES = {
-    arrival: "1  Arrival (network)",
-    cyber_rules: "2  Cyber Agent - rules",
-    cyber_model: "3  Cyber model (advisory)",
-    physical_rules: "4  Physical Agent - rules",
-    physical_model: "5  Physical model (advisory)",
-    orchestrator: "6  Orchestrator - fusion",
-    outcome: "7  Outcome",
+    arrival: "Arrival (network)",
+    cyber_rules: "Cyber Agent - rules",
+    cyber_model: "Cyber model (advisory)",
+    physical_rules: "Physical Agent - rules",
+    physical_model: "Physical model (advisory)",
+    orchestrator: "Orchestrator - fusion",
+    outcome: "Outcome",
 };
 
 function fmtVal(v) {
@@ -1041,14 +1042,14 @@ function renderTrace(t) {
     if (!box) return;
     const head = `<div class="tracer-head"><b>${safe(t.short_id)}</b> <span class="verdict ${verdictClass(t.verdict)}">${safe(t.verdict)}</span> ` +
         `<span class="tracer-reason">${safe(t.reason)}</span> <span class="tracer-id">${safe(t.tx_id)}</span></div>`;
-    const hops = (t.hops || []).map((h) => {
+    const hops = (t.hops || []).map((h, idx) => {
         const checks = (h.checks || []).map((c) =>
             `<li class="chk chk-${String(c.result).toLowerCase()}"><span class="chk-name">${safe(c.check)}</span>` +
             `<span class="chk-res">${safe(c.result)}</span><span class="chk-detail">${safe(c.detail)}</span></li>`).join("");
         const vals = Object.entries(h.values || {}).map(([k, v]) =>
             `<div class="kv"><span class="k">${safe(k)}</span><span class="v">${safe(fmtVal(v))}</span></div>`).join("");
         const ms = (h.ms === null || h.ms === undefined) ? "" : `<span class="hop-ms">${fmtVal(h.ms)} ms</span>`;
-        return `<div class="hop hop-${String(h.outcome).toLowerCase()}"><div class="hop-title">${safe(HOP_TITLES[h.hop] || h.hop)}` +
+        return `<div class="hop hop-${String(h.outcome).toLowerCase()}"><div class="hop-title">${idx + 1}  ${safe(HOP_TITLES[h.hop] || h.hop)}` +
             `<span class="hop-outcome">${safe(h.outcome)}</span>${ms}</div>${checks ? `<ul class="chk-list">${checks}</ul>` : ""}<div class="kvs">${vals}</div></div>`;
     }).join('<div class="hop-arrow">&#9660;</div>');
     const tm = Object.entries(t.timings_ms || {}).map(([k, v]) => `${k} ${fmtVal(v)} ms`).join("  ·  ");

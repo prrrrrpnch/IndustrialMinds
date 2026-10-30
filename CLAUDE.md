@@ -156,6 +156,20 @@ Reference files are listed by path below; none are auto-loaded.
 - Guard hook only fires on EXECUTING a training script (python ... train*), not on reads; avoid heredocs whose text mentions weights paths / training commands (false positives) - write scripts with the Write tool.
 - Wireshark decodes Modbus only on port 502: use the PORT PREFERENCE (`-o mbtcp.tcp.port:5021`), NOT Decode As (it cannot classify requests/responses). To watch BOTH legs in one capture pass ONE RANGE `-o mbtcp.tcp.port:5020,5021`: passing the flag twice makes the second value REPLACE the first and the other leg shows 'Unable to classify as query or response' with no modbus.reference_num (verified, tshark 4.2.2). tx_id is not on the wire; the frame nonce words are (shown in the tracer Arrival hop).
 - Laptop topology (user, P10): 4 laptops = Mac A middleware+dashboard+Wireshark, Windows A PLC+tshark, Mac B SCADA, Windows B attacker. IPs are NOT chosen yet (user sets them later; laptops unavailable): docs/topology.md uses placeholders; do NOT run `confirm.py ips` until the user gives addresses.
+- DEMO-READINESS FIXES (30 Oct, verified in a headless browser + live loopback stack): (1) NETWORK FLOW was "choppy" because `flow.js` re-armed its
+  requestAnimationFrame loop at the END of the frame and used the rAF timestamp against `performance.now()` launch times: a dot launched just before
+  a frame got a negative progress, indexed `path[-1]` and threw, which ended the animation for good (dots froze, on-screen count climbed to the old cap of
+  25, new packets were dropped; 32 of 69 events drawn). The data feed was healthy. Now: re-arm first, one clock, per-dot try/catch, queued paced launches,
+  non-overlapping polls, nodes updated in place (62/62 drawn, 0 page errors). (2) Hosts are drawn by ROLE (`IM_HOST_ROLES="<ip>=operator,<ip>=attacker"`, set
+  by the launchers), not by the source whitelist: the attacker is whitelisted in insider mode on purpose and used to be labelled "trusted". `/api/flow` returns
+  `roles` and each event carries `whitelisted` (`trusted` kept as the old name). The per-command ticker and the long explanation were removed from the flow card;
+  the Physical Model info panel was removed from the dashboard (the card stays at `GET /api/model`; `dashboard/static/model_card.js` is now unreferenced,
+  delete it once a deletion is confirmed). (3) STICKY ALERT after cross-register: the advisory model was right (tanks really were off-normal); the operator
+  crept MV101 back 2 units per 20 s (~8 min) and the tanks then needed ~3 min to refill. `scada.scada` now AUTO-RECOVERS: an actuator more than 3 operator
+  steps from target that has not moved for 15 s starts the same `_recover()` sweep as `--restore` (it must wait for quiet, or it fights an attack in
+  progress and the attack script never finishes). ALERTs now clear ~2 min after the attack ends. (4) The tracer shows a `cyber_model` hop only when a cyber
+  model is actually loaded (never today), hops are numbered by position. (5) The delayed-replay attack scenario was removed everywhere; the HMAC_EXPIRED freshness
+  rule itself stays (rule conformance still tests it).
 
 ## File index (open only when relevant)
 | Path | Open when |

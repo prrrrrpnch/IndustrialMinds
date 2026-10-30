@@ -70,6 +70,7 @@ class Sim:
             IM_DASHBOARD_HOST=MW, IM_DASHBOARD_PORT=str(DASH_PORT), IM_DASHBOARD_BIND_HOST=MW,
             IM_TRUSTED_SOURCES=f"{SCADA_IP},{ATTACKER_IP}",
             IM_HOST_LABELS=f"{SCADA_IP}=SCADA operator (Mac B),{ATTACKER_IP}=Attacker laptop (Windows B)",
+            IM_HOST_ROLES=f"{SCADA_IP}=operator,{ATTACKER_IP}=attacker",
             IM_HMAC_SECRET="four-laptop-simulation-shared-secret",
         )
         for leftover in ("IM_QUARANTINE", "IM_POLICY_FILE", "IM_DASHBOARD_TOKEN", "IM_HMAC_KEYS", "IM_HMAC_KEYS_FILE"):

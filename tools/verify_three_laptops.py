@@ -297,7 +297,6 @@ def main() -> int:
             ("hmac-tamper", ["hmac-tamper"], L3, "HMAC_INVALID"),
             ("hmac-forged", ["hmac-forged"], L3, "HMAC_INVALID"),
             ("replay", ["replay"], L3, "REPLAY_DETECTED"),
-            ("delayed-replay", ["delayed-replay"], L3, "HMAC_EXPIRED"),
             ("flood", ["flood"], L3, "RATE_LIMIT_EXCEEDED"),
             ("cross-register", ["cross-register"], L3, "CROSS_REGISTER_VIOLATION"),
             ("rogue host (not trusted)", ["impossible-command"], ROGUE, "UNTRUSTED_SOURCE"),

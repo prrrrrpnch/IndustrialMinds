@@ -277,6 +277,20 @@ def _host_labels() -> Dict[str, str]:
     return out
 
 
+def _host_roles() -> Dict[str, str]:
+    """What each known source host IS, from the deployment: IM_HOST_ROLES="<scada-ip>=operator,<attacker-ip>=attacker".
+    The middleware's source whitelist only says whether an address may SEND (an insider demo whitelists the attacker laptop on
+    purpose, so the later layers can be shown); it does not say whether the host is trusted. Roles come from the lab setup, not
+    from traffic, and an unlisted host simply has no role."""
+    out: Dict[str, str] = {}
+    for item in os.environ.get("IM_HOST_ROLES", "").split(","):
+        if "=" in item:
+            ip, role = item.split("=", 1)
+            if ip.strip() and role.strip().lower() in ("operator", "attacker"):
+                out[ip.strip()] = role.strip().lower()
+    return out
+
+
 def _flow_summary(t: Dict[str, Any]) -> Dict[str, Any]:
     """What the Network Flow view needs from one trace: who sent it, how far it got, and why it stopped."""
     hop = {h["hop"]: h for h in t.get("hops", [])}
@@ -296,7 +310,8 @@ def _flow_summary(t: Dict[str, Any]) -> Dict[str, Any]:
         reason = f"PLC_UNREACHABLE: approved ({verdict}) but the PLC did not accept the write"
         verdict = "UNDELIVERED"
     return {"seq": t.get("seq"), "tx": t.get("short_id"), "time": _format_time(t.get("time")), "source_ip": ip,
-            "trusted": None if "source_whitelist" not in checks else checks["source_whitelist"] == "PASS",
+            "whitelisted": None if "source_whitelist" not in checks else checks["source_whitelist"] == "PASS",
+            "trusted": None if "source_whitelist" not in checks else checks["source_whitelist"] == "PASS",   # old name for whitelisted
             "verdict": verdict, "reason": reason, "stopped_at": stopped,
             "forwarded": bool(out_vals.get("forwarded_to_plc")), "command": arr.get("register"), "value": arr.get("requested_value"),
             "model_flag": bool((hop.get("physical_model", {}).get("values") or {}).get("threat_flag"))}
@@ -747,7 +762,8 @@ def flow() -> Response:
         items = [t for t in _traces.values() if (t.get("seq") or 0) > since]
         last = _trace_seq
     items.sort(key=lambda t: t.get("seq") or 0)
-    return jsonify({"last_seq": last, "labels": _host_labels(), "events": [_flow_summary(t) for t in items[-200:]]})
+    return jsonify({"last_seq": last, "labels": _host_labels(), "roles": _host_roles(),
+                    "events": [_flow_summary(t) for t in items[-200:]]})
 
 
 @app.route("/api/trace/<tx>")

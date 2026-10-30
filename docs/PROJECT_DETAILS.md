@@ -38,7 +38,7 @@ Industrial control protocols such as Modbus/TCP have no authentication, no integ
 |---|---|---|---|
 | External attacker without the key | can reach the middleware port; cannot sign | `hmac-missing`, `hmac-forged`, `hmac-tamper`, untrusted source | source whitelist, HMAC |
 | Man-in-the-middle | alters a captured frame in transit | `hmac-tamper` | HMAC (tag no longer matches) |
-| Replay attacker | resends a captured valid frame, immediately or later | `replay`, `delayed-replay` | nonce store, payload-duplicate check, freshness window |
+| Replay attacker | resends a captured valid frame | `replay` | nonce store, payload-duplicate check, freshness window |
 | Flooder | high-rate valid-looking traffic | `flood` | per-source rate limit |
 | Compromised engineering workstation (insider holding the key) | can sign anything | `impossible-command`, `cross-register`, `freeze`, `ramp`, `flood`, `replay` | rate/replay checks and the whole Physical Agent |
 | Attacker with direct network path to the PLC | bypasses the middleware | `false-injection` | **not preventable by the middleware**; only detected afterwards by the physical model and the sensor-envelope rule |
@@ -388,7 +388,7 @@ KPIs (total, pass, drop), two security tables (**SCADA to PLC** decisions and **
 Every `DROP` appends one JSON line to `logs/blocked_attacks.jsonl`: time, direction, source address and port, tx id, function code, register and name, requested and current value, signature state (`present`, `absent`, `malformed`), HMAC status, both verdicts with reasons, orchestrator decision, latency, and a model summary (plant state, scores). The attack **type is derived from the agents' reason codes**, never from anything the sender claims. The HMAC key and tag are never written.
 
 ### 7.12 Attacker (`attacker/attacker.py`, `attacker/scenarios.py`)
-A real Modbus client. **Fixed scripted attacks** are identical every run for demo reliability (demo set: `flood`, `impossible-command`, `cross-register`; others: `sensor-write`, `replay`, `false-injection`, `hmac-missing`, `hmac-tamper`, `hmac-forged`, `delayed-replay`).
+A real Modbus client. **Fixed scripted attacks** are identical every run for demo reliability (demo set: `flood`, `impossible-command`, `cross-register`; others: `sensor-write`, `replay`, `false-injection`, `hmac-missing`, `hmac-tamper`, `hmac-forged`).
 **Randomised attacks** are generated as **plans** (lists of timed steps) from a seeded NumPy generator, so each run varies and any run is reproducible from its seed. Each plan is labelled `swat-derived` or `synthetic-extension`.
 
 | Type | Origin | What is randomised and how |
@@ -625,8 +625,8 @@ traffic = 40 in-bounds signed writes, then each scripted attack; outcomes read f
 (2) a deterministic response-layer demonstration (quarantine after 2 forged commands, policy cases); (3) recorded results (held-out REAL SWaT,
 rule regression on constructed scenarios). Commands are labelled by the phase that sent them, so multi-step attacks whose early steps are
 allowed by design (flood's first 5 frames, the original frame of a replay, the early ramp steps of cross-register) count as command-level misses;
-a note column explains each. First run: command-level TN 40 / FP 0 / FN 11 / TP 15 (precision 1.0, recall 0.577, F1 0.732); campaigns detected
-9/10, 9/9 of those passing through the middleware; `false-injection` bypasses the middleware (documented limit). The physical ML model is cold
+a note column explains each. First run: command-level TN 40 / FP 0 / FN 11 / TP 14 (precision 1.0, recall 0.56, F1 0.718); campaigns detected
+8/9, 8/8 of those passing through the middleware; `false-injection` bypasses the middleware (documented limit). The physical ML model is cold
 during the campaign (120 s warm-up), so it measures the rules. Outputs: docs/reports/evidence_pack.md, benchmarks/evidence_pack.json,
 docs/reports/figures/evidence_live_campaign.png, evidence_swat_heldout.png.
 

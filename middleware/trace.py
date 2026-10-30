@@ -9,11 +9,12 @@ check (rate counts, bounds, rate limits, thresholds) are read from the same stat
 Hops, in the order a downstream command meets them:
     1 arrival          socket peer, function code, register, value, signature present?
     2 cyber_rules      whitelist, function code, register allow-list, rate limit, HMAC, replay   (deterministic rules)
-    3 cyber_model      advisory score (NO_MODEL: the cyber branch is rules-only by design)
-    4 physical_rules   register/actuator check, bounds, rate-of-change, cross-register           (deterministic rules)
-    5 physical_model   advisory SWaT-trained window model (plant_state, scores, flagged_by)
-    6 orchestrator     fusion inputs -> branch taken -> verdict
-    7 outcome          forwarded to the PLC, or dropped and where the drop was logged   (added by the middleware)
+    - cyber_model      advisory score, ONLY when a cyber model is loaded. The cyber branch is rules-only by design, so with no
+                       weights (status NO_MODEL) there is nothing to show and the hop is left out of the trace.
+    3 physical_rules   register/actuator check, bounds, rate-of-change, cross-register           (deterministic rules)
+    4 physical_model   advisory SWaT-trained window model (plant_state, scores, flagged_by)
+    5 orchestrator     fusion inputs -> branch taken -> verdict
+    6 outcome          forwarded to the PLC, or dropped and where the drop was logged   (added by the middleware)
 """
 
 from __future__ import annotations
@@ -133,11 +134,6 @@ def build_trace(command: Dict[str, Any], state: Dict[str, Any], cyber_rule: Dict
         {"hop": "cyber_rules", "layer": "cyber", "outcome": _outcome(cyber_rule.get("pass")), "ms": None,
          "values": {"reason": cyber_rule.get("reason"), "auth_status": cyber_rule.get("auth_status", "NOT_CHECKED")},
          "checks": cyber_checks(command, cyber_rule)},
-        {"hop": "cyber_model", "layer": "cyber", "outcome": "INFO", "ms": cyber_ml.get("latency_ms"),
-         "values": {"status": cyber_ml.get("status"), "anomaly_score": cyber_ml.get("anomaly_score"),
-                    "threat_flag": cyber_ml.get("threat_flag"), "mode": mode,
-                    "gate_reason": gate_cyber.get("reason") if gate_cyber is not cyber_rule else "(unchanged)"},
-         "checks": []},
         {"hop": "physical_rules", "layer": "physical", "outcome": _outcome(phys_rule.get("pass")), "ms": None,
          "values": {"reason": phys_rule.get("reason")},
          "checks": physical_checks(command, phys_rule, state)},
@@ -159,6 +155,13 @@ def build_trace(command: Dict[str, Any], state: Dict[str, Any], cyber_rule: Dict
                     "reason": decision.get("reason"), "latency_ms": decision.get("latency_ms")},
          "checks": []},
     ]
+    if cyber_ml.get("status") not in (None, "NO_MODEL"):
+        # A cyber model is really loaded (not the default): show what it computed, right after the cyber rules.
+        hops.insert(2, {"hop": "cyber_model", "layer": "cyber", "outcome": "INFO", "ms": cyber_ml.get("latency_ms"),
+                        "values": {"status": cyber_ml.get("status"), "anomaly_score": cyber_ml.get("anomaly_score"),
+                                   "threat_flag": cyber_ml.get("threat_flag"), "mode": mode,
+                                   "gate_reason": gate_cyber.get("reason") if gate_cyber is not cyber_rule else "(unchanged)"},
+                        "checks": []})
     return {"tx_id": command.get("tx_id"), "time": command.get("timestamp"), "direction": decision.get("direction", "downstream"),
             "verdict": decision.get("verdict"), "reason": decision.get("reason"), "hops": hops,
             "timings_ms": {k: v for k, v in timings_ms.items() if v is not None}}
