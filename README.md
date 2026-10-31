@@ -201,8 +201,8 @@ with a raw number.
 Beyond blocking single commands the middleware can restrict and respond. **Policy-as-code** (`config/policy.json`, see
 `config/policy.example.json`) limits which registers and value ranges each source may write, after its HMAC is verified.
 **Auto-quarantine** (`IM_QUARANTINE=auto`, set by the launcher; it switches itself off on a one-laptop demo) cuts off a source that keeps violating the rules for a growing hold time, then releases it.
-**Incident correlation** groups related blocked/alerted commands per source into one incident with severity and a timeline on the
-dashboard. All deterministic and covered by `tests/test_response_layer.py`; none of it uses a learned model.
+**Incident correlation** groups related blocked/alerted commands per source into one incident with severity and a timeline (served by `GET /api/incidents`; no longer drawn on the
+dashboard page). All deterministic and covered by `tests/test_response_layer.py`; none of it uses a learned model.
 
 ### Orchestrator: RULE-BASED fusion (`middleware/orchestrator.py`)
 

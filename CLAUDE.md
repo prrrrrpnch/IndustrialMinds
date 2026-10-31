@@ -169,7 +169,7 @@ Reference files are listed by path below; none are auto-loaded.
   steps from target that has not moved for 15 s starts the same `_recover()` sweep as `--restore` (it must wait for quiet, or it fights an attack in
   progress and the attack script never finishes). ALERTs now clear ~2 min after the attack ends. (4) The tracer shows a `cyber_model` hop only when a cyber
   model is actually loaded (never today), hops are numbered by position. (5) The delayed-replay attack scenario was removed everywhere; the HMAC_EXPIRED freshness
-  rule itself stays (rule conformance still tests it).
+  rule itself stays (rule conformance still tests it). (6) 31 Oct, USER DECISIONS on the dashboard page: ORIGINAL layout kept (3 KPI cards, Packet Tracer at the BOTTOM - a redesign was tried and reverted); the flow's middleware is ONE box (no Cyber Agent / Physical Agent / Orchestrator boxes inside; a stopped command rests inside the middleware box, `stopped_at` is no longer drawn); the sender node reads `SCADA` + `-> :5021` with NO address; the INCIDENTS PANEL IS REMOVED from the page (`GET /api/incidents` and incidents.js stay; incidents.js is now unreferenced, delete it once a deletion is confirmed, like model_card.js and ui.js).
 
 ## File index (open only when relevant)
 | Path | Open when |

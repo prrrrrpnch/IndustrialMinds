@@ -18,17 +18,12 @@
     const POLL_MS = 700;
 
     const BOX = {
-        mw: { x: 360, y: 30, w: 300, h: 270 },
-        cyber: { x: 385, y: 70, w: 250, h: 52, label: "Cyber Agent (rules)" },
-        physical: { x: 385, y: 140, w: 250, h: 52, label: "Physical Agent (rules + model)" },
-        orch: { x: 385, y: 210, w: 250, h: 52, label: "Orchestrator (fusion)" },
+        mw: { x: 360, y: 105, w: 300, h: 120 },
         plc: { x: 800, y: 135, w: 170, h: 60 },
     };
     const P = {
         entry: [360, 165],
-        cyber: [510, 96],
-        physical: [510, 166],
-        orch: [510, 236],
+        mid: [510, 165],          // where a stopped command comes to rest inside the middleware
         exit: [660, 165],
         plc: [800, 165],
     };
@@ -61,13 +56,8 @@
         svg.innerHTML = "";
         el("g", { id: "flow-edges" }, svg);
         const mw = el("g", {}, svg);
-        el("rect", { x: BOX.mw.x, y: BOX.mw.y, width: BOX.mw.w, height: BOX.mw.h, rx: 14, class: "flow-mw" }, mw);
-        text(mw, BOX.mw.x + BOX.mw.w / 2, BOX.mw.y + 22, "MIDDLEWARE  :5021", "flow-title");
-        for (const key of ["cyber", "physical", "orch"]) {
-            const b = BOX[key];
-            el("rect", { x: b.x, y: b.y, width: b.w, height: b.h, rx: 9, class: "flow-layer", id: `flow-box-${key}` }, mw);
-            text(mw, b.x + b.w / 2, b.y + b.h / 2 + 5, b.label, "flow-text");
-        }
+        el("rect", { x: BOX.mw.x, y: BOX.mw.y, width: BOX.mw.w, height: BOX.mw.h, rx: 14, class: "flow-mw", id: "flow-box-mw" }, mw);
+        text(mw, BOX.mw.x + BOX.mw.w / 2, BOX.mw.y + 34, "MIDDLEWARE  :5021", "flow-title");
         el("line", { x1: P.exit[0], y1: P.exit[1], x2: P.plc[0], y2: P.plc[1], class: "flow-edge" }, svg);
         const plc = el("g", {}, svg);
         el("rect", { x: BOX.plc.x, y: BOX.plc.y, width: BOX.plc.w, height: BOX.plc.h, rx: 12, class: "flow-plc", id: "flow-box-plc" }, plc);
@@ -97,10 +87,12 @@
         return labels[s.ip] || "host";
     }
 
-    // Like the PLC node (":5020"), the sender's node just names the port it talks to; no counters.
+    // Like the PLC node (":5020"), the sender's node just names the port it talks to. No counters, and no address for
+    // SCADA or the attacker (their roles are named); an unnamed host keeps its address, or nobody could tell what it is.
     function hostDetail(s) {
         const r = roleOf(s);
-        if (r === "attacker") return `${s.ip}  ·  attacker (untrusted host)  →  :5021`;
+        if (r === "attacker") return "attacker (untrusted host)  →  :5021";
+        if (isScada(s)) return "→  :5021";
         if (s.whitelisted === false) return `${s.ip}  ·  not on the whitelist  →  :5021`;
         return `${s.ip}  →  :5021`;
     }
@@ -163,9 +155,8 @@
     function launch(ev, now) {
         const src = sources.get(ev.source_ip);
         if (!src || src.y === undefined) return;            // a host that is not on screen has no lane to travel along
-        const path = [[280, src.y], P.entry, P.cyber];
-        if (ev.stopped_at !== "cyber") path.push(P.physical);
-        if (!ev.stopped_at) path.push(P.orch, P.exit, P.plc);
+        // A stopped command comes to rest inside the middleware; an approved one goes on to the PLC.
+        const path = ev.stopped_at ? [[280, src.y], P.entry, P.mid] : [[280, src.y], P.entry, P.exit, P.plc];
         const colour = verdictColour(ev);
         const c = el("circle", { r: 7, cx: path[0][0], cy: path[0][1], class: `flow-dot ${isHostile(src) ? "dot-untrusted" : colour}` },
             svg.querySelector("#flow-dots"));
@@ -173,7 +164,7 @@
     }
 
     function arrive(d) {
-        const end = d.ev.stopped_at || "plc";
+        const end = d.ev.stopped_at ? "mw" : "plc";
         flash(end, d.ev.verdict === "DROP" || d.ev.verdict === "UNDELIVERED" ? "hit-drop" : d.ev.verdict === "ALERT" ? "hit-alert" : "hit-pass");
         if (end === "plc") {
             // A command that reached the PLC marks it up; one the PLC never took marks it DOWN (and says so on the node).
