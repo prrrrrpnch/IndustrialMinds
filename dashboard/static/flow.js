@@ -83,17 +83,26 @@
 
     function isHostile(s) { return roleOf(s) === "attacker" || s.whitelisted === false; }
 
-    function hostName(s) {
+    // The legitimate sender is SCADA. On a one-computer run every sender shares the loopback address, which the
+    // dashboard labels "this machine" - that traffic is SCADA's, so it is drawn as SCADA too.
+    function isScada(s) {
         const r = roleOf(s);
-        return labels[s.ip] || (r === "attacker" ? "Attacker laptop" : r === "operator" ? "SCADA operator" : "host");
+        return r === "operator" || (r === null && labels[s.ip] === "this machine");
     }
 
+    function hostName(s) {
+        const r = roleOf(s);
+        if (r === "attacker") return labels[s.ip] || "Attacker laptop";
+        if (isScada(s)) return "SCADA";
+        return labels[s.ip] || "host";
+    }
+
+    // Like the PLC node (":5020"), the sender's node just names the port it talks to; no counters.
     function hostDetail(s) {
         const r = roleOf(s);
-        if (r === "attacker") return `${s.ip}  ·  attacker (untrusted host)`;
-        if (r === "operator") return `${s.ip}  ·  operator`;
-        if (s.whitelisted === false) return `${s.ip}  ·  not on the whitelist`;
-        return s.ip;
+        if (r === "attacker") return `${s.ip}  ·  attacker (untrusted host)  →  :5021`;
+        if (s.whitelisted === false) return `${s.ip}  ·  not on the whitelist  →  :5021`;
+        return `${s.ip}  →  :5021`;
     }
 
     function visibleSources() {
@@ -123,21 +132,19 @@
                 s.node = {
                     group,
                     edge: el("line", {}, edges),
-                    rect: el("rect", { x: 10, width: 270, height: 60, rx: 10 }, group),
+                    rect: el("rect", { x: 10, width: 270, height: 48, rx: 10 }, group),
                     name: text(group, 145, 0, "", "flow-title"),
                     detail: text(group, 145, 0, "", "flow-sub"),
-                    stats: text(group, 145, 0, "", "flow-sub"),
                 };
             }
             const n = s.node;
             n.edge.setAttribute("x1", 280); n.edge.setAttribute("y1", s.y);
             n.edge.setAttribute("x2", P.entry[0]); n.edge.setAttribute("y2", P.entry[1]);
             n.edge.setAttribute("class", isHostile(s) ? "flow-edge hostile" : "flow-edge");
-            n.rect.setAttribute("y", s.y - 30);
+            n.rect.setAttribute("y", s.y - 24);
             n.rect.setAttribute("class", nodeClass(s));
-            n.name.setAttribute("y", s.y - 10); n.name.textContent = hostName(s);
-            n.detail.setAttribute("y", s.y + 6); n.detail.textContent = hostDetail(s);
-            n.stats.setAttribute("y", s.y + 22); n.stats.textContent = `sent ${s.sent} · pass ${s.pass} · alert ${s.alert} · drop ${s.drop}`;
+            n.name.setAttribute("y", s.y - 4); n.name.textContent = hostName(s);
+            n.detail.setAttribute("y", s.y + 14); n.detail.textContent = hostDetail(s);
         });
     }
 
