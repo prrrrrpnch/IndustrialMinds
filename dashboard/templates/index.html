@@ -517,15 +517,6 @@
         <div id="investigation-list"><p class="tracer-empty">No investigations. When an incident reaches high severity the investigator writes up what happened and what it would do about it, for a person to approve.</p></div>
     </section>
 
-    <!-- INCIDENTS (correlated blocked/alerted commands, quarantine state) -->
-    <section class="card incident-card" id="incident-section" style="margin:20px;">
-        <div class="card-header">
-            <h2><i class="fa-solid fa-triangle-exclamation title-icon"></i> INCIDENTS</h2>
-            <span class="badge-tag" id="incident-count">0 incidents</span>
-        </div>
-        <div id="incident-list"><p class="tracer-empty">No incidents. Blocked or alerted commands from the same source are grouped here with a severity, a timeline and the response taken.</p></div>
-    </section>
-
     <!-- PACKET TRACER (Phase 9) -->
     <section class="card tracer-card" id="tracer-section" style="margin:20px;">
         <div class="card-header">
@@ -546,7 +537,6 @@
 
     <script src="{{ url_for('static', filename='script.js') }}"></script>
     <script src="{{ url_for('static', filename='flow.js') }}"></script>
-    <script src="{{ url_for('static', filename='incidents.js') }}"></script>
     <script src="{{ url_for('static', filename='investigations.js') }}"></script>
 
 </body>
