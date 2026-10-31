@@ -251,6 +251,8 @@ def _replay_forensics() -> None:
             v = e.get("verdict")
             if v in ("PASS", "ALERT"):
                 _metrics["pass"] += 1
+                if v == "ALERT":
+                    _metrics["alert"] += 1
             elif v == "DROP":
                 _metrics["drop"] += 1
             elif v == "UNDELIVERED":
@@ -321,6 +323,7 @@ _metrics = {
     "pass": 0,
     "drop": 0,
     "undelivered": 0,          # AUDIT C1: approved by the agents, but the PLC never took it
+    "alert": 0,                # forwarded with an advisory flag; ALSO counted in "pass" (kept as before)
 }
 
 # One entry per configured machine (core/interfaces.MACHINES).
@@ -453,6 +456,7 @@ def add_scada_event(event: Dict[str, Any]) -> None:
 
         elif verdict == "ALERT":
             _metrics["pass"] += 1          # forwarded to the PLC (advisory flag); shown in the event table
+            _metrics["alert"] += 1
         elif verdict == "DROP":
             _metrics["drop"] += 1
 
@@ -655,6 +659,8 @@ def post_delivery() -> Response:
             if event.get("tx_id") == tx and event.get("verdict") in ("PASS", "ALERT"):
                 if event["verdict"] in ("PASS", "ALERT"):
                     _metrics["pass"] = max(0, _metrics["pass"] - 1)
+                if event["verdict"] == "ALERT":
+                    _metrics["alert"] = max(0, _metrics["alert"] - 1)
                 _metrics["undelivered"] += 1
                 global _last_undelivered_at
                 _last_undelivered_at = time.time()
@@ -825,6 +831,9 @@ def dashboard_data() -> Response:
 
                 "undelivered":
                     _metrics["undelivered"],
+
+                "alert":
+                    _metrics["alert"],
             },
 
             "scada_to_plc":
@@ -940,6 +949,7 @@ def reset_dashboard() -> Response:
         _metrics["pass"] = 0
         _metrics["drop"] = 0
         _metrics["undelivered"] = 0
+        _metrics["alert"] = 0
         _last_undelivered_at_reset()
 
         for m in MACHINES:
