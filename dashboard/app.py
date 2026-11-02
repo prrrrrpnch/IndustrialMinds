@@ -935,7 +935,7 @@ def _last_undelivered_at_reset() -> None:
 )
 def reset_dashboard() -> Response:
 
-    global _event_counter
+    global _event_counter, _trace_seq
 
     with _lock:
 
@@ -960,10 +960,20 @@ def reset_dashboard() -> Response:
         _traces.clear()
         _incidents.clear()
         _investigations.clear()
+        # _trace_seq was NOT reset here before: /api/flow's "last_seq" kept climbing from its historical high-water
+        # mark even though _traces was just emptied above. flow.js reads that as "nothing new since you last asked"
+        # rather than "the dashboard reset" - its rollback detection (data.last_seq < lastSeq) never fired, so a
+        # browser tab open across a Reset kept the OLD attacker node drawn on the Network Flow forever.
+        _trace_seq = 0
 
     # AUDIT A4: Reset clears the VIEW. The record is renamed aside, not deleted - pressing Reset mid-demo must not be able
     # to destroy the evidence of what just happened, which is exactly what the in-memory-only version did.
     forensics.clear()
+    # The Blocked IPs panel reads logs/blocked_attacks.jsonl directly (written by the middleware), which forensics.clear()
+    # does not touch - without this an attacker from a previous run stayed listed there after every other panel went
+    # back to zero. Same set-aside-not-delete pattern.
+    attack_log.clear()
+    _attack_log_reader.records()  # forces its _refresh() now (under its own lock), instead of waiting for the next poll
 
     print(
         "[DASHBOARD] Reset (the forensic record was set aside, not deleted)"
