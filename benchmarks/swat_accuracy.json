@@ -1,0 +1,121 @@
+{
+  "status": "OK",
+  "block": "test (held-out calendar block)",
+  "windows": 28080,
+  "attack_windows": 1061,
+  "benign_windows": 27019,
+  "stride_s": 5,
+  "benign_hours": 37.53,
+  "advisory_model_flag": {
+    "tp": 544,
+    "fp": 637,
+    "fn": 517,
+    "tn": 26382,
+    "precision": 0.4606,
+    "recall": 0.5127,
+    "f1": 0.4853,
+    "false_positive_rate": 0.0236,
+    "accuracy": 0.9589,
+    "balanced_accuracy": 0.7446,
+    "always_benign_baseline_accuracy": 0.9622,
+    "alarm_episodes_per_benign_hour": 1.173
+  },
+  "roc_auc_attack_probability": 0.8362,
+  "average_precision_attack_probability": 0.3628,
+  "label": "PROMOTED physical model (PhysicalModelV2) on the HELD-OUT SWaT test block (real data, aggregate only)",
+  "fixture_not_real_results": false,
+  "operating_point": {
+    "isolation_forest_threshold": null,
+    "classifier_threshold": 0.788,
+    "variant": "v2"
+  },
+  "protocol_note": "test block was used for exactly two refits in the v2 experiment (baseline and selected) and was also seen by the shipped model's revised protocol: held-out, not a pristine blind test. Windows need a 120 s history, so the window set differs slightly from the v1 record",
+  "segments": {
+    "total": 10,
+    "detected": 8,
+    "median_detection_latency_s": 57.5,
+    "per_segment": [
+      {
+        "segment": 26,
+        "attack_windows": 120,
+        "duration_s": 600.0,
+        "flagged_windows": 112,
+        "detected": true,
+        "detection_latency_s": 40.0
+      },
+      {
+        "segment": 27,
+        "attack_windows": 89,
+        "duration_s": 445.0,
+        "flagged_windows": 77,
+        "detected": true,
+        "detection_latency_s": 55.0
+      },
+      {
+        "segment": 28,
+        "attack_windows": 20,
+        "duration_s": 100.0,
+        "flagged_windows": 1,
+        "detected": true,
+        "detection_latency_s": 60.0
+      },
+      {
+        "segment": 29,
+        "attack_windows": 96,
+        "duration_s": 480.0,
+        "flagged_windows": 0,
+        "detected": false,
+        "detection_latency_s": null
+      },
+      {
+        "segment": 30,
+        "attack_windows": 108,
+        "duration_s": 540.0,
+        "flagged_windows": 2,
+        "detected": true,
+        "detection_latency_s": 75.0
+      },
+      {
+        "segment": 31,
+        "attack_windows": 94,
+        "duration_s": 470.0,
+        "flagged_windows": 68,
+        "detected": true,
+        "detection_latency_s": 130.0
+      },
+      {
+        "segment": 32,
+        "attack_windows": 56,
+        "duration_s": 280.0,
+        "flagged_windows": 49,
+        "detected": true,
+        "detection_latency_s": 35.0
+      },
+      {
+        "segment": 33,
+        "attack_windows": 80,
+        "duration_s": 400.0,
+        "flagged_windows": 0,
+        "detected": false,
+        "detection_latency_s": null
+      },
+      {
+        "segment": 34,
+        "attack_windows": 60,
+        "duration_s": 300.0,
+        "flagged_windows": 50,
+        "detected": true,
+        "detection_latency_s": 50.0
+      },
+      {
+        "segment": 35,
+        "attack_windows": 338,
+        "duration_s": 1690.0,
+        "flagged_windows": 185,
+        "detected": true,
+        "detection_latency_s": 85.0
+      }
+    ]
+  },
+  "provenance": "recorded from docs/reports/physical_training_report_v2_swat.json (the user's local SWaT run of models/train_physical_v2.py); `python -m benchmark.run_all --data-dir <archive>` re-measures it with the live PhysicalModelV2 (previous v1 record: benchmarks/swat_accuracy_v1.json)"
+}

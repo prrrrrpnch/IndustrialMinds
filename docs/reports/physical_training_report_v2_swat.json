@@ -1,0 +1,821 @@
+{
+  "windows": {
+    "dev": 161217,
+    "test": 28080
+  },
+  "folds": 5,
+  "cv": [
+    {
+      "feature_set": "v1_67",
+      "model": "rf6",
+      "oof_windows": 161217,
+      "segment_balanced_average_precision": 0.3563,
+      "average_precision": 0.6738,
+      "roc_auc": 0.9219
+    },
+    {
+      "feature_set": "v1_67",
+      "model": "hgb",
+      "oof_windows": 161217,
+      "segment_balanced_average_precision": 0.4367,
+      "average_precision": 0.7774,
+      "roc_auc": 0.8944
+    },
+    {
+      "feature_set": "v1_long",
+      "model": "rf6",
+      "oof_windows": 161217,
+      "segment_balanced_average_precision": 0.3469,
+      "average_precision": 0.6692,
+      "roc_auc": 0.9239
+    },
+    {
+      "feature_set": "v1_long",
+      "model": "hgb",
+      "oof_windows": 161217,
+      "segment_balanced_average_precision": 0.4291,
+      "average_precision": 0.7752,
+      "roc_auc": 0.9171
+    },
+    {
+      "feature_set": "v1_long_resid",
+      "model": "rf6",
+      "oof_windows": 161217,
+      "segment_balanced_average_precision": 0.396,
+      "average_precision": 0.6878,
+      "roc_auc": 0.9363
+    },
+    {
+      "feature_set": "v1_long_resid",
+      "model": "hgb",
+      "oof_windows": 161217,
+      "segment_balanced_average_precision": 0.4989,
+      "average_precision": 0.794,
+      "roc_auc": 0.9252
+    }
+  ],
+  "selected": {
+    "feature_set": "v1_long_resid",
+    "model": "hgb",
+    "oof_windows": 161217,
+    "segment_balanced_average_precision": 0.4989,
+    "average_precision": 0.794,
+    "roc_auc": 0.9252
+  },
+  "alarm_rules": {
+    "0.5": {
+      "baseline": {
+        "k": 1,
+        "m": 1,
+        "threshold": 0.5067951029907256,
+        "budget": 0.5
+      },
+      "selected": {
+        "k": 3,
+        "m": 6,
+        "threshold": 0.641791873031175,
+        "segment_balanced_recall": 0.3907765700564152,
+        "budget": 0.5
+      },
+      "selected_without_persistence": {
+        "k": 1,
+        "m": 1,
+        "threshold": 0.7880311957440195,
+        "budget": 0.5
+      }
+    },
+    "1.0": {
+      "baseline": {
+        "k": 1,
+        "m": 1,
+        "threshold": 0.4914391786394296,
+        "budget": 1.0
+      },
+      "selected": {
+        "k": 3,
+        "m": 6,
+        "threshold": 0.5595290606058204,
+        "segment_balanced_recall": 0.4053901807690795,
+        "budget": 1.0
+      },
+      "selected_without_persistence": {
+        "k": 1,
+        "m": 1,
+        "threshold": 0.6894749803275768,
+        "budget": 1.0
+      }
+    }
+  },
+  "test": {
+    "windows": 28080,
+    "attack_windows": 1061,
+    "benign_hours": 37.53,
+    "0.5": {
+      "baseline": {
+        "rule": {
+          "k": 1,
+          "m": 1,
+          "threshold": 0.5068
+        },
+        "tp": 529,
+        "fp": 640,
+        "fn": 532,
+        "tn": 26379,
+        "precision": 0.4525,
+        "recall": 0.4986,
+        "f1": 0.4744,
+        "accuracy": 0.9583,
+        "balanced_accuracy": 0.7374,
+        "false_positive_rate": 0.0237,
+        "always_benign_baseline_accuracy": 0.9622,
+        "alarm_episodes_per_benign_hour": 0.986,
+        "roc_auc": 0.7713,
+        "average_precision": 0.3305,
+        "segments_detected": 7,
+        "segments_total": 10,
+        "median_latency_s": 55.0,
+        "segment_balanced_recall": 0.5339,
+        "per_segment": [
+          {
+            "segment": 26,
+            "attack_windows": 120,
+            "flagged_windows": 112,
+            "detected": true,
+            "latency_s": 40.0
+          },
+          {
+            "segment": 27,
+            "attack_windows": 89,
+            "flagged_windows": 78,
+            "detected": true,
+            "latency_s": 55.0
+          },
+          {
+            "segment": 28,
+            "attack_windows": 20,
+            "flagged_windows": 0,
+            "detected": false,
+            "latency_s": null
+          },
+          {
+            "segment": 29,
+            "attack_windows": 96,
+            "flagged_windows": 0,
+            "detected": false,
+            "latency_s": null
+          },
+          {
+            "segment": 30,
+            "attack_windows": 108,
+            "flagged_windows": 89,
+            "detected": true,
+            "latency_s": 95.0
+          },
+          {
+            "segment": 31,
+            "attack_windows": 94,
+            "flagged_windows": 68,
+            "detected": true,
+            "latency_s": 130.0
+          },
+          {
+            "segment": 32,
+            "attack_windows": 56,
+            "flagged_windows": 49,
+            "detected": true,
+            "latency_s": 35.0
+          },
+          {
+            "segment": 33,
+            "attack_windows": 80,
+            "flagged_windows": 0,
+            "detected": false,
+            "latency_s": null
+          },
+          {
+            "segment": 34,
+            "attack_windows": 60,
+            "flagged_windows": 52,
+            "detected": true,
+            "latency_s": 40.0
+          },
+          {
+            "segment": 35,
+            "attack_windows": 338,
+            "flagged_windows": 81,
+            "detected": true,
+            "latency_s": 1255.0
+          }
+        ]
+      },
+      "selected_without_persistence": {
+        "rule": {
+          "k": 1,
+          "m": 1,
+          "threshold": 0.788
+        },
+        "tp": 544,
+        "fp": 637,
+        "fn": 517,
+        "tn": 26382,
+        "precision": 0.4606,
+        "recall": 0.5127,
+        "f1": 0.4853,
+        "accuracy": 0.9589,
+        "balanced_accuracy": 0.7446,
+        "false_positive_rate": 0.0236,
+        "always_benign_baseline_accuracy": 0.9622,
+        "alarm_episodes_per_benign_hour": 1.173,
+        "roc_auc": 0.8362,
+        "average_precision": 0.3628,
+        "segments_detected": 8,
+        "segments_total": 10,
+        "median_latency_s": 57.5,
+        "segment_balanced_recall": 0.4846,
+        "per_segment": [
+          {
+            "segment": 26,
+            "attack_windows": 120,
+            "flagged_windows": 112,
+            "detected": true,
+            "latency_s": 40.0
+          },
+          {
+            "segment": 27,
+            "attack_windows": 89,
+            "flagged_windows": 77,
+            "detected": true,
+            "latency_s": 55.0
+          },
+          {
+            "segment": 28,
+            "attack_windows": 20,
+            "flagged_windows": 1,
+            "detected": true,
+            "latency_s": 60.0
+          },
+          {
+            "segment": 29,
+            "attack_windows": 96,
+            "flagged_windows": 0,
+            "detected": false,
+            "latency_s": null
+          },
+          {
+            "segment": 30,
+            "attack_windows": 108,
+            "flagged_windows": 2,
+            "detected": true,
+            "latency_s": 75.0
+          },
+          {
+            "segment": 31,
+            "attack_windows": 94,
+            "flagged_windows": 68,
+            "detected": true,
+            "latency_s": 130.0
+          },
+          {
+            "segment": 32,
+            "attack_windows": 56,
+            "flagged_windows": 49,
+            "detected": true,
+            "latency_s": 35.0
+          },
+          {
+            "segment": 33,
+            "attack_windows": 80,
+            "flagged_windows": 0,
+            "detected": false,
+            "latency_s": null
+          },
+          {
+            "segment": 34,
+            "attack_windows": 60,
+            "flagged_windows": 50,
+            "detected": true,
+            "latency_s": 50.0
+          },
+          {
+            "segment": 35,
+            "attack_windows": 338,
+            "flagged_windows": 185,
+            "detected": true,
+            "latency_s": 85.0
+          }
+        ]
+      },
+      "selected": {
+        "rule": {
+          "k": 3,
+          "m": 6,
+          "threshold": 0.6418
+        },
+        "tp": 603,
+        "fp": 1237,
+        "fn": 458,
+        "tn": 25782,
+        "precision": 0.3277,
+        "recall": 0.5683,
+        "f1": 0.4157,
+        "accuracy": 0.9396,
+        "balanced_accuracy": 0.7613,
+        "false_positive_rate": 0.0458,
+        "always_benign_baseline_accuracy": 0.9622,
+        "alarm_episodes_per_benign_hour": 1.279,
+        "roc_auc": 0.8362,
+        "average_precision": 0.3628,
+        "segments_detected": 8,
+        "segments_total": 10,
+        "median_latency_s": 62.5,
+        "segment_balanced_recall": 0.5203,
+        "per_segment": [
+          {
+            "segment": 26,
+            "attack_windows": 120,
+            "flagged_windows": 110,
+            "detected": true,
+            "latency_s": 50.0
+          },
+          {
+            "segment": 27,
+            "attack_windows": 89,
+            "flagged_windows": 76,
+            "detected": true,
+            "latency_s": 65.0
+          },
+          {
+            "segment": 28,
+            "attack_windows": 20,
+            "flagged_windows": 6,
+            "detected": true,
+            "latency_s": 60.0
+          },
+          {
+            "segment": 29,
+            "attack_windows": 96,
+            "flagged_windows": 0,
+            "detected": false,
+            "latency_s": null
+          },
+          {
+            "segment": 30,
+            "attack_windows": 108,
+            "flagged_windows": 6,
+            "detected": true,
+            "latency_s": 80.0
+          },
+          {
+            "segment": 31,
+            "attack_windows": 94,
+            "flagged_windows": 66,
+            "detected": true,
+            "latency_s": 140.0
+          },
+          {
+            "segment": 32,
+            "attack_windows": 56,
+            "flagged_windows": 47,
+            "detected": true,
+            "latency_s": 45.0
+          },
+          {
+            "segment": 33,
+            "attack_windows": 80,
+            "flagged_windows": 0,
+            "detected": false,
+            "latency_s": null
+          },
+          {
+            "segment": 34,
+            "attack_windows": 60,
+            "flagged_windows": 49,
+            "detected": true,
+            "latency_s": 55.0
+          },
+          {
+            "segment": 35,
+            "attack_windows": 338,
+            "flagged_windows": 243,
+            "detected": true,
+            "latency_s": 75.0
+          }
+        ]
+      }
+    },
+    "1.0": {
+      "baseline": {
+        "rule": {
+          "k": 1,
+          "m": 1,
+          "threshold": 0.4914
+        },
+        "tp": 529,
+        "fp": 695,
+        "fn": 532,
+        "tn": 26324,
+        "precision": 0.4322,
+        "recall": 0.4986,
+        "f1": 0.463,
+        "accuracy": 0.9563,
+        "balanced_accuracy": 0.7364,
+        "false_positive_rate": 0.0257,
+        "always_benign_baseline_accuracy": 0.9622,
+        "alarm_episodes_per_benign_hour": 1.093,
+        "roc_auc": 0.7713,
+        "average_precision": 0.3305,
+        "segments_detected": 7,
+        "segments_total": 10,
+        "median_latency_s": 55.0,
+        "segment_balanced_recall": 0.5339,
+        "per_segment": [
+          {
+            "segment": 26,
+            "attack_windows": 120,
+            "flagged_windows": 112,
+            "detected": true,
+            "latency_s": 40.0
+          },
+          {
+            "segment": 27,
+            "attack_windows": 89,
+            "flagged_windows": 78,
+            "detected": true,
+            "latency_s": 55.0
+          },
+          {
+            "segment": 28,
+            "attack_windows": 20,
+            "flagged_windows": 0,
+            "detected": false,
+            "latency_s": null
+          },
+          {
+            "segment": 29,
+            "attack_windows": 96,
+            "flagged_windows": 0,
+            "detected": false,
+            "latency_s": null
+          },
+          {
+            "segment": 30,
+            "attack_windows": 108,
+            "flagged_windows": 89,
+            "detected": true,
+            "latency_s": 95.0
+          },
+          {
+            "segment": 31,
+            "attack_windows": 94,
+            "flagged_windows": 68,
+            "detected": true,
+            "latency_s": 130.0
+          },
+          {
+            "segment": 32,
+            "attack_windows": 56,
+            "flagged_windows": 49,
+            "detected": true,
+            "latency_s": 35.0
+          },
+          {
+            "segment": 33,
+            "attack_windows": 80,
+            "flagged_windows": 0,
+            "detected": false,
+            "latency_s": null
+          },
+          {
+            "segment": 34,
+            "attack_windows": 60,
+            "flagged_windows": 52,
+            "detected": true,
+            "latency_s": 40.0
+          },
+          {
+            "segment": 35,
+            "attack_windows": 338,
+            "flagged_windows": 81,
+            "detected": true,
+            "latency_s": 1255.0
+          }
+        ]
+      },
+      "selected_without_persistence": {
+        "rule": {
+          "k": 1,
+          "m": 1,
+          "threshold": 0.6895
+        },
+        "tp": 597,
+        "fp": 895,
+        "fn": 464,
+        "tn": 26124,
+        "precision": 0.4001,
+        "recall": 0.5627,
+        "f1": 0.4677,
+        "accuracy": 0.9516,
+        "balanced_accuracy": 0.7648,
+        "false_positive_rate": 0.0331,
+        "always_benign_baseline_accuracy": 0.9622,
+        "alarm_episodes_per_benign_hour": 1.999,
+        "roc_auc": 0.8362,
+        "average_precision": 0.3628,
+        "segments_detected": 8,
+        "segments_total": 10,
+        "median_latency_s": 52.5,
+        "segment_balanced_recall": 0.5218,
+        "per_segment": [
+          {
+            "segment": 26,
+            "attack_windows": 120,
+            "flagged_windows": 112,
+            "detected": true,
+            "latency_s": 40.0
+          },
+          {
+            "segment": 27,
+            "attack_windows": 89,
+            "flagged_windows": 78,
+            "detected": true,
+            "latency_s": 55.0
+          },
+          {
+            "segment": 28,
+            "attack_windows": 20,
+            "flagged_windows": 5,
+            "detected": true,
+            "latency_s": 50.0
+          },
+          {
+            "segment": 29,
+            "attack_windows": 96,
+            "flagged_windows": 0,
+            "detected": false,
+            "latency_s": null
+          },
+          {
+            "segment": 30,
+            "attack_windows": 108,
+            "flagged_windows": 5,
+            "detected": true,
+            "latency_s": 70.0
+          },
+          {
+            "segment": 31,
+            "attack_windows": 94,
+            "flagged_windows": 68,
+            "detected": true,
+            "latency_s": 130.0
+          },
+          {
+            "segment": 32,
+            "attack_windows": 56,
+            "flagged_windows": 49,
+            "detected": true,
+            "latency_s": 35.0
+          },
+          {
+            "segment": 33,
+            "attack_windows": 80,
+            "flagged_windows": 0,
+            "detected": false,
+            "latency_s": null
+          },
+          {
+            "segment": 34,
+            "attack_windows": 60,
+            "flagged_windows": 50,
+            "detected": true,
+            "latency_s": 50.0
+          },
+          {
+            "segment": 35,
+            "attack_windows": 338,
+            "flagged_windows": 230,
+            "detected": true,
+            "latency_s": 75.0
+          }
+        ]
+      },
+      "selected": {
+        "rule": {
+          "k": 3,
+          "m": 6,
+          "threshold": 0.5595
+        },
+        "tp": 621,
+        "fp": 1897,
+        "fn": 440,
+        "tn": 25122,
+        "precision": 0.2466,
+        "recall": 0.5853,
+        "f1": 0.347,
+        "accuracy": 0.9168,
+        "balanced_accuracy": 0.7575,
+        "false_positive_rate": 0.0702,
+        "always_benign_baseline_accuracy": 0.9622,
+        "alarm_episodes_per_benign_hour": 1.919,
+        "roc_auc": 0.8362,
+        "average_precision": 0.3628,
+        "segments_detected": 8,
+        "segments_total": 10,
+        "median_latency_s": 62.5,
+        "segment_balanced_recall": 0.5357,
+        "per_segment": [
+          {
+            "segment": 26,
+            "attack_windows": 120,
+            "flagged_windows": 110,
+            "detected": true,
+            "latency_s": 50.0
+          },
+          {
+            "segment": 27,
+            "attack_windows": 89,
+            "flagged_windows": 76,
+            "detected": true,
+            "latency_s": 65.0
+          },
+          {
+            "segment": 28,
+            "attack_windows": 20,
+            "flagged_windows": 8,
+            "detected": true,
+            "latency_s": 60.0
+          },
+          {
+            "segment": 29,
+            "attack_windows": 96,
+            "flagged_windows": 0,
+            "detected": false,
+            "latency_s": null
+          },
+          {
+            "segment": 30,
+            "attack_windows": 108,
+            "flagged_windows": 7,
+            "detected": true,
+            "latency_s": 75.0
+          },
+          {
+            "segment": 31,
+            "attack_windows": 94,
+            "flagged_windows": 66,
+            "detected": true,
+            "latency_s": 140.0
+          },
+          {
+            "segment": 32,
+            "attack_windows": 56,
+            "flagged_windows": 47,
+            "detected": true,
+            "latency_s": 45.0
+          },
+          {
+            "segment": 33,
+            "attack_windows": 80,
+            "flagged_windows": 0,
+            "detected": false,
+            "latency_s": null
+          },
+          {
+            "segment": 34,
+            "attack_windows": 60,
+            "flagged_windows": 49,
+            "detected": true,
+            "latency_s": 55.0
+          },
+          {
+            "segment": 35,
+            "attack_windows": 338,
+            "flagged_windows": 258,
+            "detected": true,
+            "latency_s": 65.0
+          }
+        ]
+      }
+    }
+  },
+  "feature_names": [
+    "LIT101.std",
+    "LIT101.slope",
+    "LIT101.range",
+    "LIT101.delta",
+    "FIT101.std",
+    "FIT101.slope",
+    "FIT101.range",
+    "FIT101.delta",
+    "AIT202.std",
+    "AIT202.slope",
+    "AIT202.range",
+    "AIT202.delta",
+    "FIT201.std",
+    "FIT201.slope",
+    "FIT201.range",
+    "FIT201.delta",
+    "LIT301.std",
+    "LIT301.slope",
+    "LIT301.range",
+    "LIT301.delta",
+    "DPIT301.std",
+    "DPIT301.slope",
+    "DPIT301.range",
+    "DPIT301.delta",
+    "LIT401.std",
+    "LIT401.slope",
+    "LIT401.range",
+    "LIT401.delta",
+    "AIT402.std",
+    "AIT402.slope",
+    "AIT402.range",
+    "AIT402.delta",
+    "PIT501.std",
+    "PIT501.slope",
+    "PIT501.range",
+    "PIT501.delta",
+    "FIT501.std",
+    "FIT501.slope",
+    "FIT501.range",
+    "FIT501.delta",
+    "P101.state",
+    "P101.toggles",
+    "P101.frac_on",
+    "P203.state",
+    "P203.toggles",
+    "P203.frac_on",
+    "P205.state",
+    "P205.toggles",
+    "P205.frac_on",
+    "MV302.state",
+    "MV302.toggles",
+    "MV302.frac_on",
+    "P302.state",
+    "P302.toggles",
+    "P302.frac_on",
+    "P402.state",
+    "P402.toggles",
+    "P402.frac_on",
+    "UV401.state",
+    "UV401.toggles",
+    "UV401.frac_on",
+    "P501.state",
+    "P501.toggles",
+    "P501.frac_on",
+    "flow_balance_101_201",
+    "sensors_outside_envelope",
+    "max_envelope_excess",
+    "LIT101.slope@120",
+    "LIT101.std@120",
+    "LIT101.delta@120",
+    "FIT101.slope@120",
+    "FIT101.std@120",
+    "FIT101.delta@120",
+    "AIT202.slope@120",
+    "AIT202.std@120",
+    "AIT202.delta@120",
+    "FIT201.slope@120",
+    "FIT201.std@120",
+    "FIT201.delta@120",
+    "LIT301.slope@120",
+    "LIT301.std@120",
+    "LIT301.delta@120",
+    "DPIT301.slope@120",
+    "DPIT301.std@120",
+    "DPIT301.delta@120",
+    "LIT401.slope@120",
+    "LIT401.std@120",
+    "LIT401.delta@120",
+    "AIT402.slope@120",
+    "AIT402.std@120",
+    "AIT402.delta@120",
+    "PIT501.slope@120",
+    "PIT501.std@120",
+    "PIT501.delta@120",
+    "FIT501.slope@120",
+    "FIT501.std@120",
+    "FIT501.delta@120",
+    "P101.toggles@120",
+    "P203.toggles@120",
+    "P205.toggles@120",
+    "MV302.toggles@120",
+    "P302.toggles@120",
+    "P402.toggles@120",
+    "UV401.toggles@120",
+    "P501.toggles@120",
+    "LIT101.resid",
+    "FIT101.resid",
+    "AIT202.resid",
+    "FIT201.resid",
+    "LIT301.resid",
+    "DPIT301.resid",
+    "LIT401.resid",
+    "AIT402.resid",
+    "PIT501.resid",
+    "FIT501.resid",
+    "resid_abs_max",
+    "resid_abs_mean"
+  ],
+  "seconds": 778.3,
+  "fixture_not_real_results": false
+}

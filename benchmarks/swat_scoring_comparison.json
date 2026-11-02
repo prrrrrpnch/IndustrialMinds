@@ -1,0 +1,823 @@
+{
+  "source": "docs/reports/physical_training_report_v2_swat.json",
+  "windows": 28080,
+  "attack_windows": 1061,
+  "benign_hours": 37.53,
+  "segments": 10,
+  "budgets": {
+    "0.5": {
+      "baseline": {
+        "rule": {
+          "k": 1,
+          "m": 1,
+          "threshold": 0.5068
+        },
+        "metrics": {
+          "tp": 529,
+          "fp": 640,
+          "fn": 532,
+          "tn": 26379,
+          "attack_windows": 1061,
+          "benign_windows": 27019,
+          "precision": 0.4525,
+          "recall": 0.4986,
+          "f1": 0.4744,
+          "accuracy": 0.9583,
+          "balanced_accuracy": 0.7374,
+          "false_positive_rate": 0.0237,
+          "always_benign_accuracy": 0.9622,
+          "segments_detected": 7,
+          "segments_total": 10,
+          "event_recall": 0.7,
+          "composite_f1": 0.5497,
+          "segment_balanced_recall": 0.5339,
+          "median_latency_s": 55.0,
+          "false_alarm_episodes_per_hour": 0.986,
+          "benign_hours": 37.53,
+          "pa_precision": 0.5748,
+          "pa_recall": 0.8153,
+          "pa_f1": 0.6742,
+          "pa_accuracy": 0.9702,
+          "pak20_precision": 0.5748,
+          "pak20_recall": 0.8153,
+          "pak20_f1": 0.6742,
+          "pak50_precision": 0.4872,
+          "pak50_recall": 0.573,
+          "pak50_f1": 0.5266,
+          "pak80_precision": 0.4763,
+          "pak80_recall": 0.5485,
+          "pak80_f1": 0.5099
+        },
+        "ci_attack_side_only": {
+          "n_boot": 4000,
+          "resampled": "10 attack segments, 1 benign clusters",
+          "precision": [
+            0.3126,
+            0.5451
+          ],
+          "recall": [
+            0.2978,
+            0.7883
+          ],
+          "f1": [
+            0.315,
+            0.6212
+          ],
+          "accuracy": [
+            0.9399,
+            0.9706
+          ],
+          "composite_f1": [
+            0.3537,
+            0.6893
+          ],
+          "pa_f1": [
+            0.4346,
+            0.8104
+          ],
+          "pak50_f1": [
+            0.3499,
+            0.6902
+          ],
+          "event_recall": [
+            0.4,
+            1.0
+          ],
+          "segment_balanced_recall": [
+            0.2851,
+            0.7724
+          ],
+          "false_alarm_episodes_per_hour": [
+            0.986,
+            0.986
+          ],
+          "median_latency_s": [
+            40.0,
+            130.0
+          ]
+        },
+        "schemes": [
+          {
+            "scheme": "strict (per window)",
+            "precision": 0.4525,
+            "recall": 0.4986,
+            "f1": 0.4744,
+            "accuracy": 0.9583
+          },
+          {
+            "scheme": "composite (window precision, attack recall)",
+            "precision": 0.4525,
+            "recall": 0.7,
+            "f1": 0.5497,
+            "accuracy": null
+          },
+          {
+            "scheme": "PA%K, K=20",
+            "precision": 0.5748,
+            "recall": 0.8153,
+            "f1": 0.6742,
+            "accuracy": null
+          },
+          {
+            "scheme": "PA%K, K=50",
+            "precision": 0.4872,
+            "recall": 0.573,
+            "f1": 0.5266,
+            "accuracy": null
+          },
+          {
+            "scheme": "PA%K, K=80",
+            "precision": 0.4763,
+            "recall": 0.5485,
+            "f1": 0.5099,
+            "accuracy": null
+          },
+          {
+            "scheme": "point-adjust (literature comparison only)",
+            "precision": 0.5748,
+            "recall": 0.8153,
+            "f1": 0.6742,
+            "accuracy": 0.9702
+          }
+        ]
+      },
+      "selected_without_persistence": {
+        "rule": {
+          "k": 1,
+          "m": 1,
+          "threshold": 0.788
+        },
+        "metrics": {
+          "tp": 544,
+          "fp": 637,
+          "fn": 517,
+          "tn": 26382,
+          "attack_windows": 1061,
+          "benign_windows": 27019,
+          "precision": 0.4606,
+          "recall": 0.5127,
+          "f1": 0.4853,
+          "accuracy": 0.9589,
+          "balanced_accuracy": 0.7446,
+          "false_positive_rate": 0.0236,
+          "always_benign_accuracy": 0.9622,
+          "segments_detected": 8,
+          "segments_total": 10,
+          "event_recall": 0.8,
+          "composite_f1": 0.5846,
+          "segment_balanced_recall": 0.4846,
+          "median_latency_s": 57.5,
+          "false_alarm_episodes_per_hour": 1.173,
+          "benign_hours": 37.53,
+          "pa_precision": 0.5815,
+          "pa_recall": 0.8341,
+          "pa_f1": 0.6852,
+          "pa_accuracy": 0.971,
+          "pak20_precision": 0.544,
+          "pak20_recall": 0.7163,
+          "pak20_f1": 0.6184,
+          "pak50_precision": 0.544,
+          "pak50_recall": 0.7163,
+          "pak50_f1": 0.6184,
+          "pak80_precision": 0.477,
+          "pak80_recall": 0.5476,
+          "pak80_f1": 0.5099
+        },
+        "ci_attack_side_only": {
+          "n_boot": 4000,
+          "resampled": "10 attack segments, 1 benign clusters",
+          "precision": [
+            0.2584,
+            0.5917
+          ],
+          "recall": [
+            0.2712,
+            0.7237
+          ],
+          "f1": [
+            0.2681,
+            0.6165
+          ],
+          "accuracy": [
+            0.948,
+            0.9687
+          ],
+          "composite_f1": [
+            0.3636,
+            0.7253
+          ],
+          "pa_f1": [
+            0.4675,
+            0.8144
+          ],
+          "pak50_f1": [
+            0.3172,
+            0.7874
+          ],
+          "event_recall": [
+            0.5,
+            1.0
+          ],
+          "segment_balanced_recall": [
+            0.2386,
+            0.7258
+          ],
+          "false_alarm_episodes_per_hour": [
+            1.172,
+            1.172
+          ],
+          "median_latency_s": [
+            40.0,
+            85.0
+          ]
+        },
+        "schemes": [
+          {
+            "scheme": "strict (per window)",
+            "precision": 0.4606,
+            "recall": 0.5127,
+            "f1": 0.4853,
+            "accuracy": 0.9589
+          },
+          {
+            "scheme": "composite (window precision, attack recall)",
+            "precision": 0.4606,
+            "recall": 0.8,
+            "f1": 0.5846,
+            "accuracy": null
+          },
+          {
+            "scheme": "PA%K, K=20",
+            "precision": 0.544,
+            "recall": 0.7163,
+            "f1": 0.6184,
+            "accuracy": null
+          },
+          {
+            "scheme": "PA%K, K=50",
+            "precision": 0.544,
+            "recall": 0.7163,
+            "f1": 0.6184,
+            "accuracy": null
+          },
+          {
+            "scheme": "PA%K, K=80",
+            "precision": 0.477,
+            "recall": 0.5476,
+            "f1": 0.5099,
+            "accuracy": null
+          },
+          {
+            "scheme": "point-adjust (literature comparison only)",
+            "precision": 0.5815,
+            "recall": 0.8341,
+            "f1": 0.6852,
+            "accuracy": 0.971
+          }
+        ]
+      },
+      "selected": {
+        "rule": {
+          "k": 3,
+          "m": 6,
+          "threshold": 0.6418
+        },
+        "metrics": {
+          "tp": 603,
+          "fp": 1237,
+          "fn": 458,
+          "tn": 25782,
+          "attack_windows": 1061,
+          "benign_windows": 27019,
+          "precision": 0.3277,
+          "recall": 0.5683,
+          "f1": 0.4157,
+          "accuracy": 0.9396,
+          "balanced_accuracy": 0.7613,
+          "false_positive_rate": 0.0458,
+          "always_benign_accuracy": 0.9622,
+          "segments_detected": 8,
+          "segments_total": 10,
+          "event_recall": 0.8,
+          "composite_f1": 0.465,
+          "segment_balanced_recall": 0.5203,
+          "median_latency_s": 62.5,
+          "false_alarm_episodes_per_hour": 1.279,
+          "benign_hours": 37.53,
+          "pa_precision": 0.4171,
+          "pa_recall": 0.8341,
+          "pa_f1": 0.5561,
+          "pa_accuracy": 0.9497,
+          "pak20_precision": 0.3876,
+          "pak20_recall": 0.738,
+          "pak20_f1": 0.5083,
+          "pak50_precision": 0.3833,
+          "pak50_recall": 0.7248,
+          "pak50_f1": 0.5015,
+          "pak80_precision": 0.3431,
+          "pak80_recall": 0.6089,
+          "pak80_f1": 0.4389
+        },
+        "ci_attack_side_only": {
+          "n_boot": 4000,
+          "resampled": "10 attack segments, 1 benign clusters",
+          "precision": [
+            0.1591,
+            0.47
+          ],
+          "recall": [
+            0.2895,
+            0.7552
+          ],
+          "f1": [
+            0.2085,
+            0.561
+          ],
+          "accuracy": [
+            0.9313,
+            0.9476
+          ],
+          "composite_f1": [
+            0.2541,
+            0.6206
+          ],
+          "pa_f1": [
+            0.3499,
+            0.7014
+          ],
+          "pak50_f1": [
+            0.2449,
+            0.6759
+          ],
+          "event_recall": [
+            0.5,
+            1.0
+          ],
+          "segment_balanced_recall": [
+            0.2825,
+            0.7397
+          ],
+          "false_alarm_episodes_per_hour": [
+            1.279,
+            1.279
+          ],
+          "median_latency_s": [
+            50.0,
+            80.0
+          ]
+        },
+        "schemes": [
+          {
+            "scheme": "strict (per window)",
+            "precision": 0.3277,
+            "recall": 0.5683,
+            "f1": 0.4157,
+            "accuracy": 0.9396
+          },
+          {
+            "scheme": "composite (window precision, attack recall)",
+            "precision": 0.3277,
+            "recall": 0.8,
+            "f1": 0.465,
+            "accuracy": null
+          },
+          {
+            "scheme": "PA%K, K=20",
+            "precision": 0.3876,
+            "recall": 0.738,
+            "f1": 0.5083,
+            "accuracy": null
+          },
+          {
+            "scheme": "PA%K, K=50",
+            "precision": 0.3833,
+            "recall": 0.7248,
+            "f1": 0.5015,
+            "accuracy": null
+          },
+          {
+            "scheme": "PA%K, K=80",
+            "precision": 0.3431,
+            "recall": 0.6089,
+            "f1": 0.4389,
+            "accuracy": null
+          },
+          {
+            "scheme": "point-adjust (literature comparison only)",
+            "precision": 0.4171,
+            "recall": 0.8341,
+            "f1": 0.5561,
+            "accuracy": 0.9497
+          }
+        ]
+      }
+    },
+    "1.0": {
+      "baseline": {
+        "rule": {
+          "k": 1,
+          "m": 1,
+          "threshold": 0.4914
+        },
+        "metrics": {
+          "tp": 529,
+          "fp": 695,
+          "fn": 532,
+          "tn": 26324,
+          "attack_windows": 1061,
+          "benign_windows": 27019,
+          "precision": 0.4322,
+          "recall": 0.4986,
+          "f1": 0.463,
+          "accuracy": 0.9563,
+          "balanced_accuracy": 0.7364,
+          "false_positive_rate": 0.0257,
+          "always_benign_accuracy": 0.9622,
+          "segments_detected": 7,
+          "segments_total": 10,
+          "event_recall": 0.7,
+          "composite_f1": 0.5344,
+          "segment_balanced_recall": 0.5339,
+          "median_latency_s": 55.0,
+          "false_alarm_episodes_per_hour": 1.093,
+          "benign_hours": 37.53,
+          "pa_precision": 0.5545,
+          "pa_recall": 0.8153,
+          "pa_f1": 0.6601,
+          "pa_accuracy": 0.9683,
+          "pak20_precision": 0.5545,
+          "pak20_recall": 0.8153,
+          "pak20_f1": 0.6601,
+          "pak50_precision": 0.4666,
+          "pak50_recall": 0.573,
+          "pak50_f1": 0.5144,
+          "pak80_precision": 0.4558,
+          "pak80_recall": 0.5485,
+          "pak80_f1": 0.4979
+        },
+        "ci_attack_side_only": {
+          "n_boot": 4000,
+          "resampled": "10 attack segments, 1 benign clusters",
+          "precision": [
+            0.2951,
+            0.5246
+          ],
+          "recall": [
+            0.2978,
+            0.7883
+          ],
+          "f1": [
+            0.3059,
+            0.6063
+          ],
+          "accuracy": [
+            0.938,
+            0.9687
+          ],
+          "composite_f1": [
+            0.3425,
+            0.6726
+          ],
+          "pa_f1": [
+            0.4216,
+            0.7983
+          ],
+          "pak50_f1": [
+            0.3408,
+            0.6744
+          ],
+          "event_recall": [
+            0.4,
+            1.0
+          ],
+          "segment_balanced_recall": [
+            0.2851,
+            0.7724
+          ],
+          "false_alarm_episodes_per_hour": [
+            1.092,
+            1.092
+          ],
+          "median_latency_s": [
+            40.0,
+            130.0
+          ]
+        },
+        "schemes": [
+          {
+            "scheme": "strict (per window)",
+            "precision": 0.4322,
+            "recall": 0.4986,
+            "f1": 0.463,
+            "accuracy": 0.9563
+          },
+          {
+            "scheme": "composite (window precision, attack recall)",
+            "precision": 0.4322,
+            "recall": 0.7,
+            "f1": 0.5344,
+            "accuracy": null
+          },
+          {
+            "scheme": "PA%K, K=20",
+            "precision": 0.5545,
+            "recall": 0.8153,
+            "f1": 0.6601,
+            "accuracy": null
+          },
+          {
+            "scheme": "PA%K, K=50",
+            "precision": 0.4666,
+            "recall": 0.573,
+            "f1": 0.5144,
+            "accuracy": null
+          },
+          {
+            "scheme": "PA%K, K=80",
+            "precision": 0.4558,
+            "recall": 0.5485,
+            "f1": 0.4979,
+            "accuracy": null
+          },
+          {
+            "scheme": "point-adjust (literature comparison only)",
+            "precision": 0.5545,
+            "recall": 0.8153,
+            "f1": 0.6601,
+            "accuracy": 0.9683
+          }
+        ]
+      },
+      "selected_without_persistence": {
+        "rule": {
+          "k": 1,
+          "m": 1,
+          "threshold": 0.6895
+        },
+        "metrics": {
+          "tp": 597,
+          "fp": 895,
+          "fn": 464,
+          "tn": 26124,
+          "attack_windows": 1061,
+          "benign_windows": 27019,
+          "precision": 0.4001,
+          "recall": 0.5627,
+          "f1": 0.4677,
+          "accuracy": 0.9516,
+          "balanced_accuracy": 0.7648,
+          "false_positive_rate": 0.0331,
+          "always_benign_accuracy": 0.9622,
+          "segments_detected": 8,
+          "segments_total": 10,
+          "event_recall": 0.8,
+          "composite_f1": 0.5335,
+          "segment_balanced_recall": 0.5218,
+          "median_latency_s": 52.5,
+          "false_alarm_episodes_per_hour": 1.999,
+          "benign_hours": 37.53,
+          "pa_precision": 0.4972,
+          "pa_recall": 0.8341,
+          "pa_f1": 0.623,
+          "pa_accuracy": 0.9619,
+          "pak20_precision": 0.4663,
+          "pak20_recall": 0.737,
+          "pak20_f1": 0.5712,
+          "pak50_precision": 0.4615,
+          "pak50_recall": 0.7229,
+          "pak50_f1": 0.5633,
+          "pak80_precision": 0.4143,
+          "pak80_recall": 0.5966,
+          "pak80_f1": 0.489
+        },
+        "ci_attack_side_only": {
+          "n_boot": 4000,
+          "resampled": "10 attack segments, 1 benign clusters",
+          "precision": [
+            0.2094,
+            0.5427
+          ],
+          "recall": [
+            0.2903,
+            0.7563
+          ],
+          "f1": [
+            0.2454,
+            0.606
+          ],
+          "accuracy": [
+            0.9427,
+            0.9602
+          ],
+          "composite_f1": [
+            0.3155,
+            0.6825
+          ],
+          "pa_f1": [
+            0.4088,
+            0.7611
+          ],
+          "pak50_f1": [
+            0.2852,
+            0.7333
+          ],
+          "event_recall": [
+            0.5,
+            1.0
+          ],
+          "segment_balanced_recall": [
+            0.2794,
+            0.7504
+          ],
+          "false_alarm_episodes_per_hour": [
+            1.998,
+            1.998
+          ],
+          "median_latency_s": [
+            40.0,
+            75.0
+          ]
+        },
+        "schemes": [
+          {
+            "scheme": "strict (per window)",
+            "precision": 0.4001,
+            "recall": 0.5627,
+            "f1": 0.4677,
+            "accuracy": 0.9516
+          },
+          {
+            "scheme": "composite (window precision, attack recall)",
+            "precision": 0.4001,
+            "recall": 0.8,
+            "f1": 0.5335,
+            "accuracy": null
+          },
+          {
+            "scheme": "PA%K, K=20",
+            "precision": 0.4663,
+            "recall": 0.737,
+            "f1": 0.5712,
+            "accuracy": null
+          },
+          {
+            "scheme": "PA%K, K=50",
+            "precision": 0.4615,
+            "recall": 0.7229,
+            "f1": 0.5633,
+            "accuracy": null
+          },
+          {
+            "scheme": "PA%K, K=80",
+            "precision": 0.4143,
+            "recall": 0.5966,
+            "f1": 0.489,
+            "accuracy": null
+          },
+          {
+            "scheme": "point-adjust (literature comparison only)",
+            "precision": 0.4972,
+            "recall": 0.8341,
+            "f1": 0.623,
+            "accuracy": 0.9619
+          }
+        ]
+      },
+      "selected": {
+        "rule": {
+          "k": 3,
+          "m": 6,
+          "threshold": 0.5595
+        },
+        "metrics": {
+          "tp": 621,
+          "fp": 1897,
+          "fn": 440,
+          "tn": 25122,
+          "attack_windows": 1061,
+          "benign_windows": 27019,
+          "precision": 0.2466,
+          "recall": 0.5853,
+          "f1": 0.347,
+          "accuracy": 0.9168,
+          "balanced_accuracy": 0.7575,
+          "false_positive_rate": 0.0702,
+          "always_benign_accuracy": 0.9622,
+          "segments_detected": 8,
+          "segments_total": 10,
+          "event_recall": 0.8,
+          "composite_f1": 0.377,
+          "segment_balanced_recall": 0.5357,
+          "median_latency_s": 62.5,
+          "false_alarm_episodes_per_hour": 1.919,
+          "benign_hours": 37.53,
+          "pa_precision": 0.3181,
+          "pa_recall": 0.8341,
+          "pa_f1": 0.4606,
+          "pa_accuracy": 0.9262,
+          "pak20_precision": 0.2924,
+          "pak20_recall": 0.7389,
+          "pak20_f1": 0.419,
+          "pak50_precision": 0.2892,
+          "pak50_recall": 0.7276,
+          "pak50_f1": 0.4139,
+          "pak80_precision": 0.2593,
+          "pak80_recall": 0.6258,
+          "pak80_f1": 0.3666
+        },
+        "ci_attack_side_only": {
+          "n_boot": 4000,
+          "resampled": "10 attack segments, 1 benign clusters",
+          "precision": [
+            0.1115,
+            0.3766
+          ],
+          "recall": [
+            0.2984,
+            0.7717
+          ],
+          "f1": [
+            0.1638,
+            0.4911
+          ],
+          "accuracy": [
+            0.9088,
+            0.9242
+          ],
+          "composite_f1": [
+            0.1889,
+            0.531
+          ],
+          "pa_f1": [
+            0.2743,
+            0.6104
+          ],
+          "pak50_f1": [
+            0.1927,
+            0.5865
+          ],
+          "event_recall": [
+            0.5,
+            1.0
+          ],
+          "segment_balanced_recall": [
+            0.2988,
+            0.7502
+          ],
+          "false_alarm_episodes_per_hour": [
+            1.918,
+            1.918
+          ],
+          "median_latency_s": [
+            50.0,
+            75.0
+          ]
+        },
+        "schemes": [
+          {
+            "scheme": "strict (per window)",
+            "precision": 0.2466,
+            "recall": 0.5853,
+            "f1": 0.347,
+            "accuracy": 0.9168
+          },
+          {
+            "scheme": "composite (window precision, attack recall)",
+            "precision": 0.2466,
+            "recall": 0.8,
+            "f1": 0.377,
+            "accuracy": null
+          },
+          {
+            "scheme": "PA%K, K=20",
+            "precision": 0.2924,
+            "recall": 0.7389,
+            "f1": 0.419,
+            "accuracy": null
+          },
+          {
+            "scheme": "PA%K, K=50",
+            "precision": 0.2892,
+            "recall": 0.7276,
+            "f1": 0.4139,
+            "accuracy": null
+          },
+          {
+            "scheme": "PA%K, K=80",
+            "precision": 0.2593,
+            "recall": 0.6258,
+            "f1": 0.3666,
+            "accuracy": null
+          },
+          {
+            "scheme": "point-adjust (literature comparison only)",
+            "precision": 0.3181,
+            "recall": 0.8341,
+            "f1": 0.4606,
+            "accuracy": 0.9262
+          }
+        ]
+      }
+    }
+  }
+}

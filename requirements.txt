@@ -1,10 +1,15 @@
 Flask>=3.0.0
 requests>=2.31.0
+# Optional, and only for the LLM investigator (middleware/investigator.py, IM_INVESTIGATOR=1).
+# The whole system runs without it: with no SDK and no API key the investigator falls back to its deterministic engine.
+# anthropic>=1.0.0
 pymodbus==3.6.9
 psutil>=5.9
 openpyxl>=3.1
 matplotlib>=3.7
 numpy>=1.26
 pandas>=2.0
-scikit-learn>=1.4
+# EXACT pin: models/weights/physical_model.joblib is a pickle; other scikit-learn versions warn (InconsistentVersionWarning)
+# and the load is refused by the test in tests/test_environment.py. If you retrain, re-pin to the version you trained with.
+scikit-learn==1.9.1
 joblib>=1.3

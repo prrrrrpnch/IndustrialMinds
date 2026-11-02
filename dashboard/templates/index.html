@@ -5,23 +5,22 @@
 
     <meta charset="UTF-8">
 
+    <!-- No favicon file ships, and without this the browser asks for /favicon.ico and logs a red 404 in the console on every load. -->
+    <link rel="icon" href="data:,">
+
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
 
     <title>
         Industrial Mind — Security Operations Dashboard
     </title>
 
-    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <!-- No CDN assets. The lab runs on an isolated network, so anything fetched from the internet is a guaranteed
+         failure, not a dependency. Fonts are the system stack, icons are Unicode, and the one chart is 100 lines of
+         canvas. See final-results/AUDIT.md finding N2. -->
 
-    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link rel="stylesheet" href="{{ url_for('static', filename='vendor/icons.css') }}">
 
-    <link
-        href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=JetBrains+Mono:wght@400;600&display=swap"
-        rel="stylesheet">
-
-    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
-
-    <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js"></script>
+    <script src="{{ url_for('static', filename='vendor/microchart.js') }}"></script>
 
     <link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}">
 
@@ -52,25 +51,23 @@
 
             <div class="header-actions">
 
-                <div class="status-indicator">
+                <!-- AUDIT N6: this badge used to be the literal text ONLINE, hardcoded in the markup. It said ONLINE
+                     with the PLC dead and commands failing to deliver. It is now driven by GET /api/health. -->
+                <div class="status-indicator" id="systemStatus" title="system health">
 
-                    <span class="status-dot"></span>
+                    <span class="status-dot" id="systemStatusDot"></span>
 
                     <span>
                         System Status:
-                        <strong>ONLINE</strong>
+                        <strong id="systemStatusText">CHECKING</strong>
                     </span>
+
+                    <span class="status-detail" id="systemStatusDetail"></span>
 
                 </div>
 
 
                 <div class="action-buttons">
-
-                    <button id="btn-trigger-attack" class="btn btn-danger">
-                        <i class="fa-solid fa-triangle-exclamation"></i>
-                        Attacks
-                    </button>
-
 
                     <button id="btn-reset-data" class="btn btn-secondary">
                         <i class="fa-solid fa-rotate"></i>
@@ -82,67 +79,6 @@
             </div>
 
         </header>
-
-
-        <!-- ATTACK PANEL -->
-
-        <section id="attack-panel" class="card" style="display:none; margin-bottom:20px;">
-
-            <div class="card-header">
-
-                <h2>
-                    <i class="fa-solid fa-skull-crossbones title-icon"></i>
-                    Attack Simulation
-                </h2>
-
-            </div>
-
-
-            <div class="action-buttons">
-
-                <button class="btn btn-danger" onclick="triggerAttack('flood')">
-                    Flood
-                </button>
-
-                <button class="btn btn-danger" onclick="triggerAttack('impossible-command')">
-                    Impossible Command
-                </button>
-
-                <button class="btn btn-danger" onclick="triggerAttack('replay')">
-                    Replay
-                </button>
-
-                <button class="btn btn-danger" onclick="triggerAttack('false-injection')">
-                    False Injection
-                </button>
-
-                <button class="btn btn-danger" onclick="triggerAttack('cross-register')">
-                    Cross-Register
-                </button>
-
-                <button class="btn btn-danger" onclick="triggerAttack('hmac-missing')">
-                    HMAC Missing
-                </button>
-
-                <button class="btn btn-danger" onclick="triggerAttack('hmac-tamper')">
-                    HMAC Tamper
-                </button>
-
-                <button class="btn btn-danger" onclick="triggerAttack('hmac-forged')">
-                    HMAC Forged
-                </button>
-
-                <button class="btn btn-danger" onclick="triggerAttack('delayed-replay')">
-                    Delayed Replay
-                </button>
-
-                <input id="attack-source-ip" class="filter-input" type="text"
-                    placeholder="Attack from source IP (optional, e.g. 127.0.0.2)"
-                    title="Local address the attacker socket binds to. The middleware records the real connection address.">
-
-            </div>
-
-        </section>
 
 
         <!-- KPI -->
@@ -199,6 +135,25 @@
 
             </div>
 
+        </section>
+
+
+        <!-- LIVE NETWORK FLOW -->
+
+        <section class="card flow-card" id="flow-section">
+            <div class="card-header">
+                <h2><i class="fa-solid fa-diagram-project title-icon"></i> LIVE NETWORK FLOW</h2>
+                <span class="badge-tag" id="flow-status">waiting for traffic</span>
+            </div>
+            <p class="flow-hint">Commands as they reach the middleware, drawn from the host that sent them.</p>
+            <svg id="flow-svg" viewBox="0 0 1000 330" preserveAspectRatio="xMidYMid meet" role="img" aria-label="Live network flow"></svg>
+            <div class="flow-legend">
+                <span><i class="dot dot-pass"></i>PASS: forwarded</span>
+                <span><i class="dot dot-alert"></i>ALERT: forwarded, flagged</span>
+                <span><i class="dot dot-drop"></i>DROP: stopped in the middleware</span>
+                <span><i class="dot dot-undelivered"></i>UNDELIVERED: approved, but the PLC never took it</span>
+                <span><i class="dot dot-untrusted"></i>attacker host</span>
+            </div>
         </section>
 
 
@@ -327,41 +282,71 @@
                 </div>
 
 
-                <div class="telemetry-list">
+                <div class="plant-legend">
+                    <span class="lg"><i class="lg-chip act"></i> Actuator (command)</span>
+                    <span class="lg"><i class="lg-chip sen"></i> Sensor (read-only)</span>
+                    <span class="lg"><i class="lg-arrow"></i> Process flow S1 &rarr; S5</span>
+                    <span class="lg"><i class="lg-chip chg"></i> Changed &gt;3% of range</span>
+                </div>
 
-                    {% for m in machines %}
-                    {% set u = '°' if m.unit == 'deg' else ('°C' if m.unit == 'C' else ' ' ~ m.unit) %}
+                <div class="stage-flow">
+                {% for sid in range(1, 6) %}
+                {% set pts = machines | selectattr('stage', 'equalto', sid) | list %}
+                {% set st = stages[sid] %}
+                {% if not loop.first %}<div class="flow-arrow" aria-hidden="true"><span></span></div>{% endif %}
 
-                    <div class="telemetry-item">
-
-                        <div class="telemetry-header">
-
-                            <span>
-                                {{ m.label }}
-                            </span>
-
-                            <span class="telemetry-val" id="val-{{ m.name }}">
-                                {{ m.initial }}{{ u }}
-                            </span>
-
+                <article class="stage-card" data-stage="{{ sid }}">
+                    <header class="stage-head">
+                        <span class="stage-id">{{ st.id }}</span>
+                        <div class="stage-title">
+                            <strong>{{ st.name }}</strong>
+                            <small>SWaT {{ st.swat }}</small>
                         </div>
+                    </header>
 
-
-                        <div class="progress-bar">
-
-                            <div class="progress-fill {{ m.bar_class }}" id="bar-{{ m.name }}" style="width:{{ (m.initial - m.min) / (m.max - m.min) * 100 }}%;"></div>
-
+                    {% set lvl = pts | selectattr('kind', 'equalto', 'sensor') | selectattr('unit', 'equalto', 'mm') | list %}
+                    <div class="stage-viz">
+                    {% if lvl %}
+                        <div class="tank" data-viz="tank" data-tag="{{ lvl[0].name }}" title="{{ lvl[0].label }}">
+                            <div class="tank-fill" id="tank-{{ lvl[0].name }}" style="height:{{ (lvl[0].initial - lvl[0].min) / (lvl[0].max - lvl[0].min) * 100 }}%"></div>
+                            <span class="tank-tag">{{ lvl[0].name }}</span>
                         </div>
-
-
-                        <span class="range-info">
-                            {{ m.machine }} · Safe range: {{ m.min }} – {{ m.max }}{{ u }}
-                        </span>
-
+                    {% elif sid == 2 %}
+                        {% set ph = pts | selectattr('name', 'equalto', 'AIT202') | first %}
+                        <div class="ph-gauge" data-viz="ph" data-tag="AIT202" title="{{ ph.label }}">
+                            <div class="ph-scale"><i class="ph-marker" id="gauge-AIT202" style="left:{{ (ph.initial - ph.min) / (ph.max - ph.min) * 100 }}%"></i></div>
+                            <div class="ph-ticks"><span>{{ ph.min }}</span><span>acid</span><span>7</span><span>base</span><span>{{ ph.max }}</span></div>
+                        </div>
+                    {% else %}
+                        {% set pr = pts | selectattr('name', 'equalto', 'PIT501') | first %}
+                        <div class="dial" data-viz="dial" data-tag="PIT501" title="{{ pr.label }}">
+                            <div class="dial-arc"></div>
+                            <i class="dial-needle" id="gauge-PIT501"></i>
+                            <span class="dial-hub"></span>
+                            <span class="dial-lo">{{ pr.min|int }}</span><span class="dial-hi">{{ pr.max|int }} {{ pr.unit }}</span>
+                        </div>
+                    {% endif %}
                     </div>
 
+                    {% for kind, title in [('actuator', 'Actuators'), ('sensor', 'Sensors')] %}
+                    <div class="point-group {{ kind }}">
+                        <div class="group-title">{{ title }}</div>
+                        {% for m in pts if m.kind == kind %}
+                        {% set u = '°' if m.unit == 'deg' else ('°C' if m.unit == 'C' else ' ' ~ m.unit) %}
+                        <div class="point {{ kind }}" id="row-{{ m.name }}" title="{{ m.machine }} · range {{ m.min }} – {{ m.max }}{{ u }}">
+                            <div class="point-head">
+                                <span class="point-name"><b>{{ m.name }}</b> {{ m.label }}</span>
+                                <span class="telemetry-val point-val" id="val-{{ m.name }}">{{ m.initial }}{{ u }}</span>
+                            </div>
+                            <div class="progress-bar thin">
+                                <div class="progress-fill {{ m.bar_class }}" id="bar-{{ m.name }}" style="width:{{ (m.initial - m.min) / (m.max - m.min) * 100 }}%;"></div>
+                            </div>
+                        </div>
+                        {% endfor %}
+                    </div>
                     {% endfor %}
-
+                </article>
+                {% endfor %}
                 </div>
 
             </section>
@@ -523,11 +508,36 @@
     </div>
 
 
+    <!-- INVESTIGATIONS: the LLM investigator's analysis of an incident. Proposals only; nothing here was applied. -->
+    <section class="card investigation-card" id="investigation-section" style="margin:20px;">
+        <div class="card-header">
+            <h2><i class="fa-solid fa-magnifying-glass title-icon"></i> INVESTIGATIONS</h2>
+            <span class="badge-tag" id="investigation-engine">analysis only &middot; never applied</span>
+        </div>
+        <div id="investigation-list"><p class="tracer-empty">No investigations. When an incident reaches high severity the investigator writes up what happened and what it would do about it, for a person to approve.</p></div>
+    </section>
+
+    <!-- PACKET TRACER (Phase 9) -->
+    <section class="card tracer-card" id="tracer-section" style="margin:20px;">
+        <div class="card-header">
+            <h2><i class="fa-solid fa-route title-icon"></i> PACKET TRACER</h2>
+            <span class="badge-tag" id="tracer-follow">following latest</span>
+        </div>
+        <div class="tracer-grid">
+            <ul class="tracer-list" id="tracer-list"></ul>
+            <div class="tracer-detail" id="tracer-detail">
+                <p class="tracer-empty">Send a command (SCADA or an attack) - every hop it meets appears here with the values the backend computed.</p>
+            </div>
+        </div>
+    </section>
+
     <script>
         window.IM_MACHINES = {{ machines | tojson }};
     </script>
 
     <script src="{{ url_for('static', filename='script.js') }}"></script>
+    <script src="{{ url_for('static', filename='flow.js') }}"></script>
+    <script src="{{ url_for('static', filename='investigations.js') }}"></script>
 
 </body>
 

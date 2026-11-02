@@ -3,7 +3,10 @@ middleware/physical_agent.py — Physical Agent for the Industrial Mind middlewa
 
 Downstream (SCADA -> PLC):
   check_command(command, current_state) -> verdict
-  Three rule layers per command:
+  Four rule layers per command (all deterministic RULES, not models):
+    0. Actuator-only      — sensor registers (LIT/FIT/AIT/DPIT/PIT) are produced by
+                            the plant physics and can never be commanded
+                            -> WRITE_TO_SENSOR_REGISTER.
     1. Hard bounds        — value must be within the REGISTER_MAP safe range.
     2. Rate-of-change     — value must not imply a jump that the physical plant
                             cannot achieve between the last known timestamp and
@@ -12,7 +15,7 @@ Downstream (SCADA -> PLC):
                             are physically impossible (e.g. valve slamming shut
                             while pressure is already low), plus the
                             config-driven correlation rules in
-                            docs/interfaces.CROSS_REGISTER_RULES: each command
+                            core/interfaces.CROSS_REGISTER_RULES: each command
                             may be safe on its own, but the COMBINED projected
                             plant state across several machines is unsafe
                             -> CROSS_REGISTER_VIOLATION.
@@ -26,7 +29,7 @@ current_state contract (passed in by the caller — middleware or test harness):
   {
       "registers": {
           <register>: <float>,   # current PLC value, one entry per machine
-          ...                    # (see docs/interfaces.MACHINES)
+          ...                    # (see core/interfaces.MACHINES)
       },
       "setpoints": {             # OPTIONAL - latest approved target per register
           <register>: <float>,   # (pending setpoints the PLC is still ramping to).
@@ -42,15 +45,17 @@ from __future__ import annotations
 import time
 from typing import Any, Dict, List, Optional, Tuple
 
-from docs.interfaces import (
+from core.interfaces import (
     make_verdict,
     REGISTER_MAP,
     MACHINES,
     MACHINE_BY_REGISTER,
     CROSS_REGISTER_RULES,
-    TANK_PRESSURE,
-    CONVEYOR_SPEED,
-    COOLING_VALVE,
+    ACTUATOR_REGISTERS,
+    MV101,
+    LIT101,
+    P501,
+    PIT501,
 )
 
 # ── Rate-of-change limits (degrees/sec, RPM/sec, PSI/sec) ──────────────────
@@ -65,6 +70,30 @@ _RATE_LIMIT_PER_SEC = {
 # Minimum time window used for rate calculations (avoids division by zero and
 # protects against two commands arriving in the same millisecond).
 _MIN_DT = 0.05   # seconds
+
+# ── Upstream sensor envelope (RULE) ───────────────────────────────────────────
+# Measured on real SWaT normal-operation data (docs/swat_bounds.json: train-block p0.1..p99.9 widened by
+# 10 %). Falls back to the register's configured physical range if the file is missing. This is a RULE
+# validated on SWaT held-out blocks (see the physical training report), not a model.
+def _load_envelope() -> Dict[int, Tuple[float, float, str]]:
+    import json
+    import os
+    env: Dict[int, Tuple[float, float, str]] = {
+        m["register"]: (float(m["min"]), float(m["max"]), "configured range") for m in MACHINES if m["kind"] == "sensor"}
+    path = os.path.join(os.path.dirname(os.path.abspath(__file__)), "..", "docs", "swat_bounds.json")
+    try:
+        with open(path) as fh:
+            doc = json.load(fh)
+        for m in MACHINES:
+            b = doc["sensors"].get(m["name"]) if m["kind"] == "sensor" else None
+            if b:
+                env[m["register"]] = (float(b["envelope_lo"]), float(b["envelope_hi"]), "SWaT measured envelope")
+    except Exception:
+        pass
+    return env
+
+
+SENSOR_ENVELOPE = _load_envelope()
 
 # ── Feedback tolerance ──────────────────────────────────────────────────────
 # On the upstream path, the PLC is still ramping toward its target, so some
@@ -153,44 +182,40 @@ def _check_cross_register(tx_id: str, command: dict, current_state: dict) -> Opt
     """
     Flags physically impossible register combinations.
 
-    Current rules:
-      A. Valve slamming shut (large negative COOLING_VALVE change) while
-         TANK_PRESSURE is already low  — the two together imply a state the
-         plant can't physically enter.
-      B. CONVEYOR_SPEED at or near max while TANK_PRESSURE is already near
-         max — extreme simultaneous load on two subsystems.
+    Current rules (stage-aware, SWaT-style twin):
+      A. VALVE_CLOSING_LOW_LEVEL: the S1 inlet valve MV101 closing sharply
+         while the raw tank LIT101 is already low - the tank would run dry.
+      B. RO_PRESSURE_OVERLOAD: RO high-pressure pump P501 near max speed while
+         the RO feed pressure PIT501 is already near its limit.
     """
     register = command.get("register")
     value    = command.get("value")
 
-    tank_pressure   = _get_value(current_state, TANK_PRESSURE)
-    conveyor_speed  = _get_value(current_state, CONVEYOR_SPEED)
-    cooling_valve   = _get_value(current_state, COOLING_VALVE)
+    level_101    = _get_value(current_state, LIT101)
+    inlet_valve  = _get_value(current_state, MV101)
+    ro_pressure  = _get_value(current_state, PIT501)
 
-    # Rule A: valve closing fast while tank pressure already low
-    if register == COOLING_VALVE and tank_pressure is not None and cooling_valve is not None:
-        valve_drop = cooling_valve - value            # positive = closing
-        pressure_lo, _ = _safe_range(TANK_PRESSURE)
-        pressure_threshold = pressure_lo + 15.0      # "already low" = < 15 PSI
+    # Rule A: inlet valve closing fast while the raw-water tank is already low
+    if register == MV101 and level_101 is not None and inlet_valve is not None:
+        valve_drop = inlet_valve - value              # positive = closing
+        level_lo, level_hi = _safe_range(LIT101)
+        low_threshold = level_lo + 0.20 * (level_hi - level_lo)   # "already low" = bottom 20 %
 
-        if valve_drop >= _SIG_MOVE[COOLING_VALVE] and tank_pressure < pressure_threshold:
+        if valve_drop >= _SIG_MOVE[MV101] and level_101 < low_threshold:
             return make_verdict(
                 tx_id, False,
-                "CROSS_REGISTER_VIOLATION:VALVE_CLOSING_LOW_PRESSURE:valve closing sharply with tank pressure already low",
+                "CROSS_REGISTER_VIOLATION:VALVE_CLOSING_LOW_LEVEL:inlet valve closing sharply with raw tank level already low",
                 "physical",
             )
 
-    # Rule B: conveyor near max while tank pressure near max
-    if register == CONVEYOR_SPEED and tank_pressure is not None:
-        _, pressure_hi = _safe_range(TANK_PRESSURE)
-        _, speed_hi    = _safe_range(CONVEYOR_SPEED)
-        pressure_near_max = tank_pressure > pressure_hi * 0.90
-        speed_near_max    = value > speed_hi * 0.90
-
-        if pressure_near_max and speed_near_max:
+    # Rule B: RO pump near max while RO feed pressure already near its limit
+    if register == P501 and ro_pressure is not None:
+        _, pressure_hi = _safe_range(PIT501)
+        _, pump_hi     = _safe_range(P501)
+        if ro_pressure > pressure_hi * 0.90 and value > pump_hi * 0.90:
             return make_verdict(
                 tx_id, False,
-                "CROSS_REGISTER_VIOLATION:CONVEYOR_PRESSURE_OVERLOAD:conveyor near max speed while tank pressure near limit",
+                "CROSS_REGISTER_VIOLATION:RO_PRESSURE_OVERLOAD:RO pump near max speed while RO feed pressure near limit",
                 "physical",
             )
 
@@ -282,12 +307,12 @@ def check_command(command: dict, current_state: dict) -> dict:
     Downstream check: validate a SCADA->PLC command against physical laws.
 
     Args:
-        command:       Command dict (docs/interfaces.make_command shape).
+        command:       Command dict (core/interfaces.make_command shape).
         current_state: Latest plant state from plc.get_telemetry() or a
                        compatible dict (see module docstring for shape).
 
     Returns:
-        Verdict dict (docs/interfaces.make_verdict shape).
+        Verdict dict (core/interfaces.make_verdict shape).
         pass=True only if ALL three rule layers pass.
     """
     tx_id    = command.get("tx_id", "")
@@ -297,6 +322,14 @@ def check_command(command: dict, current_state: dict) -> dict:
 
     if register not in REGISTER_MAP:
         return make_verdict(tx_id, False, f"UNKNOWN_REGISTER:{register}", "physical")
+
+    # Layer 0 — only actuators can be commanded
+    if register not in ACTUATOR_REGISTERS:
+        return make_verdict(
+            tx_id, False,
+            f"WRITE_TO_SENSOR_REGISTER:{REGISTER_MAP[register]['name']} is a sensor (read-only)",
+            "physical",
+        )
 
     # Layer 1 — hard bounds
     verdict = _check_bounds(tx_id, register, value)
@@ -316,6 +349,28 @@ def check_command(command: dict, current_state: dict) -> dict:
     return make_verdict(tx_id, True, "OK", "physical")
 
 
+def check_telemetry(registers: Dict[Any, float]) -> dict:
+    """
+    Upstream sensor-envelope RULE: every sensor reading must lie inside its MEASURED SWaT normal envelope.
+
+    registers: {register number or tag name: value}. Returns a verdict dict (agent="physical"); on failure
+    the reason is SENSOR_ENVELOPE_VIOLATION:<tag>=<value>[lo,hi] (all offenders, comma separated) and the
+    verdict carries a `violations` list. tx_id is "" (the caller assigns it).
+    """
+    bad = []
+    for reg, (lo, hi, _src) in SENSOR_ENVELOPE.items():
+        name = REGISTER_MAP[reg]["name"]
+        v = registers.get(reg, registers.get(name))
+        if v is not None and not (lo <= float(v) <= hi):
+            bad.append({"tag": name, "value": round(float(v), 3), "lo": round(lo, 3), "hi": round(hi, 3)})
+    if bad:
+        verdict = make_verdict("", False, "SENSOR_ENVELOPE_VIOLATION:" + ",".join(
+            f"{b['tag']}={b['value']}[{b['lo']},{b['hi']}]" for b in bad), "physical")
+        verdict["violations"] = bad
+        return verdict
+    return make_verdict("", True, "OK", "physical")
+
+
 def check_feedback(commanded_value: float, reported_value: float, register: int) -> dict:
     """
     Upstream check: compare what the PLC reports with what was last commanded.
@@ -327,7 +382,7 @@ def check_feedback(commanded_value: float, reported_value: float, register: int)
     Args:
         commanded_value: The last value sent to this register by the middleware.
         reported_value:  The value the PLC is currently reporting.
-        register:        Register number (see docs/interfaces.MACHINES).
+        register:        Register number (see core/interfaces.MACHINES).
 
     Returns:
         Verdict dict with agent="physical".

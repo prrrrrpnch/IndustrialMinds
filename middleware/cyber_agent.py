@@ -1,5 +1,10 @@
 """
-Cyber Agent — checks traffic-level behavior of incoming Modbus commands.
+Cyber Agent — the RULE-BASED half of the cyber branch (deterministic rules, NOT a learned model).
+The learned half is models/cyber_model.py (SWaT-trained, advisory). These rules cannot be validated
+against SWaT: SWaT contains no HMAC signatures, replay tags or source addresses, so they are tested by
+unit tests and by rule-tested/constructed scenarios, and reported as such.
+
+Checks traffic-level behavior of incoming Modbus commands.
 Does NOT care what a value means physically — only how it arrived.
 
 Check order (first failure wins):
@@ -9,6 +14,13 @@ Check order (first failure wins):
   4. Per-source rate limit     RATE_LIMIT_EXCEEDED     (cheap DoS guard before crypto)
   5. HMAC-SHA256 verification  HMAC_MISSING / HMAC_MALFORMED / HMAC_INVALID / HMAC_EXPIRED
   6. Replay                    REPLAY_DETECTED         (nonce reuse or duplicate payload)
+  7. Quarantine (authenticated) SOURCE_QUARANTINED     (opt-in IM_QUARANTINE=1)
+  8. Authorization (policy)    UNAUTHORIZED_*          (opt-in config/policy.json: who may write which register, how far)
+
+The quarantine check sits AFTER authentication on purpose (AUDIT S4). It used to run first, before any cryptography, which
+meant refusing a frame on its source address - the one field an attacker on a flat L2 segment controls. Combined with
+address-keyed strikes, an attacker could ARP-spoof the operator and get the REAL SCADA cut off. A device is now only ever
+quarantined on the strength of commands it provably signed, and only checked once we know it signed this one.
 
 A command is only trusted after step 5 succeeds.
 """
@@ -17,12 +29,14 @@ from __future__ import annotations
 
 import ipaddress
 import os
+import threading
 from typing import Any, Deque, Dict, List, Tuple, Union
 import time
 from collections import defaultdict, deque
 
-from docs.interfaces import make_verdict, ALL_REGISTERS, to_raw
-from docs import hmac_auth
+from core.interfaces import make_verdict, ALL_REGISTERS, to_raw
+from core import hmac_auth, netconfig
+from middleware import policy, quarantine
 
 # ---- Configuration ----
 RATE_LIMIT_PER_SEC = 5
@@ -32,8 +46,9 @@ ALLOWED_REGISTERS = set(ALL_REGISTERS)
 REPLAY_WINDOW_SECONDS = 2.0
 
 # Trusted SCADA sources. Comma-separated IPs and/or CIDR blocks.
-# Default: the local SCADA (127.0.0.1) plus the original lab SCADA address.
-TRUSTED_SOURCES_ENV = os.environ.get("IM_TRUSTED_SOURCES", "127.0.0.1,192.168.1.10")
+# Default (core/netconfig.py): this machine only. For a SCADA on another laptop set
+# IM_TRUSTED_SOURCES to its address / CIDR.
+TRUSTED_SOURCES_ENV = netconfig.TRUSTED_SOURCES
 
 
 def _parse_whitelist(spec: str) -> List[Union[ipaddress.IPv4Network, ipaddress.IPv6Network]]:
@@ -55,6 +70,16 @@ _TRUSTED_NETWORKS = _parse_whitelist(TRUSTED_SOURCES_ENV)
 SOURCE_WHITELIST = {str(n.network_address) for n in _TRUSTED_NETWORKS if n.num_addresses == 1}
 
 # ---- Internal state ----
+#
+# AUDIT C5: every table below is read-then-written by a check (_check_nonce is the worst: `if nonce in _seen_nonces` then
+# `_seen_nonces[nonce] = now`). Until now that was safe only by accident - pymodbus calls setValues from the single asyncio
+# event loop, so there was exactly one caller. Nothing documented that and no test asserted it, so the first worker thread
+# anywhere upstream (moving the PLC forward off the loop, a second listener, a thread-pool handler) would have turned replay
+# protection into a race: two copies of the same signed frame arriving together both see an empty nonce table and both pass.
+# The lock removes the assumption instead of relying on it. It is held only across the table operations - never across the
+# HMAC verification or the policy lookup - so it does not serialise the expensive part of a check.
+_state_lock = threading.RLock()
+
 _request_timestamps = defaultdict(deque)   # source_ip -> timestamps
 _recent_payloads = defaultdict(deque)      # source_ip -> (payload, timestamp)
 _seen_nonces = {}                          # nonce -> first-seen time
@@ -69,13 +94,14 @@ _last_sweep = 0.0
 
 def _sweep_idle_sources(now: float) -> None:
     global _last_sweep
-    if now - _last_sweep < _SWEEP_INTERVAL_SECONDS:
-        return
-    _last_sweep = now
-    horizon = max(RATE_WINDOW_SECONDS, REPLAY_WINDOW_SECONDS)
-    for table in (_request_timestamps, _recent_payloads):
-        for src in [s for s, dq in table.items() if not dq or now - _last_time(dq) > horizon]:
-            del table[src]
+    with _state_lock:
+        if now - _last_sweep < _SWEEP_INTERVAL_SECONDS:
+            return
+        _last_sweep = now
+        horizon = max(RATE_WINDOW_SECONDS, REPLAY_WINDOW_SECONDS)
+        for table in (_request_timestamps, _recent_payloads):
+            for src in [s for s, dq in table.items() if not dq or now - _last_time(dq) > horizon]:
+                del table[src]
 
 
 def _last_time(dq: Deque[Any]) -> float:
@@ -94,36 +120,43 @@ def is_trusted_source(source_ip: object) -> bool:
 
 
 def _check_rate(source_ip: str, now: float) -> bool:
-    dq = _request_timestamps[source_ip]
-    dq.append(now)
-    while dq and now - dq[0] > RATE_WINDOW_SECONDS:
-        dq.popleft()
-    return len(dq) <= RATE_LIMIT_PER_SEC
+    with _state_lock:
+        dq = _request_timestamps[source_ip]
+        dq.append(now)
+        while dq and now - dq[0] > RATE_WINDOW_SECONDS:
+            dq.popleft()
+        return len(dq) <= RATE_LIMIT_PER_SEC
 
 
 def _check_replay(command: Dict[str, Any], now: float) -> bool:
     source_ip = command["source_ip"]
     payload_key = (command["function_code"], command["register"], command["value"])
-    dq = _recent_payloads[source_ip]
-    while dq and now - dq[0][1] > REPLAY_WINDOW_SECONDS:
-        dq.popleft()
-    is_replay = any(p == payload_key for p, _ in dq)
-    dq.append((payload_key, now))
-    return not is_replay
+    with _state_lock:
+        dq = _recent_payloads[source_ip]
+        while dq and now - dq[0][1] > REPLAY_WINDOW_SECONDS:
+            dq.popleft()
+        is_replay = any(p == payload_key for p, _ in dq)
+        dq.append((payload_key, now))
+        return not is_replay
 
 
 def _check_nonce(auth: Dict[str, Any], now: float) -> bool:
-    """Authenticated nonce must never be seen twice inside the freshness window."""
-    # Expire from the oldest end only - amortised O(1) per command.
-    while _nonce_order and now - _nonce_order[0][0] > _NONCE_RETENTION_SECONDS:
-        _, old = _nonce_order.popleft()
-        _seen_nonces.pop(old, None)
-    nonce = auth.get("nonce")
-    if nonce in _seen_nonces:
-        return False
-    _seen_nonces[nonce] = now
-    _nonce_order.append((now, nonce))
-    return True
+    """Authenticated nonce must never be seen twice inside the freshness window.
+
+    The expiry, the membership test and the insert are ONE atomic step (AUDIT C5): split across threads, two copies of the
+    same captured frame can both find the nonce absent and both be accepted, which is exactly the replay this check exists
+    to stop."""
+    with _state_lock:
+        # Expire from the oldest end only - amortised O(1) per command.
+        while _nonce_order and now - _nonce_order[0][0] > _NONCE_RETENTION_SECONDS:
+            _, old = _nonce_order.popleft()
+            _seen_nonces.pop(old, None)
+        nonce = auth.get("nonce")
+        if nonce in _seen_nonces:
+            return False
+        _seen_nonces[nonce] = now
+        _nonce_order.append((now, nonce))
+        return True
 
 
 def check(command: Dict[str, Any]) -> Dict[str, Any]:
@@ -151,9 +184,20 @@ def check(command: Dict[str, Any]) -> Dict[str, Any]:
     if raw_value is None and command.get("value") is not None:
         raw_value = to_raw(command["value"])
 
+    # Per-device key (opt-in). In registry mode, each source is verified with
+    # its own key; a source with no registered key is rejected before any MAC
+    # is computed. In shared mode (no registry) this returns the shared secret.
+    verify_key = hmac_auth.key_for_source(source_ip)
+    if verify_key is None:
+        return make_verdict(
+            tx_id, False,
+            f"UNKNOWN_DEVICE:{source_ip} has no key in the per-device registry",
+            "cyber",
+        )
+
     auth = command.get("auth")
     ok, code, detail = hmac_auth.verify(
-        command.get("register"), raw_value, auth, now_ms=int(now * 1000)
+        command.get("register"), raw_value, auth, now_ms=int(now * 1000), key=verify_key
     )
     if not ok:
         verdict = make_verdict(tx_id, False, f"{code}:{detail}", "cyber")
@@ -170,6 +214,21 @@ def check(command: Dict[str, Any]) -> Dict[str, Any]:
         verdict["auth_status"] = code
         return verdict
 
+    # The sender provably holds the key. Only NOW may a quarantine refuse it (AUDIT S4): before this line the identity is
+    # just a source address, and refusing on an address is refusing on something the attacker chooses.
+    held, remaining = quarantine.is_quarantined(source_ip, now)        # opt-in (IM_QUARANTINE=1)
+    if held:
+        verdict = make_verdict(tx_id, False, f"SOURCE_QUARANTINED:{remaining:.0f}s remaining", "cyber")
+        verdict["auth_status"] = code
+        return verdict
+
+    # Authenticated identity is established; now what is this source ALLOWED to do (policy-as-code, middleware/policy.py)?
+    allowed, why = policy.authorize(source_ip, command.get("function_code"), command.get("register"), command.get("value"))
+    if not allowed:
+        verdict = make_verdict(tx_id, False, why, "cyber")
+        verdict["auth_status"] = code
+        return verdict
+
     verdict = make_verdict(tx_id, True, "OK", "cyber")
     verdict["auth_status"] = code
     return verdict
@@ -177,9 +236,11 @@ def check(command: Dict[str, Any]) -> Dict[str, Any]:
 
 def reset_state() -> None:
     """Clears rate/replay tracking — call this between test runs."""
-    _request_timestamps.clear()
-    _recent_payloads.clear()
-    _seen_nonces.clear()
-    _nonce_order.clear()
     global _last_sweep
-    _last_sweep = 0.0
+    with _state_lock:
+        _request_timestamps.clear()
+        _recent_payloads.clear()
+        _seen_nonces.clear()
+        _nonce_order.clear()
+        _last_sweep = 0.0
+    quarantine.reset()

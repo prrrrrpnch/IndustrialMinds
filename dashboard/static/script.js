@@ -223,13 +223,15 @@ function updatePlcToScada(events) {
 // TELEMETRY
 // =========================================================
 
+const _prevTelemetry = {};
+
 function updateTelemetry(telemetry) {
 
     const registers =
         telemetry.registers || {};
 
     // One row per machine from the central config
-    // (docs/interfaces.MACHINES, injected by the template).
+    // (core/interfaces.MACHINES, injected by the template).
 
     (window.IM_MACHINES || []).forEach(machine => {
 
@@ -237,6 +239,11 @@ function updateTelemetry(telemetry) {
             Number(
                 registers[machine.name] ?? 0
             );
+
+        const range = machine.max - machine.min;
+        const frac = range > 0
+            ? Math.max(0, Math.min(1, (value - machine.min) / range))
+            : 0;
 
         setText(
             `val-${machine.name}`,
@@ -248,7 +255,43 @@ function updateTelemetry(telemetry) {
             value - machine.min,
             machine.max - machine.min
         );
+
+        // Process graphics (tank fill / pH marker / pressure dial)
+        const tank = document.getElementById(`tank-${machine.name}`);
+        if (tank) {
+            tank.style.height = `${frac * 100}%`;
+        }
+        const marker = document.getElementById(`gauge-${machine.name}`);
+        if (marker) {
+            if (marker.classList.contains("dial-needle")) {
+                marker.style.transform =
+                    `translateX(-50%) rotate(${-90 + frac * 180}deg)`;
+            } else {
+                marker.style.left = `${frac * 100}%`;
+            }
+        }
+
+        // Highlight moves of more than 3% of range between polls
+        const prev = _prevTelemetry[machine.name];
+        if (prev !== undefined && range > 0 &&
+            Math.abs(value - prev) > 0.03 * range) {
+            flashPoint(machine.name);
+        }
+        _prevTelemetry[machine.name] = value;
     });
+}
+
+
+function flashPoint(name) {
+
+    const el = document.getElementById(`row-${name}`);
+    if (!el) {
+        return;
+    }
+    el.classList.remove("changed");
+    void el.offsetWidth;  // restart the CSS animation
+    el.classList.add("changed");
+    setTimeout(() => el.classList.remove("changed"), 1800);
 }
 
 
@@ -337,12 +380,13 @@ function updateCpuChart(history) {
         return;
     }
 
-    if (typeof Chart === "undefined") {
-
-        console.error(
-            "Chart.js is not loaded."
+    // MicroLineChart ships with the dashboard (static/vendor/microchart.js). It cannot fail to load from a CDN, because
+    // there is no CDN; if it is ever missing that is a packaging bug and should be loud, not a silent empty panel.
+    if (typeof MicroLineChart === "undefined") {
+        canvas.insertAdjacentHTML(
+            "afterend",
+            '<p class="chart-missing">CPU chart unavailable: static/vendor/microchart.js did not load.</p>'
         );
-
         return;
     }
 
@@ -357,97 +401,23 @@ function updateCpuChart(history) {
                 Number(point.value)
         );
 
-    if (cpuChart) {
+    if (!cpuChart) {
 
-        cpuChart.data.labels =
-            labels;
-
-        cpuChart.data.datasets[0].data =
-            values;
-
-        cpuChart.update(
-            "none"
-        );
-
-        return;
+        cpuChart =
+            new MicroLineChart(
+                canvas,
+                {
+                    min: 0,
+                    max: 100,
+                    suffix: "%"
+                }
+            );
     }
 
-    const ctx =
-        canvas.getContext(
-            "2d"
-        );
-
-    cpuChart =
-        new Chart(
-            ctx,
-            {
-                type: "line",
-
-                data: {
-
-                    labels: labels,
-
-                    datasets: [
-                        {
-                            label:
-                                "CPU Load (%)",
-
-                            data: values,
-
-                            borderWidth: 2,
-
-                            fill: true,
-
-                            tension: 0.3,
-
-                            pointRadius: 0
-                        }
-                    ]
-                },
-
-                options: {
-
-                    responsive: true,
-
-                    maintainAspectRatio:
-                        false,
-
-                    animation: false,
-
-                    scales: {
-
-                        x: {
-                            ticks: {
-                                maxTicksLimit: 8
-                            }
-                        },
-
-                        y: {
-
-                            beginAtZero: true,
-
-                            min: 0,
-
-                            max: 100,
-
-                            ticks: {
-
-                                callback:
-                                    value =>
-                                        `${value}%`
-                            }
-                        }
-                    },
-
-                    plugins: {
-
-                        legend: {
-                            display: false
-                        }
-                    }
-                }
-            }
-        );
+    cpuChart.update(
+        labels,
+        values
+    );
 }
 
 
@@ -494,8 +464,18 @@ function verdictClass(verdict) {
             verdict || ""
         ).toLowerCase();
 
+    if (value === "alert") {
+        return "alert";
+    }
+
     if (value === "pass") {
         return "pass";
+    }
+
+    // AUDIT C1: approved by the agents, but the PLC never took it. Not a success and not a block - its own state, so the
+    // operator cannot mistake it for a setpoint that was applied.
+    if (value === "undelivered") {
+        return "undelivered";
     }
 
     if (
@@ -542,96 +522,6 @@ function safe(value) {
             "'",
             "&#039;"
         );
-}
-
-
-// =========================================================
-// ATTACK PANEL
-// =========================================================
-
-function toggleAttackPanel() {
-
-    const panel =
-        document.getElementById(
-            "attack-panel"
-        );
-
-    if (!panel) {
-        return;
-    }
-
-    if (
-        panel.style.display === "none" ||
-        panel.style.display === ""
-    ) {
-
-        panel.style.display =
-            "block";
-
-    } else {
-
-        panel.style.display =
-            "none";
-    }
-}
-
-
-// =========================================================
-// TRIGGER ATTACK
-// =========================================================
-
-async function triggerAttack(attack) {
-
-    try {
-
-        const response =
-            await fetch(
-                "/api/trigger-attack",
-                {
-                    method: "POST",
-
-                    headers: {
-                        "Content-Type":
-                            "application/json"
-                    },
-
-                    body: JSON.stringify({
-                        attack: attack,
-                        source_ip:
-                            (document.getElementById("attack-source-ip")?.value || "").trim()
-                    })
-                }
-            );
-
-        const result =
-            await response.json();
-
-        console.log(
-            "Attack:",
-            result
-        );
-
-        if (!result.success) {
-
-            console.error(
-                "Attack rejected:",
-                result.error
-            );
-
-            return;
-        }
-
-        console.log(
-            `[DASHBOARD] ${attack} launched`
-        );
-
-    } catch (error) {
-
-        console.error(
-            "Attack failed:",
-            error
-        );
-    }
 }
 
 
@@ -691,23 +581,10 @@ async function resetDashboard() {
 
 function setupButtons() {
 
-    const attackButton =
-        document.getElementById(
-            "btn-trigger-attack"
-        );
-
     const resetButton =
         document.getElementById(
             "btn-reset-data"
         );
-
-    if (attackButton) {
-
-        attackButton.addEventListener(
-            "click",
-            toggleAttackPanel
-        );
-    }
 
     if (resetButton) {
 
@@ -1135,11 +1012,133 @@ function setupBlockedSection() {
 // START
 // =========================================================
 
+// =========================================================
+// PACKET TRACER (Phase 9): per-tx hop-by-hop view
+// =========================================================
+
+let tracerSelected = null;     // full tx_id the user clicked; null = follow the latest
+let tracerLastKey = "";
+
+// Numbered by position when drawn: the Cyber model hop only exists when a cyber model is loaded, so fixed numbers would skip one.
+const HOP_TITLES = {
+    arrival: "Arrival (network)",
+    cyber_rules: "Cyber Agent - rules",
+    cyber_model: "Cyber model (advisory)",
+    physical_rules: "Physical Agent - rules",
+    physical_model: "Physical model (advisory)",
+    orchestrator: "Orchestrator - fusion",
+    outcome: "Outcome",
+};
+
+function fmtVal(v) {
+    if (v === null || v === undefined) return "—";
+    if (typeof v === "object") return Object.entries(v).map(([k, x]) => `${k}=${fmtVal(x)}`).join(", ");
+    if (typeof v === "number") return Number.isInteger(v) ? String(v) : String(Math.round(v * 10000) / 10000);
+    return String(v);
+}
+
+function renderTrace(t) {
+    const box = document.getElementById("tracer-detail");
+    if (!box) return;
+    const head = `<div class="tracer-head"><b>${safe(t.short_id)}</b> <span class="verdict ${verdictClass(t.verdict)}">${safe(t.verdict)}</span> ` +
+        `<span class="tracer-reason">${safe(t.reason)}</span> <span class="tracer-id">${safe(t.tx_id)}</span></div>`;
+    const hops = (t.hops || []).map((h, idx) => {
+        const checks = (h.checks || []).map((c) =>
+            `<li class="chk chk-${String(c.result).toLowerCase()}"><span class="chk-name">${safe(c.check)}</span>` +
+            `<span class="chk-res">${safe(c.result)}</span><span class="chk-detail">${safe(c.detail)}</span></li>`).join("");
+        const vals = Object.entries(h.values || {}).map(([k, v]) =>
+            `<div class="kv"><span class="k">${safe(k)}</span><span class="v">${safe(fmtVal(v))}</span></div>`).join("");
+        const ms = (h.ms === null || h.ms === undefined) ? "" : `<span class="hop-ms">${fmtVal(h.ms)} ms</span>`;
+        return `<div class="hop hop-${String(h.outcome).toLowerCase()}"><div class="hop-title">${idx + 1}  ${safe(HOP_TITLES[h.hop] || h.hop)}` +
+            `<span class="hop-outcome">${safe(h.outcome)}</span>${ms}</div>${checks ? `<ul class="chk-list">${checks}</ul>` : ""}<div class="kvs">${vals}</div></div>`;
+    }).join('<div class="hop-arrow">&#9660;</div>');
+    const tm = Object.entries(t.timings_ms || {}).map(([k, v]) => `${k} ${fmtVal(v)} ms`).join("  ·  ");
+    box.innerHTML = head + hops + (tm ? `<div class="tracer-timings">timings: ${safe(tm)}</div>` : "");
+}
+
+async function refreshTracer() {
+    try {
+        const r = await fetch("/api/traces", { cache: "no-store" });
+        if (!r.ok) return;
+        const list = await r.json();
+        const ul = document.getElementById("tracer-list");
+        if (!ul) return;
+        const key = JSON.stringify(list.map((x) => x.tx_id)) + tracerSelected;
+        if (key !== tracerLastKey) {
+            tracerLastKey = key;
+            ul.innerHTML = list.map((x) =>
+                `<li class="tr-item${x.tx_id === (tracerSelected || (list[0] && list[0].tx_id)) ? " sel" : ""}" data-tx="${safe(x.tx_id)}">` +
+                `<span class="tr-id">${safe(x.short_id)}</span><span class="verdict ${verdictClass(x.verdict)}">${safe(x.verdict)}</span>` +
+                `<span class="tr-cmd">${safe(x.command)}=${safe(x.value)}</span></li>`).join("");
+            ul.querySelectorAll(".tr-item").forEach((li) => li.addEventListener("click", () => {
+                const first = ul.querySelector('.tr-item');
+                tracerSelected = (li === first) ? null : li.dataset.tx;   // newest item = follow live
+                tracerLastKey = "";
+                refreshTracer();
+            }));
+        }
+        const follow = document.getElementById("tracer-follow");
+        if (follow) follow.textContent = tracerSelected ? "pinned (click the newest item to follow)" : "following latest";
+        const target = tracerSelected || (list[0] && list[0].tx_id);
+        if (!target) return;
+        const d = await fetch(`/api/trace/${encodeURIComponent(target)}`, { cache: "no-store" });
+        if (d.ok) renderTrace(await d.json());
+    } catch (e) { /* dashboard keeps running without the tracer */ }
+}
+
+// =========================================================
+// SYSTEM HEALTH BADGE  (AUDIT N6)
+//
+// The header used to read "System Status: ONLINE" as static markup - it said ONLINE with the PLC unreachable and approved
+// commands never delivered. It now reflects GET /api/health, which the middleware feeds with PLC reachability.
+// =========================================================
+async function refreshHealth() {
+
+    const dot = document.getElementById("systemStatusDot");
+    const text = document.getElementById("systemStatusText");
+    const detail = document.getElementById("systemStatusDetail");
+    const box = document.getElementById("systemStatus");
+    if (!dot || !text) { return; }
+
+    let health;
+    try {
+        const r = await fetch("/api/health");
+        health = await r.json();
+    } catch (e) {
+        // The dashboard itself is unreachable from this page: say so rather than leaving a stale green dot.
+        box.className = "status-indicator offline";
+        dot.className = "status-dot offline";
+        text.textContent = "UNREACHABLE";
+        detail.textContent = "the dashboard did not answer";
+        return;
+    }
+
+    const degraded = health.degraded || [];
+    const state = health.status === "ok" ? "" : "degraded";
+
+    box.className = "status-indicator" + (state ? " " + state : "");
+    dot.className = "status-dot" + (state ? " " + state : "");
+    text.textContent = health.status === "ok" ? "ONLINE" : "DEGRADED";
+
+    const bits = [];
+    if (health.plc) { bits.push("PLC " + health.plc); }
+    if (degraded.length) { bits.push(degraded.join("; ")); }
+    detail.textContent = bits.join(" - ");
+    box.title = degraded.length ? degraded.join("\n") : "all reported subsystems healthy";
+}
+
+
 document.addEventListener(
     "DOMContentLoaded",
     () => {
 
         setupButtons();
+
+        refreshHealth();
+        setInterval(refreshHealth, 3000);
+
+        refreshTracer();
+        setInterval(refreshTracer, 1000);
 
         setupBlockedSection();
 

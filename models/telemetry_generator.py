@@ -1,9 +1,12 @@
 """
-models/telemetry_generator.py - deterministic synthetic data for training and stress tests.
+models/telemetry_generator.py - deterministic SYNTHETIC data, TESTS AND STRESS BENCHMARKS ONLY.
+
+No model is trained on this any more (dataset policy: SWaT only) and no metric derived from it may be cited as
+real-data performance.
 
 There is no historical plant data in this project, so both ML models are
 trained on synthetic data produced here from the central machine config
-(docs/interfaces.MACHINES). Every generator takes an explicit seed, so the
+(core/interfaces.MACHINES). Every generator takes an explicit seed, so the
 same seed always produces the same data and therefore the same model.
 
 Physical telemetry (one value per machine per sample):
@@ -24,8 +27,9 @@ from typing import Dict, Iterator, List, Optional, Tuple
 
 import numpy as np
 
-from docs.interfaces import MACHINES, NUM_REGISTERS, make_command, to_raw
-from docs import hmac_auth
+from core.netconfig import LOOPBACK  # documented loopback default
+from core.interfaces import MACHINES, NUM_REGISTERS, ACTUATOR_REGISTERS, make_command, to_raw
+from core import hmac_auth
 
 # Telemetry sample period used by the middleware poll loop (seconds).
 SAMPLE_PERIOD_S = 0.2
@@ -157,7 +161,7 @@ def generate_normal_commands(n: int, seed: int = 11,
     Commands are properly HMAC-signed so feature extraction sees real frames.
     """
     rng = np.random.default_rng(seed)
-    sources = sources or ["127.0.0.1", "192.168.1.10"]
+    sources = sources or [LOOPBACK, "192.168.1.10"]
     plant = {m["register"]: float(m["initial"]) for m in MACHINES}
     clock = {s: start_time + float(rng.uniform(0, 2)) for s in sources}
 
@@ -167,7 +171,7 @@ def generate_normal_commands(n: int, seed: int = 11,
         clock[src] += float(rng.uniform(1.5, 4.0))
         ts = clock[src]
 
-        reg = int(rng.integers(NUM_REGISTERS))
+        reg = int(ACTUATOR_REGISTERS[int(rng.integers(len(ACTUATOR_REGISTERS)))])   # only actuators are commanded
         m = MACHINES[reg]
         span = m["max"] - m["min"]
         step = m["operator"]["step"]

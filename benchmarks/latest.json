@@ -1,0 +1,1134 @@
+{
+  "latency": {
+    "label": "In-process decision latency of the real pipeline on a constructed workload (no sockets).",
+    "config": {
+      "commands_per_repeat": 3000,
+      "warmup": 300,
+      "repeats": 3,
+      "seed": 7,
+      "mix": "70% legitimate, 30% attacks (tamper, unsigned, replay, out-of-bounds, untrusted source, cross-register)"
+    },
+    "hops": {
+      "cyber_rules": {
+        "mean_ms": 0.0635,
+        "mean_ms_min_max_over_repeats": [
+          0.0625,
+          0.0649
+        ],
+        "p95_ms": 0.1043,
+        "p95_ms_min_max_over_repeats": [
+          0.1037,
+          0.105
+        ],
+        "p99_ms": 0.1377,
+        "p50_ms": 0.0588
+      },
+      "cyber_model": {
+        "mean_ms": 0.01,
+        "mean_ms_min_max_over_repeats": [
+          0.0099,
+          0.0101
+        ],
+        "p95_ms": 0.0146,
+        "p95_ms_min_max_over_repeats": [
+          0.0144,
+          0.0148
+        ],
+        "p99_ms": 0.0406,
+        "p50_ms": 0.0087
+      },
+      "physical_rules": {
+        "mean_ms": 0.031,
+        "mean_ms_min_max_over_repeats": [
+          0.0307,
+          0.0312
+        ],
+        "p95_ms": 0.0466,
+        "p95_ms_min_max_over_repeats": [
+          0.0461,
+          0.0473
+        ],
+        "p99_ms": 0.0698,
+        "p50_ms": 0.0283
+      },
+      "physical_model": {
+        "mean_ms": 0.33,
+        "mean_ms_min_max_over_repeats": [
+          0.3207,
+          0.3349
+        ],
+        "p95_ms": 1.3773,
+        "p95_ms_min_max_over_repeats": [
+          1.331,
+          1.4198
+        ],
+        "p99_ms": 2.1452,
+        "p50_ms": 0.0089
+      },
+      "orchestrator": {
+        "mean_ms": 0.0158,
+        "mean_ms_min_max_over_repeats": [
+          0.0155,
+          0.016
+        ],
+        "p95_ms": 0.0268,
+        "p95_ms_min_max_over_repeats": [
+          0.0263,
+          0.0274
+        ],
+        "p99_ms": 0.044,
+        "p50_ms": 0.0138
+      },
+      "trace_build": {
+        "mean_ms": 0.0711,
+        "mean_ms_min_max_over_repeats": [
+          0.0699,
+          0.0734
+        ],
+        "p95_ms": 0.1111,
+        "p95_ms_min_max_over_repeats": [
+          0.1107,
+          0.1114
+        ],
+        "p99_ms": 0.1394,
+        "p50_ms": 0.0668
+      },
+      "branches": {
+        "mean_ms": 0.6397,
+        "mean_ms_min_max_over_repeats": [
+          0.6261,
+          0.6481
+        ],
+        "p95_ms": 1.7245,
+        "p95_ms_min_max_over_repeats": [
+          1.6631,
+          1.7992
+        ],
+        "p99_ms": 2.5686,
+        "p50_ms": 0.3419
+      },
+      "total": {
+        "mean_ms": 0.8011,
+        "mean_ms_min_max_over_repeats": [
+          0.7835,
+          0.8132
+        ],
+        "p95_ms": 1.9723,
+        "p95_ms_min_max_over_repeats": [
+          1.8759,
+          2.0592
+        ],
+        "p99_ms": 2.797,
+        "p50_ms": 0.5012
+      }
+    },
+    "repeats": [
+      {
+        "seed": 7,
+        "commands": 3167,
+        "hops": {
+          "cyber_rules": {
+            "n": 3167,
+            "mean_ms": 0.0625,
+            "p50_ms": 0.0578,
+            "p95_ms": 0.1037,
+            "p99_ms": 0.135,
+            "max_ms": 1.6167
+          },
+          "cyber_model": {
+            "n": 3167,
+            "mean_ms": 0.0101,
+            "p50_ms": 0.0088,
+            "p95_ms": 0.0148,
+            "p99_ms": 0.0432,
+            "max_ms": 0.1881
+          },
+          "physical_rules": {
+            "n": 3167,
+            "mean_ms": 0.0312,
+            "p50_ms": 0.0281,
+            "p95_ms": 0.0473,
+            "p99_ms": 0.0719,
+            "max_ms": 1.8537
+          },
+          "physical_model": {
+            "n": 3167,
+            "mean_ms": 0.3343,
+            "p50_ms": 0.009,
+            "p95_ms": 1.4198,
+            "p99_ms": 2.2178,
+            "max_ms": 4.0562
+          },
+          "orchestrator": {
+            "n": 3167,
+            "mean_ms": 0.016,
+            "p50_ms": 0.0142,
+            "p95_ms": 0.0268,
+            "p99_ms": 0.0444,
+            "max_ms": 0.1565
+          },
+          "trace_build": {
+            "n": 3167,
+            "mean_ms": 0.0734,
+            "p50_ms": 0.07,
+            "p95_ms": 0.1114,
+            "p99_ms": 0.1397,
+            "max_ms": 2.1547
+          },
+          "branches": {
+            "n": 3167,
+            "mean_ms": 0.645,
+            "p50_ms": 0.3445,
+            "p95_ms": 1.7992,
+            "p99_ms": 2.6103,
+            "max_ms": 4.2596
+          },
+          "total": {
+            "n": 3167,
+            "mean_ms": 0.8132,
+            "p50_ms": 0.5056,
+            "p95_ms": 2.0592,
+            "p99_ms": 2.8749,
+            "max_ms": 5.6407
+          }
+        },
+        "total_by_verdict": {
+          "DROP": {
+            "n": 936,
+            "mean_ms": 0.8784,
+            "p50_ms": 0.5729,
+            "p95_ms": 2.2225,
+            "p99_ms": 3.0787,
+            "max_ms": 5.6407
+          },
+          "PASS": {
+            "n": 2231,
+            "mean_ms": 0.7859,
+            "p50_ms": 0.4852,
+            "p95_ms": 1.9919,
+            "p99_ms": 2.7758,
+            "max_ms": 4.4225
+          }
+        },
+        "verdict_counts": {
+          "DROP": 936,
+          "PASS": 2231
+        }
+      },
+      {
+        "seed": 8,
+        "commands": 3158,
+        "hops": {
+          "cyber_rules": {
+            "n": 3158,
+            "mean_ms": 0.0649,
+            "p50_ms": 0.06,
+            "p95_ms": 0.1042,
+            "p99_ms": 0.1388,
+            "max_ms": 2.0111
+          },
+          "cyber_model": {
+            "n": 3158,
+            "mean_ms": 0.0101,
+            "p50_ms": 0.0089,
+            "p95_ms": 0.0144,
+            "p99_ms": 0.0413,
+            "max_ms": 0.1729
+          },
+          "physical_rules": {
+            "n": 3158,
+            "mean_ms": 0.0307,
+            "p50_ms": 0.029,
+            "p95_ms": 0.0464,
+            "p99_ms": 0.0678,
+            "max_ms": 0.722
+          },
+          "physical_model": {
+            "n": 3158,
+            "mean_ms": 0.3349,
+            "p50_ms": 0.009,
+            "p95_ms": 1.3811,
+            "p99_ms": 2.1905,
+            "max_ms": 3.2686
+          },
+          "orchestrator": {
+            "n": 3158,
+            "mean_ms": 0.0155,
+            "p50_ms": 0.0135,
+            "p95_ms": 0.0263,
+            "p99_ms": 0.0432,
+            "max_ms": 0.2728
+          },
+          "trace_build": {
+            "n": 3158,
+            "mean_ms": 0.0699,
+            "p50_ms": 0.0649,
+            "p95_ms": 0.1107,
+            "p99_ms": 0.1385,
+            "max_ms": 0.3953
+          },
+          "branches": {
+            "n": 3158,
+            "mean_ms": 0.6481,
+            "p50_ms": 0.3412,
+            "p95_ms": 1.7113,
+            "p99_ms": 2.6237,
+            "max_ms": 4.712
+          },
+          "total": {
+            "n": 3158,
+            "mean_ms": 0.8066,
+            "p50_ms": 0.498,
+            "p95_ms": 1.9818,
+            "p99_ms": 2.8282,
+            "max_ms": 4.9263
+          }
+        },
+        "total_by_verdict": {
+          "DROP": {
+            "n": 953,
+            "mean_ms": 0.8014,
+            "p50_ms": 0.5313,
+            "p95_ms": 2.0057,
+            "p99_ms": 2.8444,
+            "max_ms": 4.156
+          },
+          "PASS": {
+            "n": 2205,
+            "mean_ms": 0.8089,
+            "p50_ms": 0.4843,
+            "p95_ms": 1.9794,
+            "p99_ms": 2.8177,
+            "max_ms": 4.9263
+          }
+        },
+        "verdict_counts": {
+          "DROP": 953,
+          "PASS": 2205
+        }
+      },
+      {
+        "seed": 9,
+        "commands": 3167,
+        "hops": {
+          "cyber_rules": {
+            "n": 3167,
+            "mean_ms": 0.0632,
+            "p50_ms": 0.0585,
+            "p95_ms": 0.105,
+            "p99_ms": 0.1393,
+            "max_ms": 1.2555
+          },
+          "cyber_model": {
+            "n": 3167,
+            "mean_ms": 0.0099,
+            "p50_ms": 0.0085,
+            "p95_ms": 0.0146,
+            "p99_ms": 0.0372,
+            "max_ms": 0.5083
+          },
+          "physical_rules": {
+            "n": 3167,
+            "mean_ms": 0.0312,
+            "p50_ms": 0.0277,
+            "p95_ms": 0.0461,
+            "p99_ms": 0.0696,
+            "max_ms": 4.6094
+          },
+          "physical_model": {
+            "n": 3167,
+            "mean_ms": 0.3207,
+            "p50_ms": 0.0088,
+            "p95_ms": 1.331,
+            "p99_ms": 2.0273,
+            "max_ms": 3.5241
+          },
+          "orchestrator": {
+            "n": 3167,
+            "mean_ms": 0.0159,
+            "p50_ms": 0.0136,
+            "p95_ms": 0.0274,
+            "p99_ms": 0.0443,
+            "max_ms": 0.6574
+          },
+          "trace_build": {
+            "n": 3167,
+            "mean_ms": 0.0701,
+            "p50_ms": 0.0654,
+            "p95_ms": 0.1111,
+            "p99_ms": 0.1401,
+            "max_ms": 1.3265
+          },
+          "branches": {
+            "n": 3167,
+            "mean_ms": 0.6261,
+            "p50_ms": 0.34,
+            "p95_ms": 1.6631,
+            "p99_ms": 2.4719,
+            "max_ms": 4.9711
+          },
+          "total": {
+            "n": 3167,
+            "mean_ms": 0.7835,
+            "p50_ms": 0.4999,
+            "p95_ms": 1.8759,
+            "p99_ms": 2.6879,
+            "max_ms": 6.3682
+          }
+        },
+        "total_by_verdict": {
+          "DROP": {
+            "n": 938,
+            "mean_ms": 0.8063,
+            "p50_ms": 0.5491,
+            "p95_ms": 1.9894,
+            "p99_ms": 2.6034,
+            "max_ms": 6.3682
+          },
+          "PASS": {
+            "n": 2229,
+            "mean_ms": 0.7739,
+            "p50_ms": 0.4777,
+            "p95_ms": 1.8424,
+            "p99_ms": 2.736,
+            "max_ms": 4.9169
+          }
+        },
+        "verdict_counts": {
+          "DROP": 938,
+          "PASS": 2229
+        }
+      }
+    ],
+    "environment": {
+      "generated_utc": "2026-10-20 16:40:33",
+      "python": "3.13.16",
+      "platform": "Linux-6.18.44-fc-v139-x86_64-with-glibc2.39",
+      "machine": "x86_64",
+      "cpu_count": 4,
+      "numpy": "2.5.4",
+      "pandas": "3.0.6",
+      "scikit_learn": "1.9.1",
+      "joblib": "1.6.0",
+      "git_commit": "371ce53",
+      "git_dirty": false
+    }
+  },
+  "rules": {
+    "label": "RULE-BASED checks on CONSTRUCTED scenarios (deterministic rules; NOT SWaT, NOT a learned model)",
+    "per_case": 200,
+    "seed": 7,
+    "cases": [
+      {
+        "layer": "legitimate",
+        "case": "operator command, in bounds, slow",
+        "expected": "PASS",
+        "n": 200,
+        "as_expected": 200,
+        "rate": 1.0,
+        "dropped_any_reason": 0,
+        "unexpected_outcomes": {},
+        "predicted": {
+          "PASS": 200,
+          "ALERT": 0,
+          "DROP": 0
+        }
+      },
+      {
+        "layer": "cyber",
+        "case": "untrusted source",
+        "expected": "UNTRUSTED_SOURCE",
+        "n": 200,
+        "as_expected": 200,
+        "rate": 1.0,
+        "dropped_any_reason": 200,
+        "unexpected_outcomes": {},
+        "predicted": {
+          "PASS": 0,
+          "ALERT": 0,
+          "DROP": 200
+        }
+      },
+      {
+        "layer": "cyber",
+        "case": "invalid function code",
+        "expected": "INVALID_FUNCTION_CODE",
+        "n": 200,
+        "as_expected": 200,
+        "rate": 1.0,
+        "dropped_any_reason": 200,
+        "unexpected_outcomes": {},
+        "predicted": {
+          "PASS": 0,
+          "ALERT": 0,
+          "DROP": 200
+        }
+      },
+      {
+        "layer": "cyber",
+        "case": "unknown register",
+        "expected": "INVALID_REGISTER",
+        "n": 200,
+        "as_expected": 200,
+        "rate": 1.0,
+        "dropped_any_reason": 200,
+        "unexpected_outcomes": {},
+        "predicted": {
+          "PASS": 0,
+          "ALERT": 0,
+          "DROP": 200
+        }
+      },
+      {
+        "layer": "cyber",
+        "case": "rate-limit burst",
+        "expected": "RATE_LIMIT_EXCEEDED",
+        "n": 200,
+        "as_expected": 200,
+        "rate": 1.0,
+        "dropped_any_reason": 200,
+        "unexpected_outcomes": {},
+        "predicted": {
+          "PASS": 0,
+          "ALERT": 0,
+          "DROP": 200
+        }
+      },
+      {
+        "layer": "cyber",
+        "case": "HMAC missing (unsigned)",
+        "expected": "HMAC_MISSING",
+        "n": 200,
+        "as_expected": 200,
+        "rate": 1.0,
+        "dropped_any_reason": 200,
+        "unexpected_outcomes": {},
+        "predicted": {
+          "PASS": 0,
+          "ALERT": 0,
+          "DROP": 200
+        }
+      },
+      {
+        "layer": "cyber",
+        "case": "HMAC invalid: value tampered",
+        "expected": "HMAC_INVALID",
+        "n": 200,
+        "as_expected": 200,
+        "rate": 1.0,
+        "dropped_any_reason": 200,
+        "unexpected_outcomes": {},
+        "predicted": {
+          "PASS": 0,
+          "ALERT": 0,
+          "DROP": 200
+        }
+      },
+      {
+        "layer": "cyber",
+        "case": "HMAC invalid: wrong key",
+        "expected": "HMAC_INVALID",
+        "n": 200,
+        "as_expected": 200,
+        "rate": 1.0,
+        "dropped_any_reason": 200,
+        "unexpected_outcomes": {},
+        "predicted": {
+          "PASS": 0,
+          "ALERT": 0,
+          "DROP": 200
+        }
+      },
+      {
+        "layer": "cyber",
+        "case": "HMAC expired / future-dated",
+        "expected": "HMAC_EXPIRED",
+        "n": 200,
+        "as_expected": 200,
+        "rate": 1.0,
+        "dropped_any_reason": 200,
+        "unexpected_outcomes": {},
+        "predicted": {
+          "PASS": 0,
+          "ALERT": 0,
+          "DROP": 200
+        }
+      },
+      {
+        "layer": "cyber",
+        "case": "replayed frame",
+        "expected": "REPLAY_DETECTED",
+        "n": 200,
+        "as_expected": 200,
+        "rate": 1.0,
+        "dropped_any_reason": 200,
+        "unexpected_outcomes": {},
+        "predicted": {
+          "PASS": 0,
+          "ALERT": 0,
+          "DROP": 200
+        }
+      },
+      {
+        "layer": "physical",
+        "case": "write to a sensor register",
+        "expected": "WRITE_TO_SENSOR_REGISTER",
+        "n": 200,
+        "as_expected": 200,
+        "rate": 1.0,
+        "dropped_any_reason": 200,
+        "unexpected_outcomes": {},
+        "predicted": {
+          "PASS": 0,
+          "ALERT": 0,
+          "DROP": 200
+        }
+      },
+      {
+        "layer": "physical",
+        "case": "out-of-bounds value",
+        "expected": "OUT_OF_BOUNDS",
+        "n": 200,
+        "as_expected": 200,
+        "rate": 1.0,
+        "dropped_any_reason": 200,
+        "unexpected_outcomes": {},
+        "predicted": {
+          "PASS": 0,
+          "ALERT": 0,
+          "DROP": 200
+        }
+      },
+      {
+        "layer": "physical",
+        "case": "rate of change too fast",
+        "expected": "RATE_OF_CHANGE_EXCEEDED",
+        "n": 200,
+        "as_expected": 200,
+        "rate": 1.0,
+        "dropped_any_reason": 200,
+        "unexpected_outcomes": {},
+        "predicted": {
+          "PASS": 0,
+          "ALERT": 0,
+          "DROP": 200
+        }
+      },
+      {
+        "layer": "physical",
+        "case": "stage rule VALVE_CLOSING_LOW_LEVEL",
+        "expected": "CROSS_REGISTER_VIOLATION:VALVE_CLOSING_LOW_LEVEL",
+        "n": 200,
+        "as_expected": 200,
+        "rate": 1.0,
+        "dropped_any_reason": 200,
+        "unexpected_outcomes": {},
+        "predicted": {
+          "PASS": 0,
+          "ALERT": 0,
+          "DROP": 200
+        }
+      },
+      {
+        "layer": "physical",
+        "case": "stage rule RO_PRESSURE_OVERLOAD",
+        "expected": "CROSS_REGISTER_VIOLATION:RO_PRESSURE_OVERLOAD",
+        "n": 200,
+        "as_expected": 200,
+        "rate": 1.0,
+        "dropped_any_reason": 200,
+        "unexpected_outcomes": {},
+        "predicted": {
+          "PASS": 0,
+          "ALERT": 0,
+          "DROP": 200
+        }
+      },
+      {
+        "layer": "physical",
+        "case": "cross-register RAW_PUMP_DRY_RUN",
+        "expected": "CROSS_REGISTER_VIOLATION:RAW_PUMP_DRY_RUN",
+        "n": 200,
+        "as_expected": 200,
+        "rate": 1.0,
+        "dropped_any_reason": 200,
+        "unexpected_outcomes": {},
+        "predicted": {
+          "PASS": 0,
+          "ALERT": 0,
+          "DROP": 200
+        }
+      },
+      {
+        "layer": "physical",
+        "case": "cross-register RAW_TANK_OVERFLOW",
+        "expected": "CROSS_REGISTER_VIOLATION:RAW_TANK_OVERFLOW",
+        "n": 200,
+        "as_expected": 200,
+        "rate": 1.0,
+        "dropped_any_reason": 200,
+        "unexpected_outcomes": {},
+        "predicted": {
+          "PASS": 0,
+          "ALERT": 0,
+          "DROP": 200
+        }
+      },
+      {
+        "layer": "physical",
+        "case": "cross-register ACID_OVERDOSE_LOW_FLOW",
+        "expected": "CROSS_REGISTER_VIOLATION:ACID_OVERDOSE_LOW_FLOW",
+        "n": 200,
+        "as_expected": 200,
+        "rate": 1.0,
+        "dropped_any_reason": 200,
+        "unexpected_outcomes": {},
+        "predicted": {
+          "PASS": 0,
+          "ALERT": 0,
+          "DROP": 200
+        }
+      },
+      {
+        "layer": "physical",
+        "case": "cross-register UF_PUMP_DEADHEAD",
+        "expected": "CROSS_REGISTER_VIOLATION:UF_PUMP_DEADHEAD",
+        "n": 200,
+        "as_expected": 200,
+        "rate": 1.0,
+        "dropped_any_reason": 200,
+        "unexpected_outcomes": {},
+        "predicted": {
+          "PASS": 0,
+          "ALERT": 0,
+          "DROP": 200
+        }
+      },
+      {
+        "layer": "physical",
+        "case": "cross-register UF_TANK_OVERFLOW",
+        "expected": "CROSS_REGISTER_VIOLATION:UF_TANK_OVERFLOW",
+        "n": 200,
+        "as_expected": 200,
+        "rate": 1.0,
+        "dropped_any_reason": 200,
+        "unexpected_outcomes": {},
+        "predicted": {
+          "PASS": 0,
+          "ALERT": 0,
+          "DROP": 200
+        }
+      },
+      {
+        "layer": "physical",
+        "case": "cross-register CHLORINE_BREAKTHROUGH",
+        "expected": "CROSS_REGISTER_VIOLATION:CHLORINE_BREAKTHROUGH",
+        "n": 200,
+        "as_expected": 200,
+        "rate": 1.0,
+        "dropped_any_reason": 200,
+        "unexpected_outcomes": {},
+        "predicted": {
+          "PASS": 0,
+          "ALERT": 0,
+          "DROP": 200
+        }
+      },
+      {
+        "layer": "physical",
+        "case": "cross-register RO_PUMP_DEADHEAD",
+        "expected": "CROSS_REGISTER_VIOLATION:RO_PUMP_DEADHEAD",
+        "n": 200,
+        "as_expected": 200,
+        "rate": 1.0,
+        "dropped_any_reason": 200,
+        "unexpected_outcomes": {},
+        "predicted": {
+          "PASS": 0,
+          "ALERT": 0,
+          "DROP": 200
+        }
+      },
+      {
+        "layer": "physical",
+        "case": "cross-register RO_FEED_STARVATION",
+        "expected": "CROSS_REGISTER_VIOLATION:RO_FEED_STARVATION",
+        "n": 200,
+        "as_expected": 200,
+        "rate": 1.0,
+        "dropped_any_reason": 200,
+        "unexpected_outcomes": {},
+        "predicted": {
+          "PASS": 0,
+          "ALERT": 0,
+          "DROP": 200
+        }
+      }
+    ],
+    "legitimate_false_positive_rate": 0.0,
+    "confusion": {
+      "overall": {
+        "tp": 4400,
+        "fp": 0,
+        "fn": 0,
+        "tn": 200,
+        "n": 4600,
+        "accuracy": 1.0,
+        "precision": 1.0,
+        "recall": 1.0,
+        "specificity": 1.0,
+        "f1": 1.0,
+        "false_positive_rate": 0.0,
+        "balanced_accuracy": 1.0
+      },
+      "three_class": {
+        "truth_PASS (legitimate)": {
+          "PASS": 200,
+          "ALERT": 0,
+          "DROP": 0
+        },
+        "truth_DROP (violating)": {
+          "PASS": 0,
+          "ALERT": 0,
+          "DROP": 4400
+        }
+      },
+      "per_layer": {
+        "cyber": {
+          "tp": 1800,
+          "fp": 0,
+          "fn": 0,
+          "tn": 200,
+          "n": 2000,
+          "accuracy": 1.0,
+          "precision": 1.0,
+          "recall": 1.0,
+          "specificity": 1.0,
+          "f1": 1.0,
+          "false_positive_rate": 0.0,
+          "balanced_accuracy": 1.0
+        },
+        "physical": {
+          "tp": 2600,
+          "fp": 0,
+          "fn": 0,
+          "tn": 200,
+          "n": 2800,
+          "accuracy": 1.0,
+          "precision": 1.0,
+          "recall": 1.0,
+          "specificity": 1.0,
+          "f1": 1.0,
+          "false_positive_rate": 0.0,
+          "balanced_accuracy": 1.0
+        }
+      }
+    },
+    "violating_scenarios": 4400,
+    "violating_detected_with_expected_reason": 4400
+  },
+  "attacker_plans": {
+    "run_level_confusion": {
+      "tp": 502,
+      "fp": 0,
+      "fn": 98,
+      "tn": 100,
+      "n": 700,
+      "accuracy": 0.86,
+      "precision": 1.0,
+      "recall": 0.8367,
+      "specificity": 1.0,
+      "f1": 0.9111,
+      "false_positive_rate": 0.0,
+      "balanced_accuracy": 0.9183
+    },
+    "benign_runs": 100,
+    "label": "Randomised ATTACKER PLANS through the RULE agents (constructed; swat-derived types follow SWaT behaviours, synthetic-extension types are network-layer constructions; physical ML model cold)",
+    "runs_per_type": 100,
+    "seed": 11,
+    "types": {
+      "freeze": {
+        "origin": "swat-derived",
+        "runs": 100,
+        "runs_with_a_drop": 80,
+        "run_drop_rate": 0.8,
+        "frames": 584,
+        "frames_dropped": 348,
+        "median_frame_of_first_drop": 2.0,
+        "drop_reasons": {
+          "REPLAY_DETECTED": 319,
+          "CROSS_REGISTER_VIOLATION": 29
+        }
+      },
+      "ramp": {
+        "origin": "swat-derived",
+        "runs": 100,
+        "runs_with_a_drop": 22,
+        "run_drop_rate": 0.22,
+        "frames": 872,
+        "frames_dropped": 63,
+        "median_frame_of_first_drop": 3.0,
+        "drop_reasons": {
+          "CROSS_REGISTER_VIOLATION": 35,
+          "RATE_OF_CHANGE_EXCEEDED": 28
+        }
+      },
+      "cross-register": {
+        "origin": "swat-derived",
+        "runs": 100,
+        "runs_with_a_drop": 100,
+        "run_drop_rate": 1.0,
+        "frames": 1039,
+        "frames_dropped": 248,
+        "median_frame_of_first_drop": 8.0,
+        "drop_reasons": {
+          "CROSS_REGISTER_VIOLATION": 148,
+          "RATE_OF_CHANGE_EXCEEDED": 100
+        }
+      },
+      "impossible-command": {
+        "origin": "synthetic-extension",
+        "runs": 100,
+        "runs_with_a_drop": 100,
+        "run_drop_rate": 1.0,
+        "frames": 215,
+        "frames_dropped": 215,
+        "median_frame_of_first_drop": 1.0,
+        "drop_reasons": {
+          "OUT_OF_BOUNDS": 215
+        }
+      },
+      "flood": {
+        "origin": "synthetic-extension",
+        "runs": 100,
+        "runs_with_a_drop": 100,
+        "run_drop_rate": 1.0,
+        "frames": 2588,
+        "frames_dropped": 2109,
+        "median_frame_of_first_drop": 6.0,
+        "drop_reasons": {
+          "RATE_LIMIT_EXCEEDED": 2088,
+          "REPLAY_DETECTED": 12,
+          "RATE_OF_CHANGE_EXCEEDED": 9
+        }
+      },
+      "replay": {
+        "origin": "synthetic-extension",
+        "runs": 100,
+        "runs_with_a_drop": 100,
+        "run_drop_rate": 1.0,
+        "frames": 427,
+        "frames_dropped": 327,
+        "median_frame_of_first_drop": 2.0,
+        "drop_reasons": {
+          "REPLAY_DETECTED": 327
+        }
+      }
+    }
+  },
+  "twin": {
+    "label": "TWIN MEASUREMENT (synthetic plant calibrated to SWaT) - NOT SWaT detection performance",
+    "weights": "physical_model_v2.joblib",
+    "selected_variant": "v2",
+    "nominal": {
+      "simulated_hours": 4.0,
+      "plant_state_seconds": {
+        "WARMING_UP": 119,
+        "NORMAL": 14281
+      },
+      "model_flag_seconds": 0,
+      "model_flag_fraction": 0.0,
+      "model_alarm_episodes": 0,
+      "model_alarm_episodes_per_hour": 0.0,
+      "envelope_violation_seconds": 0,
+      "envelope_alarm_episodes_per_hour": 0.0,
+      "anomaly_score_quantiles_p50_p95_p99_max": [
+        null,
+        null,
+        null,
+        null
+      ],
+      "isolation_forest_threshold": null,
+      "backwashes": 1
+    },
+    "scenarios": {
+      "p101_stop (raw pump stops)": {
+        "changes": {
+          "P101": 5.0
+        },
+        "alarm_seconds_before_attack": 0,
+        "first_model_flag_after_s": 3,
+        "first_envelope_violation_after_s": 3
+      },
+      "acid_overdose (HCl max, raw pump low)": {
+        "changes": {
+          "P203": 100.0,
+          "P101": 15.0
+        },
+        "alarm_seconds_before_attack": 0,
+        "first_model_flag_after_s": 2,
+        "first_envelope_violation_after_s": 2
+      },
+      "chlorine_breakthrough (NaOCl max, UV off)": {
+        "changes": {
+          "P205": 100.0,
+          "UV401": 0.0
+        },
+        "alarm_seconds_before_attack": 0,
+        "first_model_flag_after_s": 8,
+        "first_envelope_violation_after_s": 8
+      },
+      "ro_deadhead (RO pump max, reject valve shut)": {
+        "changes": {
+          "P501": 100.0,
+          "MV503": 0.0
+        },
+        "alarm_seconds_before_attack": 0,
+        "first_model_flag_after_s": 1,
+        "first_envelope_violation_after_s": 1
+      },
+      "uf_valve_shut (UF feed valve closes)": {
+        "changes": {
+          "MV302": 2.0
+        },
+        "alarm_seconds_before_attack": 0,
+        "first_model_flag_after_s": 5,
+        "first_envelope_violation_after_s": 16
+      }
+    }
+  },
+  "swat": {
+    "status": "OK",
+    "block": "test (held-out calendar block)",
+    "windows": 28080,
+    "attack_windows": 1061,
+    "benign_windows": 27019,
+    "stride_s": 5,
+    "benign_hours": 37.53,
+    "advisory_model_flag": {
+      "tp": 544,
+      "fp": 637,
+      "fn": 517,
+      "tn": 26382,
+      "precision": 0.4606,
+      "recall": 0.5127,
+      "f1": 0.4853,
+      "false_positive_rate": 0.0236,
+      "accuracy": 0.9589,
+      "balanced_accuracy": 0.7446,
+      "always_benign_baseline_accuracy": 0.9622,
+      "alarm_episodes_per_benign_hour": 1.173
+    },
+    "roc_auc_attack_probability": 0.8362,
+    "average_precision_attack_probability": 0.3628,
+    "label": "PROMOTED physical model (PhysicalModelV2) on the HELD-OUT SWaT test block (real data, aggregate only)",
+    "fixture_not_real_results": false,
+    "operating_point": {
+      "isolation_forest_threshold": null,
+      "classifier_threshold": 0.788,
+      "variant": "v2"
+    },
+    "protocol_note": "test block was used for exactly two refits in the v2 experiment (baseline and selected) and was also seen by the shipped model's revised protocol: held-out, not a pristine blind test. Windows need a 120 s history, so the window set differs slightly from the v1 record",
+    "segments": {
+      "total": 10,
+      "detected": 8,
+      "median_detection_latency_s": 57.5,
+      "per_segment": [
+        {
+          "segment": 26,
+          "attack_windows": 120,
+          "duration_s": 600.0,
+          "flagged_windows": 112,
+          "detected": true,
+          "detection_latency_s": 40.0
+        },
+        {
+          "segment": 27,
+          "attack_windows": 89,
+          "duration_s": 445.0,
+          "flagged_windows": 77,
+          "detected": true,
+          "detection_latency_s": 55.0
+        },
+        {
+          "segment": 28,
+          "attack_windows": 20,
+          "duration_s": 100.0,
+          "flagged_windows": 1,
+          "detected": true,
+          "detection_latency_s": 60.0
+        },
+        {
+          "segment": 29,
+          "attack_windows": 96,
+          "duration_s": 480.0,
+          "flagged_windows": 0,
+          "detected": false,
+          "detection_latency_s": null
+        },
+        {
+          "segment": 30,
+          "attack_windows": 108,
+          "duration_s": 540.0,
+          "flagged_windows": 2,
+          "detected": true,
+          "detection_latency_s": 75.0
+        },
+        {
+          "segment": 31,
+          "attack_windows": 94,
+          "duration_s": 470.0,
+          "flagged_windows": 68,
+          "detected": true,
+          "detection_latency_s": 130.0
+        },
+        {
+          "segment": 32,
+          "attack_windows": 56,
+          "duration_s": 280.0,
+          "flagged_windows": 49,
+          "detected": true,
+          "detection_latency_s": 35.0
+        },
+        {
+          "segment": 33,
+          "attack_windows": 80,
+          "duration_s": 400.0,
+          "flagged_windows": 0,
+          "detected": false,
+          "detection_latency_s": null
+        },
+        {
+          "segment": 34,
+          "attack_windows": 60,
+          "duration_s": 300.0,
+          "flagged_windows": 50,
+          "detected": true,
+          "detection_latency_s": 50.0
+        },
+        {
+          "segment": 35,
+          "attack_windows": 338,
+          "duration_s": 1690.0,
+          "flagged_windows": 185,
+          "detected": true,
+          "detection_latency_s": 85.0
+        }
+      ]
+    },
+    "provenance": "reused from benchmarks/swat_accuracy.json (measured earlier on the machine that holds the archive)"
+  },
+  "environment": {
+    "generated_utc": "2026-10-20 16:40:57",
+    "python": "3.13.16",
+    "platform": "Linux-6.18.44-fc-v139-x86_64-with-glibc2.39",
+    "machine": "x86_64",
+    "cpu_count": 4,
+    "numpy": "2.5.4",
+    "pandas": "3.0.6",
+    "scikit_learn": "1.9.1",
+    "joblib": "1.6.0",
+    "git_commit": "371ce53",
+    "git_dirty": false
+  }
+}

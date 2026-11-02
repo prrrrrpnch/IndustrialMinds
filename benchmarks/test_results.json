@@ -1,0 +1,387 @@
+{
+  "started_utc": "2026-10-30 10:10:28",
+  "total_seconds": 473.8,
+  "environment": {
+    "generated_utc": "2026-10-30 10:18:23",
+    "python": "3.13.16",
+    "platform": "Linux-6.18.44-fc-v185-x86_64-with-glibc2.39",
+    "machine": "x86_64",
+    "cpu_count": 4,
+    "numpy": "2.5.4",
+    "pandas": "3.0.6",
+    "scikit_learn": "1.9.1",
+    "joblib": "1.6.0",
+    "git_commit": "f201679",
+    "git_dirty": true
+  },
+  "summary": {
+    "PASS": 39,
+    "FAIL": 0,
+    "SKIPPED": 2,
+    "check_lines_passed": 1097,
+    "check_lines_failed": 0
+  },
+  "results": [
+    {
+      "status": "PASS",
+      "exit_code": 0,
+      "script": "invariant_plant",
+      "seconds": 0.4,
+      "checks_passed": null,
+      "checks_failed": null,
+      "last_line": ""
+    },
+    {
+      "script": "pipeline_test",
+      "status": "SKIPPED",
+      "reason": "needs a running PLC (python -m plc.plc); use --with-plc"
+    },
+    {
+      "status": "PASS",
+      "exit_code": 0,
+      "script": "test_assurance",
+      "seconds": 111.2,
+      "checks_passed": 71,
+      "checks_failed": 0,
+      "last_line": "ALL PASS"
+    },
+    {
+      "status": "PASS",
+      "exit_code": 0,
+      "script": "test_attacker_randomization",
+      "seconds": 1.9,
+      "checks_passed": 31,
+      "checks_failed": 0,
+      "last_line": "ALL PASS"
+    },
+    {
+      "status": "PASS",
+      "exit_code": 0,
+      "script": "test_audit_fixes",
+      "seconds": 0.7,
+      "checks_passed": 40,
+      "checks_failed": 0,
+      "last_line": "ALL PASS"
+    },
+    {
+      "status": "PASS",
+      "exit_code": 0,
+      "script": "test_benchmark",
+      "seconds": 7.8,
+      "checks_passed": 23,
+      "checks_failed": 0,
+      "last_line": "ALL PASS"
+    },
+    {
+      "status": "PASS",
+      "exit_code": 0,
+      "script": "test_bounds_alignment",
+      "seconds": 0.8,
+      "checks_passed": 34,
+      "checks_failed": 0,
+      "last_line": "ALL PASS"
+    },
+    {
+      "status": "PASS",
+      "exit_code": 0,
+      "script": "test_check_topology",
+      "seconds": 0.0,
+      "checks_passed": 15,
+      "checks_failed": 0,
+      "last_line": "ALL PASS"
+    },
+    {
+      "status": "PASS",
+      "exit_code": 0,
+      "script": "test_cyber_agent",
+      "seconds": 0.1,
+      "checks_passed": null,
+      "checks_failed": null,
+      "last_line": "All cyber agent checks passed"
+    },
+    {
+      "status": "PASS",
+      "exit_code": 0,
+      "script": "test_dashboard_auth",
+      "seconds": 0.2,
+      "checks_passed": 9,
+      "checks_failed": 0,
+      "last_line": "ALL PASS"
+    },
+    {
+      "status": "PASS",
+      "exit_code": 0,
+      "script": "test_environment",
+      "seconds": 1.5,
+      "checks_passed": 5,
+      "checks_failed": 0,
+      "last_line": "ALL PASS"
+    },
+    {
+      "status": "PASS",
+      "exit_code": 0,
+      "script": "test_evidence_pack",
+      "seconds": 0.9,
+      "checks_passed": 23,
+      "checks_failed": 0,
+      "last_line": "ALL PASS"
+    },
+    {
+      "status": "PASS",
+      "exit_code": 0,
+      "script": "test_fusion_scenarios",
+      "seconds": 20.3,
+      "checks_passed": 21,
+      "checks_failed": 0,
+      "last_line": "ALL PASS"
+    },
+    {
+      "status": "PASS",
+      "exit_code": 0,
+      "script": "test_invariants",
+      "seconds": 74.4,
+      "checks_passed": 72,
+      "checks_failed": 0,
+      "last_line": "ALL PASS"
+    },
+    {
+      "status": "PASS",
+      "exit_code": 0,
+      "script": "test_invariants_ab",
+      "seconds": 11.8,
+      "checks_passed": 14,
+      "checks_failed": 0,
+      "last_line": "ALL PASS"
+    },
+    {
+      "status": "PASS",
+      "exit_code": 0,
+      "script": "test_investigator",
+      "seconds": 1.8,
+      "checks_passed": 75,
+      "checks_failed": 0,
+      "last_line": "ALL PASS"
+    },
+    {
+      "script": "test_middleware_efficiency",
+      "status": "SKIPPED",
+      "reason": "slow stress test that can flake on a single host stall; use --with-stress"
+    },
+    {
+      "status": "PASS",
+      "exit_code": 0,
+      "script": "test_models",
+      "seconds": 0.0,
+      "checks_passed": null,
+      "checks_failed": null,
+      "last_line": "PhysicalModel checks live in tests/test_swat_physical.py - nothing to run here."
+    },
+    {
+      "status": "PASS",
+      "exit_code": 0,
+      "script": "test_orchestrator",
+      "seconds": 0.1,
+      "checks_passed": null,
+      "checks_failed": null,
+      "last_line": "7-10. four-branch fusion (ALERT / PASS / DROP precedence): OK"
+    },
+    {
+      "status": "PASS",
+      "exit_code": 0,
+      "script": "test_pending_expiry",
+      "seconds": 0.5,
+      "checks_passed": 4,
+      "checks_failed": 0,
+      "last_line": "ALL PASS"
+    },
+    {
+      "status": "PASS",
+      "exit_code": 0,
+      "script": "test_per_device_keys",
+      "seconds": 0.0,
+      "checks_passed": 8,
+      "checks_failed": 0,
+      "last_line": "ALL PASS"
+    },
+    {
+      "status": "PASS",
+      "exit_code": 0,
+      "script": "test_physical_agent",
+      "seconds": 0.0,
+      "checks_passed": null,
+      "checks_failed": null,
+      "last_line": "============================================================"
+    },
+    {
+      "status": "PASS",
+      "exit_code": 0,
+      "script": "test_physical_explain",
+      "seconds": 2.1,
+      "checks_passed": 66,
+      "checks_failed": 0,
+      "last_line": "ALL PASS"
+    },
+    {
+      "status": "PASS",
+      "exit_code": 0,
+      "script": "test_physical_v2",
+      "seconds": 109.1,
+      "checks_passed": 23,
+      "checks_failed": 0,
+      "last_line": "ALL PASS"
+    },
+    {
+      "status": "PASS",
+      "exit_code": 0,
+      "script": "test_physical_v2_live",
+      "seconds": 1.8,
+      "checks_passed": 19,
+      "checks_failed": 0,
+      "last_line": "ALL PASS"
+    },
+    {
+      "status": "PASS",
+      "exit_code": 0,
+      "script": "test_physical_v3",
+      "seconds": 23.5,
+      "checks_passed": 53,
+      "checks_failed": 0,
+      "last_line": "ALL PASS"
+    },
+    {
+      "status": "PASS",
+      "exit_code": 0,
+      "script": "test_physical_v3_live",
+      "seconds": 21.6,
+      "checks_passed": 33,
+      "checks_failed": 0,
+      "last_line": "ALL PASS"
+    },
+    {
+      "status": "PASS",
+      "exit_code": 0,
+      "script": "test_pipeline",
+      "seconds": 1.7,
+      "checks_passed": 24,
+      "checks_failed": 0,
+      "last_line": "All 24 pipeline checks passed"
+    },
+    {
+      "status": "PASS",
+      "exit_code": 0,
+      "script": "test_quarter_fixes",
+      "seconds": 8.0,
+      "checks_passed": 56,
+      "checks_failed": 0,
+      "last_line": "ALL PASS"
+    },
+    {
+      "status": "PASS",
+      "exit_code": 0,
+      "script": "test_response_layer",
+      "seconds": 1.6,
+      "checks_passed": 87,
+      "checks_failed": 0,
+      "last_line": "ALL PASS"
+    },
+    {
+      "status": "PASS",
+      "exit_code": 0,
+      "script": "test_sim_four_laptops",
+      "seconds": 0.1,
+      "checks_passed": 27,
+      "checks_failed": 0,
+      "last_line": "ALL PASS"
+    },
+    {
+      "status": "PASS",
+      "exit_code": 0,
+      "script": "test_sprint_fixes",
+      "seconds": 0.8,
+      "checks_passed": 56,
+      "checks_failed": 0,
+      "last_line": "ALL PASS"
+    },
+    {
+      "status": "PASS",
+      "exit_code": 0,
+      "script": "test_swat_cyber",
+      "seconds": 11.9,
+      "checks_passed": 30,
+      "checks_failed": 0,
+      "last_line": "ALL PASS"
+    },
+    {
+      "status": "PASS",
+      "exit_code": 0,
+      "script": "test_swat_fixture",
+      "seconds": 10.9,
+      "checks_passed": 19,
+      "checks_failed": 0,
+      "last_line": "ALL PASSED"
+    },
+    {
+      "status": "PASS",
+      "exit_code": 0,
+      "script": "test_swat_physical",
+      "seconds": 21.8,
+      "checks_passed": 32,
+      "checks_failed": 0,
+      "last_line": "ALL PASS"
+    },
+    {
+      "status": "PASS",
+      "exit_code": 0,
+      "script": "test_swat_protocol",
+      "seconds": 19.5,
+      "checks_passed": 53,
+      "checks_failed": 0,
+      "last_line": "ALL PASS"
+    },
+    {
+      "status": "PASS",
+      "exit_code": 0,
+      "script": "test_test_runner",
+      "seconds": 1.9,
+      "checks_passed": 8,
+      "checks_failed": 0,
+      "last_line": "ALL PASS"
+    },
+    {
+      "status": "PASS",
+      "exit_code": 0,
+      "script": "test_trace",
+      "seconds": 1.5,
+      "checks_passed": 29,
+      "checks_failed": 0,
+      "last_line": "ALL PASS"
+    },
+    {
+      "status": "PASS",
+      "exit_code": 0,
+      "script": "test_twin_propagation",
+      "seconds": 0.1,
+      "checks_passed": 8,
+      "checks_failed": 0,
+      "last_line": "ALL PASS"
+    },
+    {
+      "status": "PASS",
+      "exit_code": 0,
+      "script": "test_verify_three_laptops",
+      "seconds": 0.1,
+      "checks_passed": 20,
+      "checks_failed": 0,
+      "last_line": "ALL PASS"
+    },
+    {
+      "status": "PASS",
+      "exit_code": 0,
+      "script": "test_wire_correlate",
+      "seconds": 1.5,
+      "checks_passed": 9,
+      "checks_failed": 0,
+      "last_line": "ALL PASS"
+    }
+  ]
+}

