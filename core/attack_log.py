@@ -91,6 +91,20 @@ def log_blocked_attack(record: dict, path: str = None) -> dict:
     return entry
 
 
+def clear(path: str = None) -> None:
+    """Sets the on-disk log aside so a fresh demo starts with an empty Blocked IPs view (dashboard Reset).
+
+    Same pattern as core/forensics.clear(): renamed to `.cleared-<unix>`, never deleted, so Reset during a demo cannot
+    destroy the record of what just happened. The next log_blocked_attack() call recreates the file (it opens with
+    'a', which creates a missing file), and AttackLogReader._refresh() already treats a missing/replaced path as
+    empty (FileNotFoundError resets its offset/records) - no reader-side change needed.
+    """
+    path = path or LOG_FILE
+    with _write_lock:
+        if os.path.exists(path):
+            os.replace(path, f"{path}.cleared-{int(time.time())}")
+
+
 # ---------------------------------------------------------------------------
 # Reading (dashboard) - incremental, tolerant of partial/corrupt lines
 # ---------------------------------------------------------------------------

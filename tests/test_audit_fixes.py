@@ -113,6 +113,45 @@ c.post("/api/reset")
 check("health is ok again once the record is cleared", c.get("/api/health").get_json()["status"] == "ok")
 check("reset clears the undelivered counter too", c.get("/api/dashboard").get_json()["overview"]["undelivered"] == 0)
 
+print("\n31 Oct regression - Reset must actually empty the Network Flow and the Blocked IPs panel for a fresh demo")
+# A user ran a real attack, pressed Reset, and the attacker's box stayed drawn on the Network Flow, and its row stayed
+# in the Blocked IPs panel. Root causes, both silent (every number elsewhere on the page DID go back to 0):
+#   (a) /api/flow's "last_seq" came from the module-level _trace_seq counter, which reset_dashboard() never reset even
+#       though it cleared _traces itself - so a browser tab that had already seen seq N got told "nothing new since N"
+#       forever after, never "N doesn't exist any more", so flow.js's own reset-detection (data.last_seq < lastSeq)
+#       could never fire;
+#   (b) the Blocked IPs panel reads logs/blocked_attacks.jsonl directly (written by the middleware, not through
+#       _traces at all) and reset_dashboard() never touched that file.
+c.post("/api/reset")
+c.post("/api/trace", json=_trace("tx-attacker", "DROP", False))
+flow_before = c.get("/api/flow?since=0").get_json()
+check("the attacker's command is on the flow before Reset", len(flow_before["events"]) == 1, str(flow_before))
+seq_before = flow_before["last_seq"]
+check("...with a real sequence number", seq_before > 0, seq_before)
+
+from core import attack_log  # noqa: E402
+ATTACKER_IP = "127.0.0.9"                   # loopback alias standing in for the attacker laptop; see CLAUDE.md hook rule 3
+attack_log.log_blocked_attack({"source_ip": ATTACKER_IP, "orchestrator": {"reason": "HMAC_INVALID:x"}})
+blocked_before = c.get("/api/blocked-ips").get_json()
+check("the attacker is on the Blocked IPs panel before Reset",
+      any(s["source_ip"] == ATTACKER_IP for s in blocked_before["sources"]), str(blocked_before["sources"]))
+
+c.post("/api/reset")
+flow_after = c.get(f"/api/flow?since={seq_before}").get_json()           # what an already-open browser tab would ask
+check("REGRESSION: last_seq actually rolls back below what an open tab already saw (not stuck at the old high-water mark)",
+      flow_after["last_seq"] < seq_before, f"{flow_after['last_seq']} should be < {seq_before}")
+check("...so the Network Flow reports nothing left to draw", flow_after["events"] == [], str(flow_after["events"]))
+blocked_after = c.get("/api/blocked-ips").get_json()
+check("REGRESSION: the attacker is OFF the Blocked IPs panel after Reset", blocked_after["sources"] == [],
+      str(blocked_after["sources"]))
+check("...but its record was set aside, not deleted (same policy as every other forensic file)",
+      any(f.startswith("blocked_attacks.jsonl.cleared-") for f in os.listdir(os.environ["IM_LOG_DIR"])),
+      str(os.listdir(os.environ["IM_LOG_DIR"])))
+
+flow_js = io.open(os.path.join(ROOT, "dashboard", "static", "flow.js")).read()
+check("the client forgets a source's drawn box on the SAME rollback signal (sources.clear comes after removing its DOM node)",
+      "sources.clear()" in flow_js and flow_js.index("s.node.group.remove()") < flow_js.index("sources.clear()"))
+
 print("\nC2 - PLC I/O must be bounded, so one dead PLC cannot stall the proxy")
 check("the PLC client has an explicit timeout, not the 3 s library default",
       "timeout=PLC_IO_TIMEOUT_S" in src and fwd.PLC_IO_TIMEOUT_S <= 1.0, f"{fwd.PLC_IO_TIMEOUT_S}s")

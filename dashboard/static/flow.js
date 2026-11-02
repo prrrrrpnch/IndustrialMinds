@@ -245,7 +245,20 @@
                 if (initialised && !document.hidden) evs.forEach((ev) => pending.push(ev));
                 lastSeq = Math.max(lastSeq, data.last_seq || 0);
             } else if (data.last_seq < lastSeq) {
-                lastSeq = data.last_seq;            // dashboard restarted: follow its counter again
+                // Dashboard Reset (or restart): the server's counter rolled back, but nothing here told the SOURCE
+                // nodes to go away - the attacker's box stayed drawn forever, because `sources` is this tab's own
+                // state and syncSources() only ever adds. Remove each source's DOM node directly (sources.values()
+                // must still hold them when we do this - clearing the Map first would leave syncSources() nothing
+                // to diff against), THEN forget every source, so the picture actually goes back to empty, matching
+                // what Reset just did everywhere else on the page.
+                lastSeq = data.last_seq;
+                for (const s of sources.values()) {
+                    if (s.node) { s.node.group.remove(); s.node.edge.remove(); }
+                }
+                sources.clear();
+                dots.forEach((d) => d.c.remove());
+                dots.length = 0;
+                pending.length = 0;
             }
             initialised = true;
             status.textContent = sources.size ? `${sources.size} source host(s) seen` : "waiting for traffic";
