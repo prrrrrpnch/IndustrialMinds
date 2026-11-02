@@ -131,6 +131,20 @@ def show_packets() -> None:
     print("  (the capture is now stopped; port 5021 = to the middleware, port 5020 = middleware to PLC)")
 
 
+def open_panel(env: dict) -> None:
+    """Start the button panel once, pointed at THIS computer (an empty lab file, so config/lab.env's real addresses are not used)."""
+    if "panel" in procs and procs["panel"].poll() is None:
+        print("  the panel is already running: http://127.0.0.1:5070")
+        return
+    # IM_LAB_ENV = a file that does not exist -> the launcher falls back to loopback; HMAC_SECRET = this run's secret, so the
+    # launcher finds one (it only reads the secret from lab.env or from here) and does not print its "secret not set" warning.
+    penv = dict(env, IM_LAB_ENV=os.path.join(LOG_DIR, "no_lab.env"), HMAC_SECRET=env["IM_HMAC_SECRET"])
+    log = open(os.path.join(LOG_DIR, "panel.log"), "w")
+    procs["panel"] = subprocess.Popen([sys.executable, "-m", "attacker.control_panel"], cwd=ROOT, env=penv,
+                                      stdout=log, stderr=subprocess.STDOUT)
+    print("  attack panel: http://127.0.0.1:5070 (opening in your browser)")
+
+
 def run_attack(argv: list, env: dict) -> None:
     print(f"\n>>> attack: {' '.join(argv)}")
     subprocess.run([sys.executable, "-m", "attacker.attacker", *argv], cwd=ROOT, env=env)
@@ -159,6 +173,7 @@ def menu(env: dict) -> None:
             print(f"  {i:2d}  {label}")
         print("   A  run ALL attacks, one after another")
         print("   R  restore the plant (SCADA --restore)")
+        print("   B  open the attack BUTTON panel in the browser (http://127.0.0.1:5070)")
         print("   P  stop the capture and show the packets")
         print("   Q  quit and stop everything")
         choice = input("Choose: ").strip().upper()
@@ -170,6 +185,8 @@ def menu(env: dict) -> None:
                 time.sleep(5)
         elif choice == "R":
             subprocess.run([sys.executable, "-m", "scada.scada", "--restore"], cwd=ROOT, env=env)
+        elif choice == "B":
+            open_panel(env)
         elif choice == "P":
             show_packets()
         elif choice.isdigit() and 1 <= int(choice) <= len(ATTACKS):

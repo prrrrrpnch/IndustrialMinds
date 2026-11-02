@@ -12,6 +12,13 @@ WHICH FILE ON WHICH LAPTOP (all inside the project folder, in "launchers")
   Backup    any      the WHOLE system on ONE computer   launchers/ONE_PC_BACKUP.command (Mac)
                                                         launchers/ONE_PC_BACKUP.bat     (Windows)
 
+ATTACK BUTTON PANEL (menu-driven, click a button per attack)
+  Laptop 4  Windows  launchers/laptop4_attack_panel.bat   (Mac/Linux: launchers/attack_panel.command)
+  It opens a page in the browser on THAT laptop (http://127.0.0.1:5070, local only): one button per attack with what it
+  does and the answer to expect, Run all, Stop, and the attack's live output. It runs the same launcher as the command
+  line, so the addresses and secret come from config/lab.env. One attack at a time. The dashboard has no attack buttons.
+  In the one-computer backup, press B in its menu to open the same panel against this computer.
+
 ORDER (the real 4-laptop demo)
   1. Laptop 2:  double-click laptop2_win_plc.bat       -> a PLC window and a capture window open
   2. Laptop 1:  double-click laptop1_mac_middleware.command
@@ -19,7 +26,8 @@ ORDER (the real 4-laptop demo)
                                                            and the dashboard opens in the browser
   3. Laptop 3:  double-click laptop3_mac_scada.command  -> waits for the middleware, then starts SCADA
   4. Wait about 2 minutes (the physical model warms up)
-  5. Laptop 4:  double-click laptop4_win_attacker.bat   -> type a number to run an attack (A = all, Q = quit)
+  5. Laptop 4:  double-click laptop4_attack_panel.bat   -> click a button per attack (or laptop4_win_attacker.bat for the
+                                                           typed menu: a number per attack, A = all, Q = quit)
   6. Stop: close the windows in the reverse order (attacker, SCADA, middleware/dashboard, PLC).
      To bring the plant back to normal on Laptop 3:  bash scripts/run.sh scada --restore   (it also self-restores)
 
