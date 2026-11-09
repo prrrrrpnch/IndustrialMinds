@@ -338,7 +338,6 @@ check("GET /api/incidents returns it, newest first, with the quarantine countdow
 check("a bad body is rejected", c.post("/api/incident", json={"id": "x"}).status_code == 400)
 check("the incidents panel was removed from the page (user decision, 31 Oct); the API stays",
       b"incident-list" not in c.get("/").data and b"incidents.js" not in c.get("/").data and c.get("/api/incidents").status_code == 200)
-check("the panel script is served", c.get("/static/incidents.js").status_code == 200)
 
 print("\nALL PASS" if fails == 0 else f"\n{fails} CHECK(S) FAILED")
 raise SystemExit(1 if fails else 0)

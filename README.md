@@ -1,467 +1,491 @@
 # IndustrialMind
 
-An inline security middleware that sits between a **SCADA operator simulator** and a **PLC digital twin** of a five-stage water
-treatment plant. Every command SCADA sends passes through a **Cyber Agent** (deterministic traffic and authentication rules) and a
-**Physical Agent** (deterministic plant-safety rules plus an advisory model trained on the SWaT dataset); an **Orchestrator** turns
-their verdicts into `PASS`, `ALERT` or `DROP`. A dashboard shows every decision, and a **Packet Tracer** shows, hop by hop, what each
-layer computed for any single command. Wireshark/tshark on the same traffic is the independent proof that the packets are real.
+**An inline cyber-physical security middleware for industrial control systems.**
+
+IndustrialMind sits between a SCADA operator and a PLC (programmable logic controller) and inspects every Modbus/TCP command
+before it reaches the plant. Each command is checked twice, independently:
+
+* **Is the message legitimate?** The **Cyber Agent** checks who sent it, whether it is cryptographically signed, whether it is a
+  replay and whether it arrives too fast.
+* **Is the command physically safe?** The **Physical Agent** checks the value against the plant's measured safe ranges, how fast
+  it is changing, and whether it would leave two related devices in a dangerous combination.
+
+An **Orchestrator** combines both verdicts into one decision: **PASS** (forward it), **ALERT** (forward it but flag it), or
+**DROP** (block it). A live web **dashboard** shows every decision, and a **Packet Tracer** shows, hop by hop, exactly why any
+single command was passed or blocked.
+
+The plant is a **digital twin** of a five-stage water-treatment process modelled on **SWaT** (Secure Water Treatment, iTrust,
+Singapore University of Technology and Design), so the whole system can be demonstrated safely on laptops instead of real
+industrial hardware. It runs on one computer for a rehearsal, or on four laptops for a real networked demo.
 
 ```
- SCADA (operator)            +--------------------- MIDDLEWARE (this project) ----------------------+          PLC digital twin
- signs every command  --->   |  Cyber Agent    (RULES: whitelist, FC, register, rate, HMAC, replay)  |
-   Modbus FC16, :5021        |  Physical Agent (RULES: bounds, rate-of-change, cross-register)       | --->     Modbus :5020
- ATTACKER (separate)  --->   |                 (+ MODEL: SWaT-trained, ADVISORY only)                |  only    5 stages x 4 points
-   same port                 |                 (+ INVARIANTS: normal-data consistency, ADVISORY)    |          10 actuators, 10 sensors
-                             |  Orchestrator   (RULE-BASED four-branch fusion -> PASS / ALERT / DROP)|  PASS/
-                             +------------------------------------------------------------------------+  ALERT
-                                              |  decisions + per-hop traces (HTTP)
-                                              v
-                                      Dashboard :5050  (live tables, Packet Tracer, blocked-source log)
+  SCADA (operator)          +---------------- MIDDLEWARE (this project) -----------------+        PLC digital twin
+  signs every command --->  |  Cyber Agent    whitelist, function code, register,       |        5 stages x 4 points
+  Modbus/TCP :5021          |                 rate limit, HMAC signature, replay         |        10 actuators
+                            |  Physical Agent bounds, rate of change, cross-register     | --->   10 sensors
+  ATTACKER (separate) --->  |                 + advisory ML model and invariant rules    |  only  Modbus/TCP :5020
+  same port                 |  Orchestrator   rule-based fusion -> PASS / ALERT / DROP   |  PASS
+                            +------------------------------------------------------------+  ALERT
+                                               | every decision + its hop-by-hop trace
+                                               v
+                                      Dashboard  http://127.0.0.1:5050
 ```
-
-**Status in one paragraph (read this before quoting anything).** The rule layers are deterministic and tested. The only learned
-component in use is the **physical model**, trained on real SWaT data, **advisory** (it raises `ALERT`, it never blocks). On the
-held-out SWaT test block it ranks attacks well (ROC-AUC 0.84) but still detects only about half of the attack windows at its operating
-point (precision 0.46, recall 0.51, F1 0.49) and raises more false alarms than its target (see [Benchmarks](#benchmarks) and [Known limitations](#known-limitations)).
-The cyber branch has **no learned model by design**: a SWaT-trained candidate was weak and was not promoted. A learned fusion model
-was also tried and **rejected**. Nothing here claims real-data performance for the cyber rules: SWaT contains no network traffic.
-
-**Complete technical description** of every component, algorithm, parameter and result (for slides, the report and a paper): [`docs/PROJECT_DETAILS.md`](docs/PROJECT_DETAILS.md) (also as `.docx`).
-
-Contents: [Quick start](#quick-start-one-laptop-10-minutes) · [Architecture](#architecture-what-each-layer-does) ·
-[Dataset](#dataset-swat-only) · [Twin](#the-digital-twin) · [Packet journey](#the-journey-of-one-command) ·
-[Setup per laptop](#setup-per-laptop-role) · [Training](#training-instructions-per-model) · [Attacker](#attacker-design) ·
-[Dashboard](#dashboard-and-packet-tracer) · [Wireshark](#monitoring-with-wireshark) · [**Demo runbook**](#live-demo-verification-runbook) ·
-[Benchmarks](#benchmarks) · [Tests](#tests) · [Reference](#reference) · [Limitations](#known-limitations) · [Future work](#future-work) ·
-[Troubleshooting](#troubleshooting)
 
 ---
 
-## Quick start (one laptop, 10 minutes)
+## Contents
 
-> **Running it on four laptops for the first time?** Follow **[`GETTING_STARTED.md`](GETTING_STARTED.md)** — install per laptop, the one-command launcher (`scripts/run.sh` / `scripts/run.ps1` reading `config/lab.env`), cross-subnet notes, and the demo. The single-laptop quick start below is for a rehearsal on one machine.
-
-Needs Python 3.13 or 3.14 and a terminal at the project root. Nothing else is required: the SWaT data is **not** needed to run the demo.
-
-```bash
-python -m venv venv
-source venv/bin/activate            # Windows PowerShell: venv\Scripts\Activate.ps1
-pip install -r requirements.txt     # scikit-learn is pinned EXACTLY (==1.9.1): the shipped model is a pickle
-```
-
-Open **four terminals** (activate the venv in each), all from the project root, in this order:
-
-```bash
-python -m plc.plc                      # 1. the PLC digital twin, Modbus on :5020
-python dashboard/app.py                # 2. the dashboard, http://127.0.0.1:5050
-python -m middleware.middleware_server # 3. the middleware, Modbus on :5021
-python -m scada.scada                  # 4. the operator: one signed write every 2 s
-```
-
-No secret needs setting on one machine: the first process that needs it creates `config/hmac_secret.key` (mode 0600, git-ignored) and the others read it.
-
-**What you should see**
-* Terminal 4 (SCADA) prints a line like `[SCADA] WRITE SENT tx=0f4bfc74 reg=MV302 value=98.00` every 2 s (it cycles through the actuators, each near its nominal); terminal 3 (middleware) prints `[MIDDLEWARE] PASS src=127.0.0.1 MV302=98.00 reason=OK ...` for each.
-* Dashboard (`http://127.0.0.1:5050`): the *SCADA -> PLC* table fills with green `PASS` rows, the telemetry panel shows all 20 points (10 sensors and 10 actuators).
-* For the first ~2 minutes the physical model reports `WARMING_UP` (it needs a 120-second window of telemetry). The middleware terminal prints a status line every 5 s containing `plant=WARMING_UP window=11/120`; it becomes `plant=NORMAL` once the window is full. After that, an occasional yellow `ALERT`
-  row on a healthy plant is normal: the model is advisory and has a false-alarm rate (see Limitations).
-* In a fifth terminal (on a real demo: the **attacker laptop**) run `python -m attacker.attacker hmac-tamper`: the **Live Network Flow** panel shows a red dot from the attacker host stopping at the Cyber Agent, a red `DROP` row appears with reason `HMAC_INVALID`, and the bottom
-  **Packet Tracer** panel shows the `hmac` check in red and everything after it `NOT_RUN`. Attacks are never started from the dashboard. Full roles/order/recovery: `docs/demo_workflow.md`.
-
-Blocked commands are logged to `logs/blocked_attacks.jsonl` in the project folder (set `IM_LOG_DIR` to put it elsewhere). Stop everything with Ctrl-C. **Restart the PLC (terminal 1) between demo runs**: an attack such as *False Injection* really changes the plant state, and the
-twin keeps the changed state until the operator brings it back (the SCADA operator now does this by itself about 15 s after the plant stops moving, or run `python -m scada.scada --restore` at once); restarting the PLC also resets it. The dashboard **Reset** button clears only the dashboard.
+1. [How it works](#1-how-it-works)
+2. [What you need](#2-what-you-need)
+3. [Install (once per computer)](#3-install-once-per-computer)
+4. [Option A: run everything on one computer](#4-option-a-run-everything-on-one-computer)
+5. [Option B: the four-laptop demo, step by step](#5-option-b-the-four-laptop-demo-step-by-step)
+6. [The attacks and what each one proves](#6-the-attacks-and-what-each-one-proves)
+7. [Reading the dashboard](#7-reading-the-dashboard)
+8. [Proving it on the wire with Wireshark](#8-proving-it-on-the-wire-with-wireshark)
+9. [Results and how they were measured](#9-results-and-how-they-were-measured)
+10. [Running the tests](#10-running-the-tests)
+11. [Project structure](#11-project-structure)
+12. [Configuration reference](#12-configuration-reference)
+13. [Retraining the model (optional)](#13-retraining-the-model-optional)
+14. [Troubleshooting](#14-troubleshooting)
+15. [Known limitations](#15-known-limitations)
+16. [Further documentation](#16-further-documentation)
 
 ---
 
-## Architecture: what each layer does
+## 1. How it works
 
-Every box below is labelled **RULE** (deterministic code, no training data) or **MODEL** (learned from SWaT).
+### The five components
 
-### Cyber Agent: RULES only (`middleware/cyber_agent.py`)
-Checks *how a command arrived*, not what it means. Checks run in this order; the **first failure wins**:
-
-| # | Check | Drops with | Notes |
-|---|---|---|---|
-| 1 | Source whitelist | `UNTRUSTED_SOURCE` | real TCP peer address vs `IM_TRUSTED_SOURCES` (default: this machine) |
-| 2 | Function code | `INVALID_FUNCTION_CODE` | only 3, 6, 16 |
-| 3 | Register allow-list | `INVALID_REGISTER` | only the 20 known registers |
-| 4 | Per-source rate limit | `RATE_LIMIT_EXCEEDED` | 5 requests per second per source; before the crypto, as a cheap DoS guard |
-| 5 | HMAC-SHA256 | `HMAC_MISSING` / `HMAC_MALFORMED` / `HMAC_INVALID` / `HMAC_EXPIRED` | tag over register, value, nonce, timestamp; freshness +/-30 s |
-| 6 | Replay | `REPLAY_DETECTED` | nonce reuse, or identical payload within 2 s |
-
-There is **no cyber ML model** (`NO_MODEL`): a SWaT-trained candidate scored test ROC-AUC 0.63 and was not promoted; the user then decided to drop cyber ML.
-SWaT has no signatures, replay tags or source addresses, so these rules cannot be evaluated on SWaT; they are tested with constructed scenarios.
-
-### Physical Agent: RULES (`middleware/physical_agent.py`) plus one advisory MODEL
-Checks *whether the command makes physical sense for the plant*:
-
-| Layer | Drops with | What it checks |
+| Component | Where | What it does |
 |---|---|---|
-| 0 | `WRITE_TO_SENSOR_REGISTER`, `UNKNOWN_REGISTER` | only the 10 actuators accept commands |
-| 1 | `OUT_OF_BOUNDS` | value inside the register's range |
-| 2 | `RATE_OF_CHANGE_EXCEEDED` | the change fits the actuator's maximum slew rate over the time since it last settled |
-| 3 | `CROSS_REGISTER_VIOLATION` | 8 two-register safety rules (e.g. `RAW_PUMP_DRY_RUN`: P101 >= 60 with MV101 <= 10) plus `VALVE_CLOSING_LOW_LEVEL` and `RO_PRESSURE_OVERLOAD`, evaluated on the projected plant state; a command that moves an already-unsafe state *toward* safety is allowed |
+| **SCADA operator** | `scada/scada.py` | Simulates the control-room operator. Every 2 seconds it signs and sends one setpoint to the plant's actuators. After an attack it restores the plant to normal by itself. |
+| **Middleware** | `middleware/` | The product. A Modbus/TCP server towards SCADA and a client towards the PLC. Runs the Cyber Agent, Physical Agent and Orchestrator on every command, forwards what is approved, blocks what is not. |
+| **PLC digital twin** | `plc/` | A Modbus/TCP server around a physics simulation of the five treatment stages. It accepts writes only from the middleware's address, so even a write that bypasses the middleware is refused. |
+| **Attacker** | `attacker/` | A separate client that sends malformed, unsigned, replayed, out-of-range or physically unsafe commands, to show what gets caught and why. |
+| **Dashboard** | `dashboard/` | A read-only live web page: traffic counters, a network flow view, live plant telemetry, blocked sources and the Packet Tracer. It has no attack buttons by design. |
 
-Upstream (PLC to SCADA telemetry) the agent also applies a **sensor-envelope rule**: every sensor must stay inside the envelope **measured** on SWaT normal data
-(`docs/swat_bounds.json`). This rule is **alert-only** (a log line and a dashboard event, never a block).
+### The journey of one command
 
-**The advisory MODEL** (`models/physical_model_v2.py`, weights `models/weights/physical_model_v2.joblib`; the previous v1 model `models/physical_model.py` stays selectable with `IM_PHYSICAL_MODEL=v1`): a 120-second sliding window of the 10 sensors and 8 actuators at 1 Hz
-becomes 117 features (the last 30 s as 67 drift-robust window statistics, 120 s long-context slopes/changes/toggles, and cross-sensor consistency residuals from ridge regressions fitted on normal data); a gradient-boosted classifier trained on SWaT train + validation windows gives an attack probability.
-Above 0.788 the model raises `threat_flag` (operating point: 0.5 false-alarm episodes per benign hour on out-of-fold development data; measured on the held-out block: 1.17/h). It is **advisory**: it can
-turn a pass into an `ALERT` but never into a `DROP`. Inference is packed (`PackedHistGB`, identical to sklearn to 1e-15) so an assessment costs about 0.6 ms.
+1. **SCADA signs the command.** It packs the register, value, a random one-time number (nonce) and a timestamp, and computes an
+   **HMAC-SHA256** seal over them with a secret shared with the middleware (`core/hmac_auth.py`).
+2. **The middleware receives it** on port 5021 and records the real network address it came from.
+3. **The Cyber Agent checks it** (`middleware/cyber_agent.py`), stopping at the first failure:
 
-### Physical invariants: consistency rules learned from normal data (advisory, opt-in)
+   | # | Check | Blocks with |
+   |---|---|---|
+   | 1 | Source address is on the whitelist | `UNTRUSTED_SOURCE` |
+   | 2 | Modbus function code is allowed | `INVALID_FUNCTION_CODE` |
+   | 3 | Register is one of the 20 known registers | `INVALID_REGISTER` |
+   | 4 | No more than 5 requests per second from this source | `RATE_LIMIT_EXCEEDED` |
+   | 5 | HMAC seal is present, intact and less than 30 s old | `HMAC_MISSING` / `HMAC_INVALID` / `HMAC_EXPIRED` |
+   | 6 | Nonce has never been seen before | `REPLAY_DETECTED` |
 
-`IM_INVARIANTS=1` adds a fourth kind of check that needs **no attack labels at all**. An invariant is a relationship that holds in normal
-operation because of physics or control logic, learned from normal data only, and a violation means *these readings cannot all be true at
-once* — a spoofed, frozen or failed sensor. Four families over the same 18 signals: **rate** (a sensor cannot move faster than it ever did),
-**state** (while an actuator holds a state, a sensor stays in the band it always had), **balance** (a tank's level change is explained by the
-flows around it), and **flat** (a sensor that carries measurement noise cannot go perfectly flat). Like the model they are **advisory**:
-a violation raises `ALERT`, never `DROP`.
+4. **The Physical Agent checks it** (`middleware/physical_agent.py`), at the same time:
 
-Rules are proposed on the first 75 % of the normal data and **validated on the last 25 %, held out in time**; anything that already misfires
-on unseen normal data is dropped with its reason recorded. A fitted file describes one plant, so the demo uses its own
-(`python -m tools.fit_invariants --twin` writes `config/invariants_twin.json`); `--data-dir <SWaT archive>` fits and measures on real data.
-`python -m tools.live_invariants_check` proves the whole path on the running stack in about two minutes.
+   | Check | Blocks with |
+   |---|---|
+   | Only the 10 actuators accept commands (sensors are read-only) | `WRITE_TO_SENSOR_REGISTER` |
+   | The value is inside the register's measured safe range | `OUT_OF_BOUNDS` |
+   | The change fits the actuator's maximum speed | `RATE_OF_CHANGE_EXCEEDED` |
+   | The command does not create a known-unsafe combination with another register (8 rules, e.g. pump running while its inlet valve is closed) | `CROSS_REGISTER_VIOLATION` |
 
-Measured on the twin (`python -m benchmark.invariants_ab`, `docs/reports/invariants_ab_report.md`): adding them took sensor-tampering
-detection from **10/25 to 25/25** runs with **no change in false alarms** (0 episodes per hour over 9 healthy hours) and no measurable
-decision-latency cost. Their **real-SWaT numbers are not measured yet**. Full description: `docs/INVARIANTS.md`.
+   It also runs two **advisory** detectors on the live plant telemetry: a machine-learning model trained on real SWaT data
+   (`models/physical_model_v2.py`) and optional physical-invariant rules learned from normal operation (`swat/invariants.py`).
+   These can raise an **ALERT** but can never block.
 
-### Physical model v3 (candidate, opt-in, not promoted)
+5. **The Orchestrator decides** (`middleware/orchestrator.py`):
 
-A stronger physical model is built and tested but **not yet measured on real SWaT** (run it where the archive is):
-`python -m research.train_physical_v3 --data-dir <archive> --candidate`. It adds multi-scale dynamics, normal-only
-consistency/PCA features, per-stage heads and a stacker, and writes a held-out report with confusion matrix, PR curve,
-per-segment detection and bootstrap CIs to `models/candidates/physical_v3/`. Until reviewed, v2 stays live; v3 is selected only
-with `IM_PHYSICAL_MODEL=v3` after packaging (`research/package_physical_v3.py`, needs explicit approval). See GETTING_STARTED.md.
+   | Cyber rules | Physical rules | Advisory detectors | Decision |
+   |---|---|---|---|
+   | fail | any | any | **DROP** |
+   | pass | fail | any | **DROP** |
+   | pass | pass | flag an anomaly | **ALERT** (forwarded, flagged) |
+   | pass | pass | quiet | **PASS** |
 
-### Evidence pack (proof for a panel)
+6. **Outcome.** A PASS or ALERT command is written to the PLC on port 5020. A DROP is never sent; it is logged to
+   `logs/blocked_attacks.jsonl`.
+7. **The dashboard** receives the decision and its hop-by-hop trace within a fraction of a second.
 
-`python -m benchmark.evidence_pack` writes `docs/reports/evidence_pack.md` (+ JSON and confusion-matrix figures). It starts the real PLC twin,
-middleware and dashboard on loopback, sends labelled legitimate traffic and every scripted attack over real Modbus/TCP, and reports the
-command-level confusion matrix and a per-attack table (what was stopped, why, and which commands pass by design). It also demonstrates the
-response layer and quotes the held-out REAL SWaT results, **kept in separate sections** because they are different kinds of evidence.
-`--no-live` skips the live campaign. First recorded run: 14 of 25 attack-phase commands flagged, 0 of 40 legitimate commands flagged,
-8 of 8 attack campaigns that pass through the middleware detected (`false-injection` bypasses it by design).
+**Design principle: learning never holds the gate.** Only the deterministic, auditable rules can block. The learned components can
+only flag, so a false alarm can never stop a legitimate operator from running the plant.
 
-### The investigator: an LLM agent beside the pipeline, never inside it
+### The plant: five SWaT-style stages
 
-Enforcement stays deterministic. Authentication, access control and the hard safety limits are code, run in microseconds, and
-decide PASS / DROP / ALERT on their own. What an LLM adds is the layer above them: the investigation, which is not a fixed chain
-of if/else statements. When an incident reaches high severity, `middleware/investigator.py` reads the evidence a human analyst
-would - the incident, the hop-by-hop trace of individual commands, the plant state, the rule catalogue, the live policy and
-quarantine settings, the model card, the blocked-attack log - choosing what to look at next based on what the last answer showed,
-and writes up what happened, how confident it is, and what it would do about it.
+20 registers = 5 stages x 4 points. Names are real SWaT tags; ranges and nominal values are **measured** from SWaT normal data
+(`docs/swat_bounds.json`). The stages are physically coupled, so a change upstream propagates downstream.
 
-It is bounded by code, not by its prompt:
+| Stage | Actuators (writable) | Sensors (read-only) |
+|---|---|---|
+| S1 Raw water | MV101 inlet valve, P101 pump | LIT101 tank level, FIT101 flow |
+| S2 Chemical dosing | P203 HCl pump, P205 NaOCl pump | AIT202 pH, FIT201 flow |
+| S3 Ultrafiltration | MV302 feed valve, P302 pump | LIT301 tank level, DPIT301 membrane pressure |
+| S4 Dechlorination | P402 pump, UV401 UV lamp | LIT401 tank level, AIT402 ORP |
+| S5 Reverse osmosis | P501 high-pressure pump, MV503 reject valve | PIT501 pressure, FIT501 permeate flow |
 
-| Guarantee | How |
+### Ports
+
+| Port | Who listens | Who connects |
+|---|---|---|
+| **5020** | PLC | the middleware only |
+| **5021** | Middleware | SCADA and the attacker |
+| **5050** | Dashboard | a browser on the middleware computer |
+| **5070** | Attack button panel | a browser on the attacker computer |
+
+---
+
+## 2. What you need
+
+* **Python 3.13** on every computer. The middleware computer must use 3.13: the shipped model is a pickle tied to
+  scikit-learn 1.9.1, and a Python 3.14 environment failed to load it in testing.
+  * macOS: `brew install python@3.13`
+  * Windows: `winget install Python.Python.3.13`, then open a **new** terminal. If typing `python` opens the Microsoft Store,
+    turn off the two "python" entries under Settings > Apps > Advanced app settings > App execution aliases.
+* **Git** (or a downloaded zip of this repository).
+* **Optional:** Wireshark/tshark, for the packet-capture proof (section 8).
+  * macOS: `brew install --cask wireshark`
+  * Windows: the installer from wireshark.org; on the Npcap step tick **Npcap** and **Support loopback traffic capture**.
+* **For the four-laptop demo:** four laptops on **one network that lets devices talk to each other**. A phone hotspot is the most
+  reliable choice (see [why](#why-a-hotspot)).
+* The SWaT dataset is **not** needed to run anything. It is only needed to retrain the model.
+
+---
+
+## 3. Install (once per computer)
+
+Do this on every computer that will run part of the system.
+
+### Step 1: get the code
+
+```bash
+git clone https://github.com/prrrrrpnch/IndustrialMinds.git
+cd IndustrialMinds
+```
+
+Or download the repository as a zip and extract it. If you are updating an existing copy, extract the new zip **over** the old
+folder so your `.venv` and `config/lab.env` are kept.
+
+### Step 2: create a virtual environment and install the packages
+
+**macOS / Linux**
+
+```bash
+python3.13 -m venv .venv
+source .venv/bin/activate
+python -m pip install -r requirements.txt
+```
+
+**Windows (PowerShell)**
+
+```powershell
+python -m venv .venv
+Set-ExecutionPolicy -Scope Process Bypass
+.\.venv\Scripts\Activate.ps1
+python -m pip install -r requirements.txt
+```
+
+Use the folder name **`.venv`** exactly: the double-click launchers look for it. Always install with **`python -m pip`**, not
+`pip`: some managed Windows laptops block `pip.exe` but allow `python`.
+
+### Step 3: check the installation
+
+```bash
+python -m tests.test_environment
+```
+
+It must end with **`ALL PASS`** (it checks the pinned library versions and that the shipped model loads cleanly).
+
+---
+
+## 4. Option A: run everything on one computer
+
+The fastest way to see the whole system working. All traffic stays on this one computer.
+
+### Step 1: start it
+
+**One click:** double-click `launchers/ONE_PC_BACKUP.command` (macOS) or `launchers\ONE_PC_BACKUP.bat` (Windows).
+It starts the PLC, dashboard, middleware and SCADA, opens the dashboard in your browser and shows an attack menu.
+
+**Or by hand,** in four terminals (activate `.venv` in each, start in this order):
+
+```bash
+python -m plc.plc                       # 1. the PLC digital twin, Modbus on :5020
+python dashboard/app.py                 # 2. the dashboard, http://127.0.0.1:5050
+python -m middleware.middleware_server  # 3. the middleware, Modbus on :5021
+python -m scada.scada                   # 4. the operator: one signed write every 2 s
+```
+
+No secret needs setting on one computer: the first process that needs one creates `config/hmac_secret.key` and the others read it.
+
+### Step 2: watch the normal traffic
+
+Open `http://127.0.0.1:5050`. Within a few seconds the **SCADA -> PLC** table fills with green **PASS** rows and the telemetry
+panel shows all 20 plant points.
+
+**Wait about 2 minutes** before attacking. The physical model needs a full 120-second window of telemetry; until then it reports
+`WARMING_UP`.
+
+### Step 3: run an attack
+
+In the one-click menu press a number (or **B** for the button panel). By hand, in a fifth terminal:
+
+```bash
+python -m attacker.attacker hmac-tamper
+```
+
+You should see a red **DROP** row with reason `HMAC_INVALID`, a red dot that stops inside the middleware on the **Live Network
+Flow**, and in the **Packet Tracer** the `hmac` check in red with every later check marked `NOT_RUN`.
+
+### Step 4: reset and stop
+
+Click **Reset** on the dashboard to clear the counters, the flow view and the blocked-sources list for a fresh run. The old record
+is set aside as `*.cleared-<timestamp>`, never deleted. Press **Q** in the one-click menu, or Ctrl-C each terminal, to stop.
+
+---
+
+## 5. Option B: the four-laptop demo, step by step
+
+This shows a real networked attack: SCADA, the attacker and the PLC on separate machines, all traffic passing through the middleware.
+
+### Step 1: assign the roles
+
+| Laptop | Role | What runs on it |
+|---|---|---|
+| **Laptop 1** (Mac) | Middleware + dashboard + capture | middleware, dashboard, Wireshark/tshark |
+| **Laptop 2** (Windows) | PLC | the PLC digital twin, tshark |
+| **Laptop 3** (Mac) | SCADA operator | the operator simulator |
+| **Laptop 4** (Windows) | Attacker | the attack button panel or command-line attacker |
+
+Any operating system works for any role; this is the layout the launchers are written for. Install the project on all four
+(section 3).
+
+### Step 2: put all four laptops on one network
+
+<a name="why-a-hotspot"></a>
+**Use a phone hotspot.** Connect all four laptops to the same hotspot.
+
+Why: many office, campus and guest Wi-Fi networks use **client isolation**, which stops devices on the same Wi-Fi from talking to
+each other even though each can reach the internet. It looks exactly like a firewall block (`Host is down`, `No route to host`,
+`timed out`) and no setting on the laptops can fix it. Phone hotspots do not isolate clients.
+
+### Step 3: find each laptop's address
+
+**macOS:** `ipconfig getifaddr en0`
+**Windows:** `ipconfig`, then read the **IPv4 Address** under the Wi-Fi adapter.
+
+Write all four down. Addresses can change whenever a laptop reconnects, so check them again before every demo.
+
+### Step 4: create the same `config/lab.env` on all four laptops
+
+Generate one shared secret, once, on any laptop:
+
+```bash
+python3 -c "import secrets; print(secrets.token_hex(24))"
+```
+
+Then create `config/lab.env` on **every** laptop with **identical** contents (replace each `<...>` with the real value):
+
+```
+MW_IP=<Laptop 1 address>
+PLC_IP=<Laptop 2 address>
+SCADA_IP=<Laptop 3 address>
+ATTACKER_IP=<Laptop 4 address>
+HMAC_SECRET=<the secret you generated>
+DASHBOARD_BIND_HOST=127.0.0.1
+DASHBOARD_TOKEN=
+```
+
+You can copy the template first: `cp config/lab.env.example config/lab.env` (Windows: `Copy-Item config\lab.env.example config\lab.env`).
+This file is git-ignored on purpose: it holds your addresses and secret. Every launcher reads it, so you never export variables by hand.
+The laptops do not have to share a subnet, only be able to reach each other; `SCADA_IP` and `ATTACKER_IP` also accept a CIDR block.
+
+> **Check `SCADA_IP` and `ATTACKER_IP` carefully.** If they are swapped, the dashboard labels the operator as the attacker and its
+> legitimate commands are treated as attacks.
+
+### Step 5: open the PLC's firewall (Laptop 2 only)
+
+In **PowerShell as Administrator** on Laptop 2:
+
+```powershell
+Set-NetConnectionProfile -NetworkCategory Private
+New-NetFirewallRule -DisplayName "IM PLC 5020" -Direction Inbound -Action Allow -Protocol TCP -LocalPort 5020 -RemoteAddress <Laptop 1 address> -Profile Any
+w32tm /resync
+```
+
+Also run `w32tm /resync` on Laptop 4. Signed commands older than 30 seconds are rejected, so every clock must agree; turn on
+automatic time on all four laptops. If Laptop 1's address changes, delete and re-create this rule with the new address.
+
+### Step 6: run the preflight check on each laptop
+
+```bash
+bash scripts/run.sh check middleware   # Laptop 1
+bash scripts/run.sh check scada        # Laptop 3
+```
+
+```powershell
+.\scripts\run.ps1 check plc            # Laptop 2
+.\scripts\run.ps1 check attacker       # Laptop 4
+```
+
+Every line should be `OK`. The **HMAC secret fingerprint** printed on Laptops 1, 3 and 4 must be **identical**: it proves the
+secrets match without revealing them.
+
+### Step 7: start everything, in this order
+
+| Order | Laptop | Double-click | Or run this |
+|---|---|---|---|
+| 1 | Laptop 2 | `launchers\laptop2_win_plc.bat` | `.\scripts\run.ps1 plc` |
+| 2 | Laptop 1 | `launchers/laptop1_mac_middleware.command` | `bash scripts/run.sh dashboard`, then in a second terminal `bash scripts/run.sh middleware` |
+| 3 | Laptop 3 | `launchers/laptop3_mac_scada.command` | `bash scripts/run.sh scada` |
+
+What each launcher does:
+
+* **Laptop 2** opens two windows: the PLC (it must print `PLC Modbus server running on 0.0.0.0:5020`) and a tshark capture of
+  port 5020.
+* **Laptop 1** opens the dashboard, the middleware and a tshark capture of port 5021, opens the dashboard in the browser, then
+  waits and tells you when the PLC is reachable and the middleware has connected. On a first run it also creates `.venv`,
+  installs the packages and asks for the `lab.env` values.
+* **Laptop 3** waits until the middleware is reachable, then starts SCADA.
+
+On macOS, if a `.command` file will not open, right-click it, choose **Open**, then **Open** again, or run
+`chmod +x launchers/*.command` once. The first time the middleware starts, macOS asks whether Python may **accept incoming network
+connections**: click **Allow**, or SCADA and the attacker cannot connect.
+
+### Step 8: wait for the model, then confirm the healthy baseline
+
+Wait **about 2 minutes** after the middleware starts. On Laptop 1's dashboard you should see:
+
+* the header badge reading **ONLINE** (not `DEGRADED`),
+* green **PASS** rows arriving every 2 seconds from SCADA,
+* the **Live Network Flow** showing **SCADA** sending to the middleware and on to the PLC.
+
+### Step 9: run the attacks (Laptop 4)
+
+**Button panel:** double-click `launchers\laptop4_attack_panel.bat`. A page opens at `http://127.0.0.1:5070` with one button per
+attack, the result each one should produce, **Run all**, **Stop**, and the attack's live output.
+
+**Or the command line:**
+
+```powershell
+.\scripts\run.ps1 check attacker
+.\scripts\run.ps1 attacker hmac-tamper
+```
+
+Run one attack at a time and watch Laptop 1's dashboard after each. Section 6 lists every attack and its expected result.
+
+### Step 10: show the proof
+
+For a blocked attack, point out three things side by side:
+
+1. **Laptop 1's capture** shows the attack packet arriving (it really was sent).
+2. **The dashboard** marks it **DROP** with a named reason, and the Packet Tracer shows which check failed.
+3. **Laptop 2's capture** shows **nothing** for it: the attack never reached the PLC.
+
+### Step 11: reset for the next run, then stop
+
+* **Fresh demo:** click **Reset** on the dashboard. SCADA restores the plant to normal by itself about 15 s after an attack stops;
+  to do it at once, run `bash scripts/run.sh scada --restore` on Laptop 3.
+* **Stop:** close the windows in reverse order: attacker, SCADA, middleware and dashboard, PLC.
+
+---
+
+## 6. The attacks and what each one proves
+
+| Attack | What it does | Expected result | What it proves |
+|---|---|---|---|
+| `hmac-missing` | sends a command with no signature | **DROP** `HMAC_MISSING` | unsigned commands are refused |
+| `hmac-tamper` | signs a command, then changes the value | **DROP** `HMAC_INVALID` | any change in transit breaks the seal |
+| `hmac-forged` | signs with a guessed key | **DROP** `HMAC_INVALID` | only holders of the real secret can sign |
+| `replay` | re-sends a byte-identical signed command | first **PASS**, the repeat **DROP** `REPLAY_DETECTED` | a captured command cannot be reused |
+| `flood` | a burst of signed commands above 5 per second | several **DROP** `RATE_LIMIT_EXCEEDED` | flooding is throttled per source |
+| `impossible-command` | a signed, out-of-range value (P101 = 999) | **DROP** `OUT_OF_BOUNDS` | a valid signature does not make a value safe |
+| `sensor-write` | a signed write to a read-only sensor | **DROP** `WRITE_TO_SENSOR_REGISTER` | sensors cannot be commanded |
+| `cross-register` | slow, in-range steps that together create an unsafe state | the ramp is stopped, **DROP** `CROSS_REGISTER_VIOLATION` | multi-step "low and slow" attacks are caught |
+| `random --type ramp` | a randomised slow drift (new parameters each run, seed printed) | depends on the seed: fast steps **DROP**, slow in-range steps may pass with an **ALERT** | the limits of rule-based detection, honestly shown |
+| `false-injection` | a legitimate command, then a write **directly to the PLC**, bypassing the middleware | four laptops: the direct write is **refused by the PLC** itself | defence in depth: the PLC only accepts writes from the middleware's address |
+
+**`false-injection` on one computer.** Every process there shares the address 127.0.0.1, the same as the middleware, so the PLC
+cannot tell the attacker apart and accepts the direct write. The plant then drifts and later commands carry an **ALERT** from the
+physical model, which shows that an attack bypassing the middleware is only visible through the physics. The PLC's refusal can only be
+shown with separate machines.
+
+**Two threat models.** `flood`, `replay`, `impossible-command`, `cross-register` and `random` model a **compromised workstation that
+holds the secret** (an insider), so the signature passes and the later layers must stop it. The `hmac-*` attacks model an
+**outsider without the secret**.
+
+**Two attack modes on four laptops.** By default the attacker's address is on the whitelist (`ATTACKER_IP` in `lab.env`), so its
+commands get past the first check and the later layers stop them: everything in the table above. To show an **outside stranger**
+instead, remove `ATTACKER_IP` from Laptop 1's `lab.env` and restart the middleware: every attacker frame then dies at the first
+check with `UNTRUSTED_SOURCE`.
+
+---
+
+## 7. Reading the dashboard
+
+Open `http://127.0.0.1:5050` on Laptop 1.
+
+| Panel | What it shows |
 |---|---|
-| Cannot change a verdict | It runs after the decision is published, in a worker thread |
-| Cannot act | Recommendations come from a fixed allow-list; anything invented is dropped before the finding is stored |
-| Cannot reach the plant | Every tool is a read-only getter over records this process already holds |
-| Cannot block the middleware | Hard caps on turns, tool calls and tokens |
-| Cannot be required | No SDK, no key, no network, or any failure -> a deterministic engine writes the same finding shape |
-| Does not trust what it reads | Evidence is attacker-influenced, so it is wrapped and labelled as data, never as instructions |
+| **Header badge** | `ONLINE`, or `DEGRADED` with the reason (for example, the PLC is unreachable) |
+| **Total / Pass / Drop** | running counters since the last Reset |
+| **Live Network Flow** | each command as a dot from the host that sent it (SCADA or the attacker) to the middleware and, if approved, on to the PLC. A dropped command stops inside the middleware. Green = PASS, amber = ALERT, red = DROP |
+| **SCADA -> PLC / PLC -> SCADA** | every command with its verdict, reason and latency, and the PLC's confirmations |
+| **Live PLC Telemetry** | the five stages with live tank levels, gauges and every actuator and sensor value |
+| **Blocked IPs / Blocked Sources** | every blocked command, grouped by source, filterable by attack type |
+| **Investigations** | an optional, read-only plain-English write-up of serious incidents (see below) |
+| **Packet Tracer** | pick any command to see every check it went through, with the real values computed, each `PASS`, `FAIL` or `NOT_RUN` |
 
-Opt in with `IM_INVESTIGATOR=1` and an API key, or run it by hand from the analyst's laptop:
-`python -m tools.investigate --incident INC-0001`. Findings appear in a dashboard panel with no Apply button - a person makes
-every change. Tests: `tests/test_investigator.py`.
-
-### Verifying the whole flow in one command
-
-`python -m tools.sim_four_laptops` runs all four roles on one machine, each on its own loopback address, over real Modbus/TCP:
-operator commands from the SCADA address, every attack from the attacker address, one from a host outside the trusted list, and a
-write that bypasses the middleware entirely. It captures both legs with tshark (and a `capture.pcapng` for the Wireshark GUI), then
-cross-checks four independent records of the same traffic - the capture, the Packet Tracer, the blocked-attack log and the dashboard
-flow - matching wire frames to tracer entries by the frame nonce, which is the only shared identifier on the wire.
-
-Last run (`docs/reports/system_flow_verification.md`): 24 signed frames captured, **24 consistent with the tracer, 0 mismatches**;
-every DROP absent from the PLC leg, every PASS present; the one direct-to-PLC write visible on the PLC leg and on no other record,
-which is the documented bypass.
-
-### Reading the physical model's verdict
-
-Every flag says **where**, not just how likely. The 18 live channels are grouped by plant stage; the window is rescored once per
-stage with that stage's channels replaced by the last window the model itself called normal, and the biggest drop names the
-driver. The result reaches the `ALERT` reason (`PHYSICAL_MODEL:classifier S3`), the Packet Tracer and the dashboard as a sentence:
-*"stage 3 (Ultrafiltration) is driving this: LIT301 7.8 sigma above normal (outside the measured envelope)"*. It costs a few
-milliseconds and runs only when the model flags. Alongside it each assessment reports the sensors furthest from measured normal,
-whether the call was `marginal` or `clear`, and how many seconds of warm-up remain.
-
-The middleware publishes a **model card** at startup (`docs/MODEL_CARD.md`, `GET /api/model`; the dashboard no longer draws it as a panel):
-what the model is, the operating point it is running at with its measured cost, and its known limits. Operating points are named
-rather than numeric and come only from measured rows of the held-out report: `IM_PHYSICAL_SENSITIVITY=balanced` (shipped, 1.17
-alerts/h, 8/10 attack segments, F1 0.485) or `sensitive` (2.0 alerts/h, recall 0.563). `IM_PHYSICAL_THRESHOLD` still overrides
-with a raw number.
-
-### Response layer: authorization, quarantine, incidents (rule-based)
-
-Beyond blocking single commands the middleware can restrict and respond. **Policy-as-code** (`config/policy.json`, see
-`config/policy.example.json`) limits which registers and value ranges each source may write, after its HMAC is verified.
-**Auto-quarantine** (`IM_QUARANTINE=auto`, set by the launcher; it switches itself off on a one-laptop demo) cuts off a source that keeps violating the rules for a growing hold time, then releases it.
-**Incident correlation** groups related blocked/alerted commands per source into one incident with severity and a timeline (served by `GET /api/incidents`; no longer drawn on the
-dashboard page). All deterministic and covered by `tests/test_response_layer.py`; none of it uses a learned model.
-
-### Orchestrator: RULE-BASED fusion (`middleware/orchestrator.py`)
-
-| Cyber rules | Physical rules | Physical model | Decision |
-|---|---|---|---|
-| fail | any | any | **DROP** (reason = the cyber reason) |
-| pass | fail | any | **DROP** (reason = the physical reason) |
-| pass | pass | flags an attack | **ALERT** (command is **forwarded**, highlighted; reason `PHYSICAL_MODEL:<which score>`) |
-| pass | pass | quiet / warming up | **PASS** |
-
-On the upstream path only the physical side exists. The orchestrator also forwards each decision to the dashboard from a single background worker thread, so a slow
-dashboard can never delay a command. **A learned fusion model was trained and rejected**: on the held-out test block it ranked attacks worse (ROC-AUC 0.68) than the physical
-model alone (0.83) and detected fewer segments (4 vs 6 of 10) (`docs/reports/fusion_training_report_swat.md`). The code is kept as a reproducible negative result
-(`research/train_fusion_swat.py`).
+**Investigations (optional).** With `IM_INVESTIGATOR=1` and an Anthropic API key, an LLM agent (`middleware/investigator.py`)
+writes up high-severity incidents **after** the decision is already made. It reads the evidence through read-only tools and must
+answer in a fixed schema. It cannot change a verdict, act on the plant or block anything; without a key, a deterministic engine
+writes the same kind of finding.
 
 ---
 
-## Dataset: SWaT only
+## 8. Proving it on the wire with Wireshark
 
-**SWaT** (Secure Water Treatment testbed, iTrust, Singapore University of Technology and Design) is the **only external dataset** this project uses, and the only
-one it will use: a real, labelled water-treatment process with physical attacks. It supplies the plant structure (five stages and their tags), the real operating ranges, and labelled
-attack windows. Everything SWaT cannot supply is either **derived from SWaT columns and labels** or **labelled synthetic or rule-tested**, and listed under Limitations.
+The dashboard is the system describing itself. A packet capture is independent proof.
 
-* The licensed data is **never committed** and never leaves the machine that has it. Everything in `docs/reports/` and `benchmarks/` is aggregate statistics only.
-* Archive facts used (measured): 1 Hz; normal and attack files are **not chronological**; the normal file holds an exact duplicate copy of the normal period (de-duplicated by
-  `swat/loader.py`); 35 attack segments; no network fields, no attack list, no packet captures.
-* **Splits are by calendar block, never random rows**: train 22-29 Dec 2015, validation 30-31 Dec, test 1-2 Jan 2016. Random splits leak (SWaT sensors drift by day).
-  One attack segment (segment 22) is about 10 hours and 66 % of all attack rows, so evaluation is always per segment and the selection step excludes any segment that dominates a block.
-* **Used for:** the measured sensor bounds and envelope (`docs/swat_bounds.json`), calibration of the twin, training the physical model, and the held-out physical benchmark.
-* **Cannot supply:** HMAC signatures, replay behaviour, source addresses, network traffic. The cyber rules are therefore rule-tested, never SWaT-evaluated.
+* **Laptop 1** captures port 5021 (everything arriving at the middleware).
+* **Laptop 2** captures port 5020 (everything that actually reached the PLC).
 
----
-
-## The digital twin
-
-`plc/twin.py` is a small physics model of a five-stage SWaT-style train, exposed over Modbus by `plc/plc.py`. **20 registers = 5 stages x 4 points**; names are SWaT tags;
-10 actuators are writable, 10 sensors are read-only (writes to them are dropped). The single source of truth is `core/interfaces.py` (`MACHINES`); `docs/register_map.md` is generated from it.
-
-| Stage | Process | Actuators | Sensors |
-|---|---|---|---|
-| S1 Raw water | raw tank | MV101 inlet valve, P101 pump | LIT101 level, FIT101 flow |
-| S2 Chemical dosing | pH and chlorine | P203 HCl pump, P205 NaOCl pump | AIT202 pH, FIT201 flow |
-| S3 Ultrafiltration | UF tank, membrane | MV302 feed valve, P302 pump | LIT301 level, DPIT301 membrane dP |
-| S4 Dechlorination | UV removal | P402 pump, UV401 lamp | LIT401 level, AIT402 ORP |
-| S5 Reverse osmosis | RO | P501 high-pressure pump, **MV503** reject valve | PIT501 pressure, FIT501 permeate flow |
-
-**Alignment with SWaT:** sensor ranges and nominal values are the **measured** SWaT medians and ranges (`docs/swat_bounds.json`); actuator nominals are SWaT's "on" states;
-`tests/test_bounds_alignment.py` (34 checks) fails if the configuration and the twin drift from the measurements. **Coupling:** stage flows feed forward (S1 pump outflow is S2 flow;
-MV302 splits it between the UF tank and a return to the raw tank; S3 outflow fills S4; the S4 pump feeds the RO pump, which starves below ~5 m3/h; dosing pumps act on pH and chlorine, removed by the UV lamp).
-UF fouling raises DPIT301 and triggers an automatic backwash. `python -m tests.test_twin_propagation` perturbs stage 1 and asserts stages 2 to 5 respond in order
-(about 1.4 s, 5 s, 25 s, 100 s). **Honest caveats:** MV503 has **no SWaT counterpart** (twin-only, labelled synthetic); the twin is a demonstration plant, not a SWaT
-replica; the wire format is value x 10 (0.1 resolution, max 6553.5), so pH and permeate flow are coarse. Sensor noise is on by default (`IM_TWIN_NOISE=0` turns it off; a noiseless flat plant looks abnormal to the model and keeps it in ALERT), `IM_TWIN_TIME_SCALE=N` speeds it up.
-
----
-
-## The journey of one command
-
-Follow a single operator write of `MV101 = 56.0 %`. **There is no encryption in this system: it provides integrity and authenticity, not confidentiality** (see Limitations).
-
-1. **SCADA builds and signs a frame.** It packs `version, register, raw value (=560), nonce, timestamp` into a fixed-width binary block and computes **HMAC-SHA256** over it with
-   the shared secret (`core/hmac_auth.py`). The frame is **27 Modbus registers**, written with **function code 16 to address 100** of the middleware:
-
-   | Words | 0 | 1 | 2 | 3-6 | 7-10 | 11-26 |
-   |---|---|---|---|---|---|---|
-   | Content | version (1) | target register | value x 10 | 64-bit nonce | 64-bit timestamp (ms) | 32-byte HMAC tag |
-
-2. **The middleware receives it** on :5021 and notes the real peer address and port (not a value the sender claims). It builds a command record and a snapshot of the plant state
-   (latest telemetry, and the set-points already approved but still ramping).
-3. **Two branches run concurrently** on worker threads: the **cyber branch** (the six rule checks above) and the **physical branch** (the four rule layers, then the advisory model on the current telemetry window).
-4. **HMAC verification:** the middleware rebuilds the same byte block from what it received, computes its own tag with its own copy of the secret and compares in constant time.
-   Mismatch is `HMAC_INVALID` (changed in transit, or a forger without the key); no frame at all is `HMAC_MISSING`; a timestamp more than 30 s away from the middleware clock is `HMAC_EXPIRED`;
-   a nonce seen before is `REPLAY_DETECTED` even though its tag is valid.
-5. **The orchestrator fuses** the verdicts with the four-branch table and records the inputs and the branch taken in the decision.
-6. **Outcome.** `PASS`/`ALERT`: the middleware registers the pending command, then **writes the value to the PLC** (FC6 to the PLC's port 5020) and later checks the PLC's feedback.
-   `DROP`: nothing is sent to the PLC, and the command is appended to `logs/blocked_attacks.jsonl` (never containing the key or the tag).
-7. **The dashboard** receives the decision and a **per-hop trace** (below). In Wireshark the same command is one FC16 on :5021 and, if forwarded, one FC6 on :5020.
-
-**HMAC in plain words (for narration).** *"Every command carries a seal only SCADA and the middleware can make. The seal is computed from the exact register, value, a one-time number and the time, using a secret
-that is never sent. Change one bit and the seal no longer matches. Reuse an old command and the one-time number gives it away. Hold a command too long and the time gives it away."*
-**What HMAC does not do:** it proves the sender holds the key, not that the command is *sensible*. A compromised workstation that owns the key can sign a dangerous command; that is why the rate limit,
-the replay check and the whole Physical Agent sit behind it.
-
----
-
-## Setup per laptop role
-
-Single machine: nothing to configure (all defaults are loopback). For several machines the **only** place defaults live is `core/netconfig.py`; every component takes environment variables or flags.
-The recommended four-laptop layout (2 MacBooks, 2 Windows laptops), the firewall rules, the preflight check and the two attack modes are in **`docs/topology.md`**. Summary:
-
-| Laptop | Role | Runs | Needs set |
-|---|---|---|---|
-| Mac A | **Middleware** + dashboard + Wireshark | `python dashboard/app.py`, `python -m middleware.middleware_server` | `IM_PLC_HOST=<PLC_IP>`, `IM_TRUSTED_SOURCES="<SCADA_IP>,<ATTACKER_IP>"`, `IM_HMAC_SECRET` |
-| Windows A | **PLC twin** + tshark | `python -m plc.plc` | firewall: allow TCP 5020 from the middleware |
-| Mac B | **SCADA** | `python -m scada.scada` | `IM_MIDDLEWARE_HOST=<MW_IP>`, `IM_HMAC_SECRET` |
-| Windows B | **Attacker** (CLI) | `python attacker\attacker.py ...` | `IM_MIDDLEWARE_HOST=<MW_IP>`, `IM_PLC_HOST=<PLC_IP>` (false-injection only), `IM_HMAC_SECRET` |
-
-Replace `<..._IP>` with the laptops' real addresses (nothing in this repository contains one). Three things always go wrong first: **the secret must be identical** on SCADA, middleware and attacker; **clocks must agree
-within 30 s** (turn on automatic time); **firewalls** must allow 5021 into the middleware and 5020 into the PLC. Run `python -m tools.check_topology --role <plc|middleware|dashboard|scada|attacker> --multi`
-on each laptop first: it flags leftover loopback settings, unreachable peers and prints the secret's fingerprint so you can compare it across laptops without revealing it.
-
-The multi-laptop run has been **rehearsed on one machine only** (the laptops were not available while this was written): see Limitations.
-
----
-
-## Training instructions per model
-
-The demo needs **no training**: `models/weights/physical_model.joblib` is shipped. Retrain only if you change the data, features or protocol. All training needs the **SWaT archive on the machine that runs it**
-(folder containing `normal.csv`, `attack.csv`; `merged.csv` is used only if those two are missing) and writes **candidates to `models/candidates/`, never to `models/weights/`**.
-
-**Physical model (the only learned model in use)**
-```bash
-python -m tools.swat_inspect "<SWaT archive>" --out swat_inspection          # optional: aggregate-only report of the archive
-python -m models.train_physical_swat --data-dir "<SWaT archive>" --candidate # bounds + model + report -> models/candidates/
-python -m models.train_physical_swat --fixture --candidate                   # code-path check on synthetic SWaT-SHAPED data (numbers meaningless)
-```
-Protocol: 30 s windows at 1 Hz, stride 5 s; split by calendar block; bounds and normalisation from train-block normal rows only; Isolation Forest on train-normal windows; the supervised head's
-feature variant and regularisation chosen on **validation** by average precision *excluding* any segment holding more than half of a block's attack windows; threshold set by a false-alarm budget on validation;
-test block used for reported numbers. **Disclosed protocol revision:** run 1 used max-F1 thresholds; after it overfit (train AUC 1.0, test 0.66) the selection protocol above was introduced, so the test block is
-no longer a pristine blind hold-out. Both runs are in `docs/reports/physical_training_report_swat_run1.md` and `..._run2.md`. To adopt a candidate, review its report, then copy
-`models/candidates/physical_model.joblib` over `models/weights/physical_model.joblib` and keep the scikit-learn version identical to the pin in `requirements.txt` (the file is a pickle). The shipped file's
-classifier threshold (0.601) is the 0.5 false-alarm-per-hour operating point chosen from the validation operating curve and recorded in its metadata.
-
-**Physical model v2 (PROMOTED, now the live model).** The experiment that raised recall and F1 (held-out test: F1 0.31 -> 0.49, 6 -> 8 of 10 segments), promoted after review with the user's approval as `models/weights/physical_model_v2.joblib` via `python -m models.package_physical_v2` (v1 weights untouched, kept as the fallback). What it does: fit on train + validation, add 120 s long-context features and
-cross-sensor consistency residuals, choose by segment-grouped cross-validation, and alarm on "k of the last m windows" with a false-alarm-budget threshold. It writes only to
-`models/candidates/physical_v2/` and needs the SWaT archive: `python -m models.train_physical_v2 --data-dir "<SWaT archive>" --candidate` (about 30-90 minutes). The report compares a refit
-baseline with the selected configuration on the held-out test block (used for exactly two looks, disclosed). Persistence (`k of m`) was measured and made F1 worse, so the live flag is the single-window threshold. Report: `docs/reports/physical_training_report_v2_swat.md`.
-
-**Cyber model: not trained, by design.** A SWaT-based candidate exists (`research/train_cyber_swat.py --data-dir ... --candidate`) and is documented as a negative result: test ROC-AUC 0.63, F1 0.14
-(`docs/reports/cyber_training_report_swat.md`). SWaT has no network traffic, so it could only model actuator state-change events, and it was not promoted. The cyber branch is rules-only.
-
-**Fusion (orchestrator) model: trained, rejected.** `python -m research.train_fusion_swat --data-dir "<SWaT archive>" --candidate` reproduces the cross-fitted experiment (out-of-fold physical outputs,
-capped dominant segment, thresholds from validation, test touched once). Result: worse than the physical model alone, so the orchestrator is the rule-based table. A fixture mode (`--fixture`) checks the code.
-
-**Reproducing the held-out numbers:** `python -m benchmark.run_all --data-dir "<SWaT archive>"` (next sections).
-
----
-
-## Attacker design
-
-`attacker/attacker.py` is a **real Modbus client** (it sends real frames to the middleware's port), in two families:
-
-**Fixed, scripted attacks: identical every run, for live-demo reliability.** The three **demo attacks** are `flood`, `impossible-command` and `cross-register`. The other fixed probes: `sensor-write`,
-`replay`, `false-injection` (a legitimate command, then a direct write to the PLC that bypasses the middleware), `hmac-missing`, `hmac-tamper`, `hmac-forged`.
-
-**Randomised attacks (`random`): parameters drawn per run, reproducible from a seed** (`attacker/scenarios.py`). Target register, timing, intensity, step size and counts vary; the seed is printed.
-
-| Type | Origin | What varies |
-|---|---|---|
-| `freeze` | SWaT-derived behaviour | target actuator, held value, repeat count and interval |
-| `ramp` | SWaT-derived behaviour | target, direction, how far, step size, interval |
-| `cross-register` | SWaT-derived behaviour | which of the 8 rules, which half is set first, step size, interval |
-| `impossible-command` | **synthetic extension** | target, overshoot factor (1.1 to 10 x max), write count, gaps |
-| `flood` | **synthetic extension** | target, burst size, pace (6.7 to 100 requests per second) |
-| `replay` | **synthetic extension** | target, value, replay count, delays |
-
-*"SWaT-derived"* means the behaviour (an actuator forced to a wrong state, a held value, a slow drift, a physically inconsistent combination) is one seen in SWaT's labelled attack windows; SWaT has no network-layer
-attacks, so flood, replay and impossible-command are **synthetic extensions**, labelled as such in code and in every plan. Parameter ranges come from `docs/swat_attack_profile.json` when it exists
-(`python -m tools.swat_attack_profile --data-dir ...`, aggregate output; only the ramp range is calibrated), otherwise from stated design defaults, and each plan prints which.
+Wireshark decodes Modbus only on port 502 by default. Set the Modbus/TCP **port preference** (not *Decode As*):
 
 ```bash
-python attacker/attacker.py flood                          # a fixed demo attack
-python attacker/attacker.py random --type ramp             # randomised, fresh seed
-python attacker/attacker.py random --type flood --seed 42  # reproducible
-python attacker/attacker.py random --dry-run --count 5     # print five plans, send nothing
-python attacker/attacker.py random --log-file logs/attacks.jsonl   # append plan + per-frame records
-python attacker/attacker.py hmac-tamper --source-ip 127.0.0.2      # bind a different local source address
+tshark -i en0 -f "tcp port 5021" -o mbtcp.tcp.port:5021 -Y mbtcp                                   # Laptop 1 (macOS)
 ```
-**Threat model:** `flood`, `impossible-command`, `replay`, `cross-register`, `freeze`, `ramp` model a **compromised engineering workstation that holds the key** (an insider); the `hmac-*`
-attacks model an external attacker **without** the key. For several source addresses on one Mac add loopback aliases first: `sudo ifconfig lo0 alias 127.0.0.2 up`.
+
+```powershell
+& "C:\Program Files\Wireshark\tshark.exe" -i <adapter number> -f "tcp port 5020" -o mbtcp.tcp.port:5020 -Y mbtcp   # Laptop 2
+```
+
+Find the adapter number with `tshark -D`. To capture both legs in one capture, give **one** range, `-o mbtcp.tcp.port:5020,5021`
+(passing the flag twice makes the second replace the first).
+
+Every signed command carries a nonce on the wire, and the Packet Tracer's Arrival hop shows the same nonce, so any packet can be
+matched to its dashboard row. `python -m tools.wire_correlate --mw mw.tsv --plc plc.tsv` does the matching automatically and checks
+that every dropped command appears on the middleware leg but never on the PLC leg. Full guide: `docs/wireshark_setup.md`.
 
 ---
 
-## Dashboard and Packet Tracer
+## 9. Results and how they were measured
 
-`python dashboard/app.py` serves `http://127.0.0.1:5050` (set `IM_DASHBOARD_BIND_HOST=0.0.0.0` only if another laptop must open it). It shows KPIs (total/pass/drop), the **SCADA -> PLC** and **PLC -> SCADA** security
-tables, live telemetry for all 20 points (10 sensors, 10 actuators), CPU, the **Blocked sources** section (read from `logs/blocked_attacks.jsonl`, so it must run on the machine that runs the middleware) and the **Live Network Flow** panel: commands drawn from the host that sent them (TCP source address) to the PLC, or to the layer that dropped them, with per-host counters.
-Hosts are named with `IM_HOST_LABELS="<ip>=Name,..."` and given a role with `IM_HOST_ROLES="<ip>=operator,<ip>=attacker"` (the launchers set both): an attacker host is drawn in red and labelled "attacker (untrusted host)" even when its address is whitelisted. `GET /api/flow?since=<seq>`.
-The dashboard has **no attack controls**: attacks come only from the attacker system (`python -m attacker.attacker ...`). **Reset** clears the dashboard only, not the plant.
+Three kinds of evidence are reported, and they are **never blended into one number**, because they answer different questions:
 
-**Packet Tracer** (bottom panel). Click any command in the list (or let it follow the newest): the six hops it met, with the values the backend computed:
-1 Arrival (peer, function code, register, value, signature present, nonce) · 2 Cyber Agent rules (checks, each `PASS`/`FAIL`/`NOT_RUN`, with values such as the rate-limit count) ·
-3 Physical Agent rules (five checks with bounds, rate limit, rules evaluated) · 4 Physical model (status, plant state, scores against thresholds, which score flagged) · 5 Orchestrator (inputs and the branch taken) ·
-6 Outcome (forwarded to the PLC, or dropped and which log file recorded it). There is no cyber model hop because the cyber branch is rules-only. The trace is built from the real verdicts; checks after the first failure show `NOT_RUN` (the agents stop there). API: `GET /api/traces`,
-`GET /api/trace/<tx_id or TX-007>`. Only SCADA-to-PLC commands are traced.
+1. **Rule conformance** (constructed scenarios): does each rule do exactly what it is specified to do? A pass/fail correctness check,
+   not a detection rate.
+2. **Digital-twin detection** (live): real attacks and legitimate traffic sent over Modbus/TCP to the running system, outcomes read
+   back and scored with confusion-matrix metrics, next to a never-alarm baseline.
+3. **Held-out real SWaT data:** the only result comparable to published research. Splits are **chronological** (SWaT sensors drift
+   by day, so random splits would leak), the decision threshold is fixed on validation data **before** the test block is scored, and
+   the test block is never trained or tuned on.
 
----
+One command regenerates everything below and the full report (`docs/reports/benchmark_report.md`); a test fails if the numbers here
+drift from the data:
 
-## Monitoring with Wireshark
-
-Wireshark/tshark (free, built-in Modbus dissector) sees the real packets regardless of what the dashboard says. Full filters, field names and the side-by-side demo are in **`docs/wireshark_setup.md`**; the essentials:
-
-* **Wireshark decodes Modbus only on port 502.** Set the **port preference**, not *Decode As* (which cannot tell requests from responses): Edit -> Preferences -> Protocols -> Modbus/TCP -> port **5021**
-  (middleware leg) or **5020** (PLC leg); tshark: `-o mbtcp.tcp.port:5021`.
-* Capture filter: `tcp port 5021` (middleware laptop), `tcp port 5020` (PLC laptop). Display filters: signed commands `modbus.func_code == 16 && tcp.dstport == 5021`; forwarded writes `modbus.func_code == 6 && tcp.dstport == 5020`.
-* A signed command is one FC16 write of 27 words at address 100; words 3-6 are the **nonce**. The dashboard's tx_id is created inside the middleware and is **not on the wire**: the Packet Tracer's Arrival hop shows the same nonce words, which is how a packet is
-  matched to a dashboard row. `python -m tools.wire_correlate --mw mw.tsv --plc plc.tsv` automates it and checks that **a dropped command is on the middleware leg but not on the PLC leg**.
-
-The filters, the port preference and the nonce match were verified on real traffic from this stack (tshark 4.2.2, loopback). The GUI menus and the Windows/macOS interface names were not tried on the real laptops.
-
----
-
-Roles, start order, what each observer shows, the aftermath of an attack and recovery (`scada --restore`): **`docs/demo_workflow.md`**.
-
-## Live demo verification runbook
-
-Goal: a presenter who has never seen the project runs the whole demo and can check, at each step, that the system did what it claims. About 15 minutes. Each step has an **observable you can verify**.
-
-### Before the demo (preflight, 10 minutes)
-1. **Install** (once per laptop): `pip install -r requirements.txt` in a venv. Check `python -m tests.test_environment` prints `ALL PASS` (scikit-learn pin and model load).
-2. **Clocks:** automatic time on every laptop.
-3. **Secret:** the same `IM_HMAC_SECRET` (32+ characters) on SCADA, middleware, attacker. Single laptop: leave it unset.
-4. **Multi-laptop only:** run `python -m tools.check_topology --role <role> --multi` on each laptop; every line should be `OK` and the secret fingerprints must be equal. Choose the attack mode (below).
-5. **Start in order:** PLC, dashboard, middleware, SCADA (commands in the Quick start). **Wait about 2 minutes** for the physical model's 120 s window to fill.
-6. **Healthy baseline:** the dashboard shows `PASS` rows every 2 s, telemetry values near their nominals (e.g. LIT101 about 526 mm), no recent red rows. An occasional yellow `ALERT` is the advisory model's false-alarm rate: say so out loud, it is part of the honest story.
-
-### The script
-
-| # | Do | You should see (dashboard + terminal) | Why |
-|---|---|---|---|
-| 1 | Nothing: watch SCADA traffic | Green `PASS` rows; click one: Packet Tracer shows all checks `PASS`, outcome "forwarded" | the normal path |
-| 2 | `attacker.py hmac-tamper` | `DROP` `HMAC_INVALID`; tracer: `hmac` red, `replay` `NOT_RUN`, outcome "dropped", log file named | value changed after signing |
-| 3 | `attacker.py hmac-missing` | `DROP` `HMAC_MISSING` | unsigned frame |
-| 4 | `attacker.py hmac-forged` | `DROP` `HMAC_INVALID` | signed with a guessed key |
-| 5 | `attacker.py replay` | the first frame `PASS`es, the repeat `DROP`s `REPLAY_DETECTED` | nonce already used |
-| 6 | `attacker.py flood` | several `DROP` `RATE_LIMIT_EXCEEDED` (about 6 of 10 frames) | over 5 requests per second |
-| 7 | `attacker.py impossible-command` | `DROP` `OUT_OF_BOUNDS` | P101 = 999 |
-| 8 | `attacker.py sensor-write`  | `DROP` `WRITE_TO_SENSOR_REGISTER` | LIT101 is read-only |
-| 9 | `attacker.py cross-register` (on a clean plant) | the inlet valve ramp is stopped at about 15 %; reason `CROSS_REGISTER_VIOLATION:RAW_PUMP_DRY_RUN...`; the script prints "Unsafe state PREVENTED" | each step is in bounds and slow, the combination is unsafe |
-| 10 | `attacker.py random --type ramp` (twice) | different target and pacing each time (the seed is printed; `--seed 3` reproduces one). The outcome depends on the seed and pacing: steps that are too fast `DROP` (`RATE_OF_CHANGE_EXCEEDED`), steps that complete an unsafe pair `DROP` (cross-register), and slow in-bounds steps pass (they may carry an `ALERT`) | randomisation; the rules stop fast or unsafe drift but not slow in-bounds drift |
-| 11 | `attacker.py false-injection` (last: it damages the plant) | a legitimate `PASS`, then a direct PLC write the middleware never saw; afterwards **yellow `ALERT` rows** on later commands (the advisory model sees the wrong plant state) and a `SENSOR_ENVELOPE_VIOLATION` warning in the middleware terminal | an attack that **bypasses** the middleware is only visible through the physical side; restart the PLC afterwards |
-
-Observed on this stack (single laptop, recorded while writing this runbook): all `DROP` reasons above appeared as listed; flood dropped 6 of its 10 frames; after false-injection the plant drifted
-(LIT101 fell from 526 to about 118 mm within two minutes) and every later SCADA command was forwarded with an `ALERT`.
-
-### The side-by-side moment (multi-laptop, 90 seconds)
-Mac A: dashboard Packet Tracer next to Wireshark (`modbus.func_code == 16 && tcp.dstport == 5021`); Windows A: Wireshark `modbus.func_code == 6 && tcp.dstport == 5020`.
-Step 1 (a normal SCADA command): a frame appears on both captures, and the nonce words in Wireshark equal the Arrival hop's nonce words. Step 2 (`hmac-tamper` from Windows B): the frame is **on the middleware wire** (value word 950 = 95.0),
-the tracer says `DROP`, and the **PLC capture shows nothing**. Then `python -m tools.wire_correlate --mw mw.tsv --plc plc.tsv` prints both frames with `on PLC leg: yes` and `NO`.
-
-### Attack modes (multi-laptop)
-The first check is the source whitelist. **Mode A (insider, default):** `IM_TRUSTED_SOURCES="<SCADA_IP>,<ATTACKER_IP>"`, so the attacker passes the whitelist and the *later* layers stop it (everything in the table above).
-**Mode B (stranger):** `IM_TRUSTED_SOURCES="<SCADA_IP>"`, so every frame from the attacker dies at `UNTRUSTED_SOURCE`. Restart the middleware to switch.
-
-### How to verify the demo independently of the dashboard
-`logs/blocked_attacks.jsonl` has one JSON line per drop (time, source, register, requested value, signature state, both verdicts, reason, latency); `grep -c HMAC_INVALID logs/blocked_attacks.jsonl`. The
-middleware terminal prints one line per decision. Wireshark/tshark shows the packets. If the three agree, the demo is real.
-
-### Cleanup
-Ctrl-C all processes; **restart the PLC before the next run**; `logs/` is git-ignored (delete `logs/blocked_attacks.jsonl` yourself to start the blocked list from empty).
-
----
-
-## Benchmarks
-
-One command regenerates everything quoted below and the full report (`docs/reports/benchmark_report.md`, `benchmarks/latest.json`); a test fails if the numbers here drift from the JSON:
-
-    python -m benchmark.run_all                                # latency, rule-based checks, twin; reuses the stored SWaT section
-    python -m benchmark.run_all --data-dir "<SWaT archive>"    # also re-measures the held-out SWaT test block (needs the archive)
-    python -m benchmark.run_all --live                         # also times the Modbus round trip (needs PLC + middleware running)
+    python -m benchmark.run_all                                # latency, rule checks, twin (reuses the stored SWaT section)
+    python -m benchmark.run_all --data-dir "<SWaT archive>"    # also re-measures the held-out SWaT test block
 
 <!-- BENCHMARK:START (generated by python -m benchmark.run_all; do not edit by hand) -->
 
@@ -491,138 +515,190 @@ _Regenerate: `python -m benchmark.run_all [--data-dir <SWaT archive>]`. Full tab
 
 <!-- BENCHMARK:END -->
 
-Four sections with different evidential weight, always reported separately: **latency** (real code, constructed workload); **held-out SWaT** (the only real-data detection result, physical side only);
-**rule-based checks on constructed scenarios** (a regression check that each deterministic rule fires, not a detection claim); **twin measurements** (synthetic plant). Latency depends on the machine; the report names it.
+**About the SWaT score.** Most published SWaT results use *point-adjust* scoring, where one flagged second credits a whole attack.
+Under that convention the **same alarms** score F1 **0.685** instead of the strict per-window **0.485** above; only the counting
+differs (`docs/reports/swat_scoring_comparison.md`).
 
-## Assurance: seven dimensions in one command
+**More evidence:**
 
-`python -m benchmark.assurance` (about 7 minutes) writes `docs/reports/assurance_report.md`: **functional accuracy** (accuracy, precision,
-recall, F1, ROC-AUC and PR-AUC per alarm source on the twin, with healthy runs pooled in so precision is not trivially perfect, against the
-never-alarm baseline), **robustness** (malformed and tampered commands, degraded telemetry, a sensor-noise sweep, concurrent load),
-**bias and fairness** as equal treatment across source addresses, registers and plant stages, **consistency** (determinism, order
-invariance, live-versus-offline parity), **explainability** (reason and trace coverage, plus whether the explanation names the stage that
-was actually perturbed), **drift** (PSI with a same-seed control, slow degradation, alarm creep over a long healthy run) and **safety**
-(fault injection into each decision stage, advisory-never-blocks, every documented unsafe state, bounded queues).
-
-Two findings from it belong in any write-up: stage coverage is uneven at small perturbations (pH is weakest, its measured spread being
-close to the wire's 0.1 resolution), and alarm counts rise over a long healthy twin run as the twin's fouling cycle develops.
-
-## How the SWaT numbers are scored, and what is still unmeasured
-
-Published SWaT scores of 0.8–0.9 mostly use **point-adjust** scoring, where one flagged second credits a whole attack, and often pick the
-threshold on the test labels. This project scores every window strictly and fixes the threshold on validation data before the test block is
-touched. `python -m benchmark.swat_protocol --from-report docs/reports/physical_training_report_v2_swat.json` re-scores the *same alarms*
-every way, with no data needed (`docs/reports/swat_scoring_comparison.md`): strict F1 **0.485**, composite 0.585, PA%K(50) 0.618,
-point-adjust **0.685**. Identical model, identical alarms; only the counting changes.
-
-With the archive in hand, `python -m benchmark.swat_protocol --data-dir <archive>` goes further: rolling blocked cross-validation over **all
-35 attacks** with per-fold thresholds, cluster-bootstrap confidence intervals, and baselines on the same folds including chance alarms matched
-to the model's own alarm rate. **That run and the real-SWaT invariant fit have not been done yet**; both are listed as NOT MEASURED in
-`CHECKLIST_VERIFICATION.txt`, which is generated from the artefacts by `python -m tools.verification_record` and therefore cannot go stale.
-
-## Tests
-
-Plain scripts, each ends with `ALL PASS` or an error (run from the project root, with the venv active). **To run them all and save a dated record:**
-`python -m tests.run_all` (add `--with-stress`, `--with-plc` for the two scripts that need extra setup). It writes `benchmarks/test_results.json` (per script: status, duration,
-number of individual `[PASS]`/`[FAIL]` checks, last line; plus environment and commit) and exits non-zero if anything failed. The counts in the table below are as of the last run recorded there.
-
-| Command | Covers |
-|---|---|
-| `python -m tests.test_cyber_agent` | every cyber rule |
-| `python -m tests.test_physical_agent` | every physical rule (16 groups) |
-| `python -m tests.test_orchestrator` | the four-branch fusion |
-| `python -m tests.test_pipeline` | concurrent branches, unified report (24 checks) |
-| `python -m tests.test_trace` | the Packet Tracer matches what the backend computed |
-| `python -m tests.test_bounds_alignment` | config and twin vs the measured SWaT bounds (34 checks) |
-| `python -m tests.test_twin_propagation` (add `--live` with a running PLC) | stage-to-stage propagation |
-| `python -m tests.test_attacker_randomization` | randomised attacks really vary; rules catch the synthetic extensions |
-| `python -m tests.test_wire_correlate`, `test_check_topology` | wire correlation and the per-laptop preflight |
-| `python -m tests.test_benchmark`, `test_environment` | benchmarks run; README numbers equal the JSON; version pin and clean model load |
-| `python -m tests.test_swat_physical`, `test_swat_cyber`, `test_swat_fixture`, `test_fusion_scenarios` | the SWaT code paths on a synthetic SWaT-shaped fixture (code paths only, never real metrics) |
-| `python -m tests.test_invariants`, `test_invariants_ab` | the invariant engine on a plant with exactly known physics, the live monitor, and the before/after harness |
-| `python -m tests.test_swat_protocol` | the scoring schemes, the cross-validation folds and the bootstrap, on hand-checked numbers |
-| `python -m tests.test_assurance` | the assurance harness: its statistics, its attack injectors and one small real run of each section |
-| `python -m tests.pipeline_test` | end to end; **needs a running PLC** (`python -m plc.plc`) |
-| `python -m tests.test_middleware_efficiency` | stress test: 2400 messages at 300 per second plus a capacity run; writes `logs/middleware_benchmark_*.json` (can flake on a single host stall: re-run) |
+* `python -m benchmark.evidence_pack`: a live attack campaign against the running stack, with per-attack results
+  (`docs/reports/evidence_pack.md`).
+* `python -m benchmark.assurance`: robustness (malformed input, degraded telemetry, noise, concurrency), consistency,
+  explainability, drift and fail-safe behaviour (`docs/reports/assurance_report.md`).
+* `python -m tools.sim_four_laptops`: all four roles on one machine with real packet captures, cross-checked against the tracer
+  and logs (`docs/reports/system_flow_verification.md`).
 
 ---
 
-## Reference
+## 10. Running the tests
 
-**Ports:** PLC 5020 · middleware 5021 · dashboard 5050.
+The tests are plain Python scripts; each ends with `ALL PASS` or reports what failed. From the project root, with `.venv` active:
+
+```bash
+python -m tests.run_all                  # every test, saves a dated record to benchmarks/test_results.json
+python -m tests.test_cyber_agent         # or any single script
+```
+
+| Script | Covers |
+|---|---|
+| `test_cyber_agent`, `test_physical_agent`, `test_orchestrator` | every rule and the fusion table |
+| `test_pipeline`, `test_trace` | the concurrent pipeline, and that the Packet Tracer matches the real decision |
+| `test_audit_fixes`, `test_sprint_fixes`, `test_quarter_fixes` | every defect found in the adversarial audit, pinned so it cannot return |
+| `test_response_layer`, `test_dashboard_auth`, `test_per_device_keys` | policy, quarantine, incidents, dashboard token, per-device keys |
+| `test_bounds_alignment`, `test_twin_propagation` | the twin against the measured SWaT bounds; stage-to-stage propagation |
+| `test_invariants`, `test_physical_v2_live`, `test_physical_explain` | the invariant engine, the live model, its explanations |
+| `test_attacker_randomization`, `test_attack_panel` | randomised attacks really vary; the attack button panel |
+| `test_benchmark`, `test_environment` | benchmarks are reproducible; library pins and model loading |
+
+Two scripts need extra setup and are skipped by default: `python -m tests.run_all --with-plc` (needs a running PLC) and
+`--with-stress` (a load test).
+
+---
+
+## 11. Project structure
+
+```
+IndustrialMinds/
+├── plc/            PLC digital twin: plc.py (Modbus server, writer allow-list), twin.py (physics)
+├── scada/          the operator simulator (signs commands, auto-recovers the plant)
+├── middleware/     the product
+│   ├── middleware_server.py   Modbus transport and entry point
+│   ├── ingest.py              decision path: queue, pipeline, logging
+│   ├── forwarding.py          PLC write path: bounded queue, single worker
+│   ├── polling.py             PLC read path: telemetry, backoff
+│   ├── runtime.py             shared config and state
+│   ├── cyber_agent.py         the cyber rules
+│   ├── physical_agent.py      the physical rules
+│   ├── orchestrator.py        the four-branch fusion
+│   ├── trace.py               builds the Packet Tracer record
+│   ├── policy.py, quarantine.py, incidents.py   optional response layer
+│   └── investigator.py        optional LLM investigation (out of band)
+├── pipeline/       runs the cyber and physical branches concurrently
+├── models/         the physical ML model, explanations, shipped weights (models/weights/)
+├── swat/           SWaT loader and the feature code shared by training and live scoring
+├── core/           shared contracts: registers (interfaces.py), HMAC, network config, logs, forensics
+├── attacker/       attacks (attacker.py), randomised plans (scenarios.py), button panel (control_panel.py)
+├── dashboard/      Flask app, HTML, JavaScript, CSS
+├── launchers/      double-click start files per laptop, and the one-computer backup
+├── scripts/        run.sh / run.ps1: one command per role, reading config/lab.env
+├── config/         lab.env.example (template), example policy, fitted invariants
+├── benchmark/      benchmark, evidence and assurance harnesses
+├── benchmarks/     generated benchmark results (JSON)
+├── tools/          preflight check, wire correlation, invariant fitting, investigator CLI
+├── tests/          one test script per area
+├── research/       rejected experiments, kept as documented negative results
+├── docs/           documentation and generated reports (see section 16)
+└── final-results/  the adversarial audit and the evidence for each fix
+```
+
+---
+
+## 12. Configuration reference
+
+On one computer everything defaults to loopback and nothing needs setting. For several computers, put the addresses and secret in
+`config/lab.env` (section 5, step 4); the launchers translate it into the variables below. All defaults live in `core/netconfig.py`.
 
 | Variable | Meaning (default) |
 |---|---|
 | `IM_PLC_HOST` / `IM_PLC_PORT` | where the middleware and attacker reach the PLC (loopback:5020) |
-| `IM_PLC_LISTEN_HOST` / `IM_PLC_LISTEN_PORT` | PLC bind (0.0.0.0:5020) |
 | `IM_MIDDLEWARE_HOST` / `IM_MIDDLEWARE_PORT` | where SCADA and the attacker reach the middleware (loopback:5021) |
-| `IM_LISTEN_HOST` / `IM_LISTEN_PORT` | middleware bind (0.0.0.0:5021) |
-| `IM_DASHBOARD_HOST` / `IM_DASHBOARD_PORT` / `IM_DASHBOARD_URL` | where the middleware posts events (loopback:5050) |
-| `IM_DASHBOARD_BIND_HOST` | dashboard bind (loopback) |
-| `IM_TRUSTED_SOURCES` | cyber-agent whitelist, IPs and CIDRs (loopback only) |
-| `IM_HMAC_SECRET` / `IM_HMAC_SECRET_FILE` | shared secret, 32+ characters (else `config/hmac_secret.key`, auto-generated) |
-| `IM_HMAC_MAX_SKEW_SECONDS` | frame freshness window (30) |
-| `IM_LOG_DIR` | where `blocked_attacks.jsonl` is written (`logs`) |
-| `IM_LOG_LEVEL`, `IM_TELEMETRY_LOG_SECONDS` | middleware log verbosity; how often the telemetry line is logged (5) |
-| `IM_ENVELOPE_ALERTS`, `IM_ENVELOPE_ALERT_SECONDS` | sensor-envelope alerts on/off (on); minimum seconds between alerts per sensor (30) |
-| `IM_TWIN_NOISE`, `IM_TWIN_TIME_SCALE` | twin sensor noise (on; 0 = off); speed-up factor (1) |
-| `IM_CYBER_MODEL_ENFORCE` | only meaningful if a cyber model is ever promoted (none ships): let it DROP (off) |
+| `IM_TRUSTED_SOURCES` | the Cyber Agent's source whitelist, IPs and CIDRs (loopback) |
+| `IM_PLC_ALLOWED_WRITERS` | who the PLC accepts writes from (the middleware's address; `any` disables the check) |
+| `IM_HMAC_SECRET` | shared secret, 32+ characters (otherwise `config/hmac_secret.key`, auto-generated) |
+| `IM_HMAC_MAX_SKEW_SECONDS` | how old a signed command may be (30) |
+| `IM_DASHBOARD_BIND_HOST` / `IM_DASHBOARD_TOKEN` | dashboard bind address (loopback); a token is required before binding to a network address |
+| `IM_LOG_DIR` | where `blocked_attacks.jsonl` and the forensic record are written (`logs`) |
+| `IM_INVARIANTS` | turn on the physical-invariant rules (off) |
+| `IM_PHYSICAL_SENSITIVITY` / `IM_PHYSICAL_THRESHOLD` | model operating point: `balanced` (default) or `sensitive`, or a raw probability |
+| `IM_QUARANTINE` | auto-quarantine of repeatedly misbehaving sources (`auto` from the launcher) |
+| `IM_INVESTIGATOR` | turn on the LLM investigation layer (off; needs an API key) |
+| `IM_TWIN_NOISE`, `IM_TWIN_TIME_SCALE` | twin sensor noise (on), speed-up factor (1) |
 
-Entry points also accept flags that override the variables: `plc.plc --host --port`, `middleware.middleware_server --listen-host --listen-port --plc-host --plc-port --dashboard-url`,
-`dashboard/app.py --host --port`, `scada.scada --host --port`, `attacker/attacker.py --host --port --plc-host --plc-port`.
-
-**Repository map.** `plc/` PLC and twin · `middleware/` cyber agent, physical agent, orchestrator, trace, server · `pipeline/` concurrent branches · `models/` physical model, trainers, candidate promotion · `swat/` SWaT loader and the single feature
-implementation shared by training and live · `attacker/` attacks and randomised plans · `scada/` operator · `dashboard/` web UI · `docs/` shared code (`interfaces.py`, `hmac_auth.py`, `netconfig.py`, `attack_log.py`), the register map,
-topology and Wireshark guides, `reports/` (real-data training and benchmark reports, aggregate only) · `benchmark/` the benchmarks · `tools/` data inspection, preflight, wire correlation, twin gap · `tests/`.
-`CLAUDE.md` is the working index for AI-assisted development (hard boundaries enforced by hooks, decisions, file index).
+Every entry point also accepts command-line flags that override these (for example `python -m plc.plc --host --port`).
 
 ---
 
-## Known limitations
+## 13. Retraining the model (optional)
 
-Stated plainly. None of these is hidden elsewhere.
+The demo needs **no training**: the live model ships in `models/weights/physical_model_v2.joblib`. Retraining needs the licensed
+SWaT archive on the machine that runs it, and always writes a **candidate** to `models/candidates/`, never over the live weights:
 
-1. **Single-dataset dependence.** The only real data is SWaT (one testbed, a few days, 51 tags). Every learned result and every measured bound comes from it. Behaviour on another plant is unknown.
-2. **SWaT has no HMAC, replay or network data.** The cyber rules cannot be evaluated on real traffic: they are tested with constructed scenarios, and the benchmark says so. 100 % on those scenarios is a regression check, not a detection rate.
-3. **The cyber branch is rules-only.** The SWaT-trained cyber candidate was weak (test ROC-AUC 0.63, F1 0.14) and was dropped by decision; it could only see actuator state changes.
-4. **The physical model is moderate and advisory.** Held-out SWaT test block (see Benchmarks): ROC-AUC 0.84, it flags about half of the attack windows (precision 0.46, recall 0.51, F1 0.49), detects 8 of 10 attack segments (two never), and raises about 1.2 false-alarm
-   episodes per hour against the 0.5 it was tuned for out-of-fold (calendar drift: later days look different). Slow in-bounds attacks (`ramp`, `freeze`) are often below its threshold. It needs 120 s of telemetry before it speaks, and a noiseless plant looks abnormal to it (the twin's sensor noise is on by default). It is advisory by design.
-5. **The test block is not a pristine blind test.** A disclosed protocol revision after the first physical run means the test block informed the final protocol (run 1 vs run 2 reports).
-6. **Constructed disagreement cases in the fusion set.** The fusion experiment's DROP class was built from deterministic cyber rules paired with real SWaT windows (SWaT cannot supply cyber failures), so only its PASS-versus-ALERT part is real-data evidence. The learned fusion lost to the physical model alone and is **not used**.
-7. **Synthetic-extension attacks.** `flood`, `replay` and `impossible-command` (and every network-layer attack) are constructions: SWaT contains no such attacks. `freeze`, `ramp` and `cross-register` follow SWaT *behaviours*, but their
-   parameter ranges are design defaults unless `docs/swat_attack_profile.json` has been generated (only the ramp range is then calibrated). Stealthy in-bounds attacks (`ramp`, `freeze`) are mostly **not** stopped by the rules.
-8. **The twin is a demonstration plant, not SWaT.** MV503 is twin-only; physics is simplified; its false-alarm rate (about 0.25 per hour on the healthy twin in the benchmark) is a property of the twin, not of SWaT.
-9. **No encryption, no TLS.** Commands are authenticated and integrity-protected, not confidential. Telemetry and the dashboard are unauthenticated plain HTTP/Modbus. Intended for a private demo network.
-10. **A shared key means an insider can sign anything.** HMAC with one shared secret cannot separate SCADA from a compromised workstation holding the key; the other layers are the mitigation. The key is a file or an environment variable.
-11. **The wire format is value x 10** (0.1 resolution, max 6553.5), so pH and permeate flow are coarse.
-12. **The multi-laptop run is untested on real hardware.** Everything was rehearsed and the Wireshark filters and nonce correlation verified on one machine; firewall rules, interface names, Wi-Fi client isolation and the GUI menus were not tried.
-13. **Latency numbers are in-process decision latency** on the machine named in the report (plus one loopback Modbus round trip), not network latency across laptops.
-14. **Pickled model, pinned library.** The physical model loads only cleanly with scikit-learn 1.9.1 (enforced by a test); retraining must re-pin.
-15. **Single-source assumptions.** The rate limit and replay tracking are per source address; the whitelist is by IP. Address spoofing on a hostile network is out of scope.
+```bash
+python -m models.train_physical_v2 --data-dir "<SWaT archive>" --candidate   # the live model's trainer (30-90 minutes)
+python -m benchmark.run_all --data-dir "<SWaT archive>"                      # re-measure on the held-out test block
+```
 
-## Future work
+A candidate replaces the live model only after its report is reviewed (`models/package_physical_v2.py`). The data is never
+committed; everything in `docs/reports/` is aggregate statistics only. The cyber branch has **no learned model by design**: a
+SWaT-trained candidate measured ROC-AUC 0.63 and was not promoted, and a learned fusion model performed worse than the physical
+model alone. Both are kept in `research/` as documented negative results. Details: `docs/MODELS_RATIONALE.md`.
 
-* Run and document the four-laptop demo on real hardware; add Windows and macOS firewall automation.
-* A cyber-side learned model **only** if a real labelled Modbus or industrial-protocol dataset can be justified (this project uses SWaT only); until then rules-only is the honest position.
-* Drift-robust physical detection: retrain with later calendar blocks, online threshold recalibration, or a per-day normalisation; revisit the false-alarm budget.
-* Per-actuator or per-stage physical models and explanations (which sensor drove the flag), shown in the Packet Tracer.
-* Trace upstream (PLC to SCADA) decisions, and add a Packet Tracer view for the randomised attacker's runs.
-* Per-source keys (or asymmetric signatures) so a compromised workstation cannot impersonate SCADA; TLS or a VPN for confidentiality; authentication on the dashboard.
-* Export of a demo session (decisions, traces, capture) as one report.
+---
 
-## Troubleshooting
+## 14. Troubleshooting
 
-| Symptom | Likely cause and fix |
+| Symptom | Cause and fix |
 |---|---|
-| Every command is `DROP` `UNTRUSTED_SOURCE` | the sender's address is not in `IM_TRUSTED_SOURCES` on the middleware (multi-laptop); restart the middleware after changing it |
-| Every command is `DROP` `HMAC_INVALID` | different `IM_HMAC_SECRET` on SCADA and middleware (compare `check_topology` fingerprints), or one side has a stale `config/hmac_secret.key` |
-| Every command is `DROP` `HMAC_EXPIRED` | clocks differ by more than 30 s: enable automatic time |
-| `Failed to connect` / timeouts across laptops | firewall, wrong `IM_*_HOST`, or Wi-Fi client isolation (use a phone hotspot or a switch); run `check_topology` |
-| Physical model shows `WARMING_UP` | normal for the first ~2 minutes after start; it needs a full 120 s window |
-| `plant=ALERT` constantly on a healthy plant, `p_attack` high and flat | the PLC runs with `IM_TWIN_NOISE=0` (a perfectly flat plant is out-of-distribution for a model trained on noisy SWaT sensors): remove that variable |
-| `InconsistentVersionWarning` / model status `NO_MODEL` | scikit-learn is not the pinned version: `pip install scikit-learn==1.9.1` |
-| Wireshark shows no Modbus | the Modbus/TCP port preference is not set to 5021/5020 (do not use Decode As) |
-| Yellow `ALERT` rows keep appearing after an attack (e.g. Cross-Register) and do not stop | expected: the attack's first steps (such as closing the inlet valve MV101 from 55 % to about 15-20 %) were allowed and moved the plant off its normal state (the raw tank drains), so the advisory physical model keeps flagging every command. SCADA's own writes only nudge it back about 2 points per cycle (many minutes). **Fix: Ctrl-C the PLC window and run `python -m plc.plc` again** (the dashboard Reset does not reset the plant); ALERTs stop about 30-40 s later, when the model's window has refilled. |
-| Plant looks broken in the next run | an attack changed it; restart `python -m plc.plc` |
-| Dashboard empty although the middleware works | the dashboard URL (`IM_DASHBOARD_URL`) on the middleware laptop, or the dashboard is not running; the middleware never blocks on it |
-| `Address already in use` | a previous process is still running on 5020, 5021 or 5050 |
+| Middleware says `Host is down`, `No route to host` or `timed out` for the PLC | The laptops cannot reach each other. Check both are on the same network and the addresses in `lab.env` are current. If `ping <PLC address>` fails from Laptop 1, the Wi-Fi isolates clients: move all four laptops to a **phone hotspot** |
+| `Connection refused` to the PLC | The network works but the PLC is not running. Start it on Laptop 2 and keep its window open |
+| PLC reachable by `ping` but port 5020 times out | The firewall rule on Laptop 2 is missing or names an old Laptop 1 address. Re-create it (section 5, step 5) |
+| Attacker check: `can reach the middleware ... timed out` | The middleware is not running on Laptop 1, or Laptop 1's address changed |
+| Every command is `DROP` `UNTRUSTED_SOURCE` | The sender's address is not in `lab.env` on Laptop 1. Fix it and restart the middleware |
+| Every command is `DROP` `HMAC_INVALID` | The secret differs between laptops. Compare the fingerprints from `run.sh check` / `run.ps1 check` |
+| Every command is `DROP` `HMAC_EXPIRED` | A clock is more than 30 s off. Run `w32tm /resync` on Windows; turn on automatic time |
+| SCADA shows as **Attacker laptop** on the flow view | `SCADA_IP` and `ATTACKER_IP` are swapped in Laptop 1's `lab.env`. Fix, restart the middleware and dashboard, click Reset |
+| SCADA connects to `127.0.0.1` / "HMAC_SECRET is not set" | `config/lab.env` is missing on that laptop. Create it (section 5, step 4) |
+| `No .venv found` from a launcher | The project was extracted to a new folder. Extract over the old folder, or run section 3 in the new one |
+| `pip.exe ... blocked by an Application Control policy` | Use `python -m pip install -r requirements.txt` |
+| `Unable to copy ... venvlauncher.exe` when creating `.venv` | Use `python -m venv --copies .venv` |
+| `numpy ... compiled for cp312 ... incompatible with cpython-313` | The `.venv` mixes Python versions. Delete it and recreate it with `py -3.13 -m venv .venv` |
+| `test_environment` fails loading the model (`ImportError`) | Use Python 3.13 and scikit-learn 1.9.1 (`python -m pip install scikit-learn==1.9.1`) |
+| Physical model stays `WARMING_UP` | Normal for the first 2 minutes: it needs 120 s of telemetry |
+| Constant `ALERT` on a healthy plant | The PLC runs with `IM_TWIN_NOISE=0`; a perfectly flat plant looks abnormal to the model. Remove the variable |
+| Wireshark shows no Modbus | Set the Modbus/TCP port preference to 5020/5021 (do not use *Decode As*) |
+| Chrome will not open the attack panel | Use the default port 5070; browsers block 5060 and 5061 |
+| `Address already in use` | A previous copy is still running on 5020, 5021, 5050 or 5070. Close it |
+
+---
+
+## 15. Known limitations
+
+Stated plainly; none of these is hidden elsewhere.
+
+1. **One real dataset.** Every learned result and measured bound comes from SWaT (one testbed, a few days). Behaviour on another
+   plant is unknown.
+2. **SWaT has no network traffic.** The cyber rules cannot be evaluated on real attacks; they are tested with constructed
+   scenarios, and 100 % there is a correctness check, not a detection rate.
+3. **The physical model is moderate and advisory.** On held-out SWaT it ranks attacks well (ROC-AUC 0.84) but flags about half of
+   the attack windows (F1 0.49) and raises about 1.2 false-alarm episodes per hour. Slow, in-range attacks often stay below its
+   threshold. It never blocks.
+4. **The test block is not pristine.** A disclosed protocol revision after the first training run means the test block informed the
+   final protocol (both runs are in `docs/reports/`).
+5. **The twin is a demonstration plant,** not a SWaT replica. MV503 has no SWaT counterpart; the physics is simplified.
+6. **A shared secret lets an insider sign anything.** That is why the rate limit, replay check and Physical Agent sit behind the
+   signature. Per-device keys are built and tested (`IM_HMAC_KEYS`) but off by default.
+7. **No encryption.** Commands are authenticated and integrity-protected, not confidential. Intended for a private demo network.
+8. **Network requirements.** The four-laptop demo has been run on real hardware (2 Macs, 2 Windows laptops); it needs a network
+   without client isolation.
+9. **Coarse wire format.** Values are sent as value x 10 (0.1 resolution), so pH and permeate flow are coarse.
+10. **Pinned library.** The shipped model loads cleanly only with scikit-learn 1.9.1 (enforced by a test).
+
+---
+
+## 16. Further documentation
+
+| Document | Contents |
+|---|---|
+| `docs/PROJECT_DETAILS.md` | the complete technical description of every component, algorithm, parameter and result |
+| `docs/MODELS_RATIONALE.md` | why the learned components are shaped as they are, and what was rejected |
+| `docs/MODEL_CARD.md` | the live physical model's card: operating point, measured cost, limits |
+| `docs/INVARIANTS.md` | the physical-invariant rules: how they are learned and validated |
+| `docs/demo_workflow.md` | roles, start order, aftermath of an attack and recovery |
+| `docs/topology.md` | the multi-laptop layout, firewall rules and preflight in depth |
+| `docs/wireshark_setup.md` | capture filters, field names, the side-by-side demo |
+| `docs/register_map.md` | the full register table and wire format |
+| `docs/reports/` | training, benchmark, assurance and verification reports (aggregate only) |
+| `final-results/AUDIT.md` | the adversarial audit and the evidence for each fix |
+| `GETTING_STARTED.md` | advanced setup: tuning the model, hardening options, training model v3 |
+| `launchers/START_HERE.txt` | the double-click launchers on one page |
+| `CHECKLIST_VERIFICATION.txt` | every verified claim and what is still unmeasured, generated by `python -m tools.verification_record` |

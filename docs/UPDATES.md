@@ -6,7 +6,22 @@ afternoon through 15 Oct**. Grouped by theme; the most significant work is
 first. Commit hashes are in brackets so each item is traceable
 (`git show <hash>`).
 
-Branch: `claude/serene-feynman-or6ieo`.
+Branch: `claude/serene-feynman-or6ieo`, merged into `main`.
+
+---
+
+## Repository cleanup and README rewrite (9 Nov)
+
+- **README rewritten** as a complete, step-by-step guide: what the project is, how a command is decided, install, a
+  one-computer run, the four-laptop demo in eleven steps (hotspot and client isolation, `config/lab.env`, firewall, preflight,
+  launchers, attacks, proof, reset), every attack with its expected result, a dashboard tour, results and how they were
+  measured, tests, project structure, configuration, troubleshooting from the real four-laptop runs, and limitations.
+- **GETTING_STARTED.md** is now the advanced-setup page only (model tuning, hardening, the v3 appendix), so the setup steps
+  live in one place.
+- **Removed** (user-approved): the unused dashboard scripts `ui.js`, `model_card.js`, `incidents.js`, and the stale
+  `docs/PROJECT_DETAILS.docx`. `MODELS_RATIONALE.md` moved to `docs/`.
+- Commit hashes cited further down this log predate a history rewrite that re-attributed the branch's commits to the
+  repository owner; they no longer resolve.
 
 ---
 
